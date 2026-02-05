@@ -1,0 +1,920 @@
+# Assistant Runtime SDK - Asynchronous Client
+# Copyright (C) 2025 Paul Clinton
+# AGPL-3.0 License
+
+"""
+Asynchronous FACL client using aiohttp.
+
+Requires the 'async' extra: pip install facl[async]
+"""
+
+import json
+from typing import AsyncGenerator, Optional, Dict, Any
+
+try:
+    import aiohttp
+except ImportError:
+    aiohttp = None  # type: ignore
+
+from .base import BaseAssistantRuntimeClient
+from .exceptions import (
+    ARAPIError,
+    ARTimeoutError,
+    ARConnectionError,
+    ARConfigurationError,
+)
+
+
+class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
+    """
+    Asynchronous FACL client using aiohttp.
+
+    Use as an async context manager for proper resource management.
+
+    Example:
+        >>> async with AsyncAssistantRuntimeClient("tenant-id", "secret") as client:
+        ...     models = await client.list_available_models()
+        ...     async for event in client.stream_chat("session-1", "Hello", "user@example.com"):
+        ...         print(event)
+    """
+
+    def __init__(
+        self,
+        tenant_id: str,
+        tenant_secret: str,
+        ar_url: str = BaseAssistantRuntimeClient.DEFAULT_FACL_URL,
+        logger=None,
+        timeout: float = BaseAssistantRuntimeClient.DEFAULT_TIMEOUT,
+        session: Optional["aiohttp.ClientSession"] = None,
+    ):
+        """
+        Initialize async FACL client.
+
+        Args:
+            tenant_id: Unique tenant identifier from Assistant Runtime
+            tenant_secret: HMAC secret for request signing
+            ar_url: Base URL of Assistant Runtime server
+            logger: Optional logger instance
+            timeout: Default request timeout in seconds
+            session: Optional aiohttp.ClientSession to reuse
+        """
+        if aiohttp is None:
+            raise ImportError(
+                "aiohttp is required for AsyncAssistantRuntimeClient. "
+                "Install it with: pip install facl[async]"
+            )
+
+        super().__init__(tenant_id, tenant_secret, ar_url, logger, timeout)
+        self._session = session
+        self._owns_session = session is None
+
+    async def __aenter__(self) -> "AsyncAssistantRuntimeClient":
+        """Enter async context - create session if needed."""
+        if self._owns_session:
+            timeout = aiohttp.ClientTimeout(total=self.timeout)
+            self._session = aiohttp.ClientSession(timeout=timeout)
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+        """Exit async context - close session if we own it."""
+        if self._owns_session and self._session:
+            await self._session.close()
+            self._session = None
+
+    def _ensure_session(self) -> "aiohttp.ClientSession":
+        """Ensure we have an active session."""
+        if self._session is None:
+            raise ARConfigurationError(
+                "No active session. Use AsyncAssistantRuntimeClient as a context manager: "
+                "async with AsyncAssistantRuntimeClient(...) as client:"
+            )
+        return self._session
+
+    # =========================================================================
+    # Internal Request Methods
+    # =========================================================================
+
+    async def _request_get(
+        self,
+        endpoint: str,
+        params: Dict[str, Any],
+        timeout: Optional[float] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Make authenticated async GET request."""
+        session = self._ensure_session()
+        url = self._build_endpoint_url(endpoint)
+        headers = self._get_headers(params, for_query_string=True)
+
+        try:
+            timeout_obj = aiohttp.ClientTimeout(total=timeout or self.timeout)
+            async with session.get(url, params=params, headers=headers, timeout=timeout_obj) as response:
+                response.raise_for_status()
+                data = await response.json()
+                return data.get("message", data)
+        except aiohttp.ServerTimeoutError as e:
+            self._log_error(f"GET {endpoint} timeout: {e}")
+            raise ARTimeoutError(f"Request to {endpoint} timed out") from e
+        except aiohttp.ClientConnectorError as e:
+            self._log_error(f"GET {endpoint} connection error: {e}")
+            raise ARConnectionError(f"Failed to connect to {endpoint}") from e
+        except aiohttp.ClientResponseError as e:
+            self._log_error(f"GET {endpoint} HTTP error: {e}")
+            raise ARAPIError(str(e), status_code=e.status) from e
+        except aiohttp.ClientError as e:
+            self._log_error(f"GET {endpoint} error: {e}")
+            raise ARAPIError(str(e)) from e
+
+    async def _request_post_json(
+        self,
+        endpoint: str,
+        payload: Dict[str, Any],
+        timeout: Optional[float] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Make authenticated async POST request with JSON body."""
+        session = self._ensure_session()
+        url = self._build_endpoint_url(endpoint)
+        headers = {
+            **self._get_headers(payload, for_query_string=False),
+            "Content-Type": "application/json",
+        }
+
+        try:
+            timeout_obj = aiohttp.ClientTimeout(total=timeout or self.timeout)
+            async with session.post(url, json=payload, headers=headers, timeout=timeout_obj) as response:
+                response.raise_for_status()
+                data = await response.json()
+                return data.get("message", data)
+        except aiohttp.ServerTimeoutError as e:
+            self._log_error(f"POST {endpoint} timeout: {e}")
+            raise ARTimeoutError(f"Request to {endpoint} timed out") from e
+        except aiohttp.ClientConnectorError as e:
+            self._log_error(f"POST {endpoint} connection error: {e}")
+            raise ARConnectionError(f"Failed to connect to {endpoint}") from e
+        except aiohttp.ClientResponseError as e:
+            self._log_error(f"POST {endpoint} HTTP error: {e}")
+            raise ARAPIError(str(e), status_code=e.status) from e
+        except aiohttp.ClientError as e:
+            self._log_error(f"POST {endpoint} error: {e}")
+            raise ARAPIError(str(e)) from e
+
+    async def _request_post_form(
+        self,
+        endpoint: str,
+        params: Dict[str, Any],
+        timeout: Optional[float] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Make authenticated async POST request with form-urlencoded body."""
+        session = self._ensure_session()
+        url = self._build_endpoint_url(endpoint)
+        headers = {
+            **self._get_headers(params, for_query_string=True),
+            "Content-Type": "application/x-www-form-urlencoded",
+        }
+
+        try:
+            timeout_obj = aiohttp.ClientTimeout(total=timeout or self.timeout)
+            async with session.post(url, data=params, headers=headers, timeout=timeout_obj) as response:
+                response.raise_for_status()
+                data = await response.json()
+                return data.get("message", data)
+        except aiohttp.ServerTimeoutError as e:
+            self._log_error(f"POST form {endpoint} timeout: {e}")
+            raise ARTimeoutError(f"Request to {endpoint} timed out") from e
+        except aiohttp.ClientConnectorError as e:
+            self._log_error(f"POST form {endpoint} connection error: {e}")
+            raise ARConnectionError(f"Failed to connect to {endpoint}") from e
+        except aiohttp.ClientResponseError as e:
+            self._log_error(f"POST form {endpoint} HTTP error: {e}")
+            raise ARAPIError(str(e), status_code=e.status) from e
+        except aiohttp.ClientError as e:
+            self._log_error(f"POST form {endpoint} error: {e}")
+            raise ARAPIError(str(e)) from e
+
+    async def _request_delete(
+        self,
+        endpoint: str,
+        params: Dict[str, Any],
+        timeout: Optional[float] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Make authenticated async DELETE request."""
+        session = self._ensure_session()
+        url = self._build_endpoint_url(endpoint)
+        headers = self._get_headers(params, for_query_string=True)
+
+        try:
+            timeout_obj = aiohttp.ClientTimeout(total=timeout or self.timeout)
+            async with session.delete(url, params=params, headers=headers, timeout=timeout_obj) as response:
+                response.raise_for_status()
+                data = await response.json()
+                return data.get("message", data)
+        except aiohttp.ServerTimeoutError as e:
+            self._log_error(f"DELETE {endpoint} timeout: {e}")
+            raise ARTimeoutError(f"Request to {endpoint} timed out") from e
+        except aiohttp.ClientConnectorError as e:
+            self._log_error(f"DELETE {endpoint} connection error: {e}")
+            raise ARConnectionError(f"Failed to connect to {endpoint}") from e
+        except aiohttp.ClientResponseError as e:
+            self._log_error(f"DELETE {endpoint} HTTP error: {e}")
+            raise ARAPIError(str(e), status_code=e.status) from e
+        except aiohttp.ClientError as e:
+            self._log_error(f"DELETE {endpoint} error: {e}")
+            raise ARAPIError(str(e)) from e
+
+    # =========================================================================
+    # Streaming API
+    # =========================================================================
+
+    async def stream_chat(
+        self,
+        session_id: str,
+        message: str,
+        user_id: str,
+        context: Optional[Dict[str, Any]] = None,
+        model_id: Optional[str] = None,
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        """
+        Stream chat response from Assistant Runtime asynchronously.
+
+        Args:
+            session_id: Conversation session identifier
+            message: User's message to send
+            user_id: User identifier (required)
+            context: Optional page context
+            model_id: Optional model ID (use "auto" for auto-selection)
+
+        Yields:
+            Parsed SSE events
+
+        Example:
+            >>> async for event in client.stream_chat("session-1", "Hello", "user@example.com"):
+            ...     if event["event"] == "stream_chunk":
+            ...         print(event["data"].get("content", ""), end="")
+        """
+        session = self._ensure_session()
+        payload = self._prepare_stream_payload(session_id, message, user_id, context, model_id)
+        url = self._build_endpoint_url("streaming.stream_chat")
+        headers = self._get_stream_headers(payload, for_json_body=True)
+
+        try:
+            timeout = aiohttp.ClientTimeout(
+                connect=self.STREAM_CONNECT_TIMEOUT,
+                total=self.STREAM_READ_TIMEOUT,
+            )
+            async with session.post(url, json=payload, headers=headers, timeout=timeout) as response:
+                response.raise_for_status()
+
+                current_event = None
+
+                async for line in response.content:
+                    if not line:
+                        continue
+
+                    # Decode bytes to string
+                    line_str = line.decode("utf-8").strip()
+                    if not line_str:
+                        continue
+
+                    parsed = self._parse_sse_line(line_str)
+                    if not parsed:
+                        continue
+
+                    if parsed["type"] == "event_name":
+                        current_event = parsed["value"]
+                    elif parsed["type"] == "data":
+                        yield {"event": current_event or "unknown", "data": parsed["value"]}
+                        current_event = None
+
+        except aiohttp.ServerTimeoutError:
+            yield {
+                "event": "stream_error",
+                "data": {"error": "Connection timeout", "error_code": "TIMEOUT"},
+            }
+        except aiohttp.ClientError as e:
+            yield {
+                "event": "stream_error",
+                "data": {"error": str(e), "error_code": "REQUEST_ERROR"},
+            }
+
+    # =========================================================================
+    # Tenant APIs
+    # =========================================================================
+
+    async def get_tenant_info(self) -> Optional[Dict[str, Any]]:
+        """Get tenant information including subscription status."""
+        return await self._request_get("get_tenant_info", {"tenant_id": self.tenant_id})
+
+    async def accept_terms(self, terms_version: str, accepted_by: str) -> Dict[str, Any]:
+        """Accept or re-accept Terms and Conditions for this tenant."""
+        payload = {
+            "tenant_id": self.tenant_id,
+            "terms_version": terms_version,
+            "accepted_by": accepted_by,
+        }
+        return await self._request_post_json("accept_terms", payload)
+
+    # =========================================================================
+    # Model APIs
+    # =========================================================================
+
+    async def list_available_models(self) -> Optional[Dict[str, Any]]:
+        """List available AI models for this tenant's subscription tier."""
+        return await self._request_get("streaming.list_available_models", {"tenant_id": self.tenant_id})
+
+    async def get_available_models(self) -> Optional[Dict[str, Any]]:
+        """Get available AI models (deprecated). Use list_available_models() instead."""
+        return await self._request_get("get_available_models", {"tenant_id": self.tenant_id})
+
+    async def set_preferred_model(self, model_id: str) -> bool:
+        """Set the preferred AI model for this tenant."""
+        payload = {"tenant_id": self.tenant_id, "model_id": model_id}
+        result = await self._request_post_json("set_preferred_model", payload)
+        return result.get("success", False) if result else False
+
+    # =========================================================================
+    # Prompt APIs
+    # =========================================================================
+
+    async def list_prompts(self, user_id: str, cursor: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        """List available prompt templates from user's configured MCP servers."""
+        params = {"tenant_id": self.tenant_id, "user_id": user_id}
+        if cursor:
+            params["cursor"] = cursor
+        return await self._request_get("prompts.list_prompts", params)
+
+    async def get_prompt(
+        self,
+        prompt_name: str,
+        user_id: str,
+        arguments: Optional[Dict[str, Any]] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Get a specific prompt rendered with provided arguments."""
+        payload = {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+            "prompt_name": prompt_name,
+        }
+        if arguments:
+            payload["arguments"] = arguments
+        return await self._request_post_json("prompts.get_prompt", payload)
+
+    # =========================================================================
+    # Resource APIs (Skills/Documentation)
+    # =========================================================================
+
+    async def list_resources(
+        self,
+        user_id: str,
+        server: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        List available resources (skills/documentation) from user's MCP servers.
+
+        Resources are typically tool documentation that can be fetched on-demand
+        to reduce LLM context usage. When the MCP server has resources enabled,
+        tools have minimal descriptions and detailed docs are served as resources.
+
+        Args:
+            user_id: User identifier (required)
+            server: Optional - filter to specific MCP server
+
+        Returns:
+            Dict with resources list, servers_queried, and any errors
+
+        Example:
+            >>> resources = await client.list_resources("user@example.com")
+            >>> for r in resources.get("resources", []):
+            ...     print(f"{r['name']}: {r['uri']}")
+        """
+        params = self._prepare_resource_params(user_id, server=server)
+        return await self._request_get("resources.list_resources", params)
+
+    async def read_resource(
+        self,
+        user_id: str,
+        uri: str,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Read a specific resource's content from user's MCP server.
+
+        Fetches detailed documentation for a tool or other resource.
+
+        Args:
+            user_id: User identifier (required)
+            uri: Resource URI to read (e.g., "fac://tools/create_document")
+
+        Returns:
+            Dict with resource content:
+            {
+                "uri": "fac://tools/create_document",
+                "content": "# create_document\\n\\n## Description\\n...",
+                "mimeType": "text/markdown",
+                "server": "server_name"
+            }
+
+        Example:
+            >>> result = await client.read_resource("user@example.com", "fac://tools/create_document")
+            >>> print(result.get("content"))
+        """
+        params = self._prepare_resource_params(user_id, uri=uri)
+        return await self._request_post_json("resources.read_resource", params)
+
+    # =========================================================================
+    # Billing & Subscription APIs
+    # =========================================================================
+
+    async def get_usage_dashboard(self) -> Optional[Dict[str, Any]]:
+        """Get comprehensive usage and billing data for dashboard."""
+        return await self._request_post_json("get_usage_dashboard", {"tenant_id": self.tenant_id})
+
+    async def get_usage_history(self, days: int = 30) -> Optional[Dict[str, Any]]:
+        """Get historical usage data for charts."""
+        payload = {"tenant_id": self.tenant_id, "days": days}
+        return await self._request_post_json("get_usage_history", payload)
+
+    async def get_available_gateways(self) -> Optional[Dict[str, Any]]:
+        """
+        Get all enabled payment gateways with pricing for each plan.
+
+        Returns:
+            Dict with gateways list, recommended_gateway, and tenant_country.
+            Each gateway includes name, display_name, currency, description,
+            is_recommended flag, and plans pricing dict.
+        """
+        return await self._request_get("get_available_gateways", {"tenant_id": self.tenant_id})
+
+    async def initiate_checkout(
+        self,
+        plan: str,
+        billing_cycle: str = "monthly",
+        gateway: Optional[str] = None,
+        billing_name: Optional[str] = None,
+        billing_email: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Create a checkout session for subscription upgrade.
+
+        Args:
+            plan: Plan name (Starter, Pro, Enterprise)
+            billing_cycle: "monthly" or "annual" (default: monthly)
+            gateway: "stripe" or "razorpay" (optional - user's choice).
+                     If not provided, auto-selects based on geography/saved preference.
+            billing_name: Customer/company name for billing (required for first checkout)
+            billing_email: Email for billing notifications (required for first checkout)
+
+        Returns:
+            Dict with checkout_url, session_id, and gateway used.
+        """
+        payload = {
+            "tenant_id": self.tenant_id,
+            "plan": plan,
+            "billing_cycle": billing_cycle,
+        }
+        if gateway:
+            payload["gateway"] = gateway
+        if billing_name:
+            payload["billing_name"] = billing_name
+        if billing_email:
+            payload["billing_email"] = billing_email
+        return await self._request_post_json("initiate_checkout", payload)
+
+    async def verify_checkout(self, session_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        """Verify payment completion after checkout."""
+        payload = {"tenant_id": self.tenant_id}
+        if session_id:
+            payload["session_id"] = session_id
+        return await self._request_post_json("verify_checkout", payload)
+
+    async def upgrade_plan(
+        self,
+        new_plan: str,
+        billing_cycle: str = "monthly",
+        gateway: Optional[str] = None,
+        billing_name: Optional[str] = None,
+        billing_email: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Change subscription plan (upgrade or downgrade).
+
+        The API automatically detects whether this is an upgrade or downgrade
+        based on plan hierarchy: Free < Starter < Pro < Enterprise
+
+        **Upgrades** (e.g., Starter → Pro):
+            - Applied immediately with proration
+            - New quota available instantly
+
+        **Downgrades** (e.g., Pro → Starter):
+            - Scheduled for end of billing period
+            - User keeps current plan benefits until effective_date
+            - Response includes `effective_date` field
+
+        **Downgrade to Free**:
+            - Cancels subscription at period end
+            - Switches to Free tier when period ends
+
+        Args:
+            new_plan: Plan name ("Free", "Starter", "Pro", "Enterprise")
+            billing_cycle: "monthly" or "annual" (default: monthly)
+            gateway: "stripe" or "razorpay" (optional - user's choice).
+                     If not provided, uses saved gateway or auto-selects.
+            billing_name: Customer/company name for billing (required for first payment)
+            billing_email: Email for billing notifications (required for first payment)
+
+        Returns:
+            For upgrades:
+                {"success": True, "message": "Subscription upgraded to Pro", "subscription_id": "..."}
+
+            For downgrades:
+                {"success": True, "message": "Your plan will change to Starter on 2025-02-28...",
+                 "effective_date": "2025-02-28"}
+
+            If checkout required (new subscription):
+                {"checkout_url": "https://...", "session_id": "...", "gateway": "stripe"}
+
+        Example:
+            >>> # Upgrade (immediate)
+            >>> result = await client.upgrade_plan("Pro")
+            >>> print(result["message"])
+
+            >>> # Downgrade (scheduled)
+            >>> result = await client.upgrade_plan("Starter")
+            >>> if result.get("effective_date"):
+            ...     print(f"Change scheduled for {result['effective_date']}")
+        """
+        payload = {
+            "tenant_id": self.tenant_id,
+            "new_plan": new_plan,
+            "billing_cycle": billing_cycle,
+        }
+        if gateway:
+            payload["gateway"] = gateway
+        if billing_name:
+            payload["billing_name"] = billing_name
+        if billing_email:
+            payload["billing_email"] = billing_email
+        return await self._request_post_json("upgrade_plan", payload)
+
+    async def downgrade_to_free(self) -> Optional[Dict[str, Any]]:
+        """
+        Schedule downgrade to the Free plan at end of billing period.
+
+        This cancels the active subscription at the end of the current billing
+        period and switches to the Free tier. User retains current plan benefits
+        until the effective date.
+
+        Returns:
+            Dict with success status and effective date:
+            {
+                "success": True,
+                "message": "Your plan will change to Free on 2025-02-28...",
+                "effective_date": "2025-02-28"
+            }
+
+        Example:
+            >>> result = await client.downgrade_to_free()
+            >>> if result["success"]:
+            ...     print(f"Downgrade scheduled for {result['effective_date']}")
+        """
+        return await self._request_post_json("downgrade_to_free", {"tenant_id": self.tenant_id})
+
+    async def cancel_scheduled_change(self) -> Optional[Dict[str, Any]]:
+        """
+        Cancel a pending downgrade that was scheduled for end of billing period.
+
+        Use this to undo a scheduled downgrade before it takes effect.
+        Also clears any scheduled plan changes when reactivating.
+
+        Returns:
+            Dict with success status:
+            {
+                "success": True,
+                "message": "Scheduled plan change cancelled. You will remain on Pro plan."
+            }
+
+            Or if no scheduled change:
+            {
+                "success": False,
+                "message": "No scheduled plan change to cancel"
+            }
+
+        Example:
+            >>> # Check if there's a scheduled change first
+            >>> info = await client.get_tenant_info()
+            >>> if info["subscription"].get("scheduled_plan_change"):
+            ...     result = await client.cancel_scheduled_change()
+            ...     print(result["message"])
+        """
+        return await self._request_post_json("cancel_scheduled_change", {"tenant_id": self.tenant_id})
+
+    async def get_subscription_status(self) -> Optional[Dict[str, Any]]:
+        """
+        Get current subscription status including any scheduled changes.
+
+        Returns detailed subscription info including:
+        - Current plan and status
+        - Token quota and usage
+        - Billing cycle dates
+        - Scheduled plan changes (if any downgrade is pending)
+
+        Returns:
+            Dict with subscription status:
+            {
+                "success": True,
+                "subscription": {
+                    "plan": "Pro",
+                    "status": "Active",
+                    "payment_status": "active",
+                    "quota": 2000000,
+                    "used": 500000,
+                    "remaining": 1500000,
+                    "billing_cycle_start": "2025-02-01",
+                    "billing_cycle_end": "2025-02-28",
+                    "cancel_at_period_end": False,
+                    "payment_gateway": "stripe",
+                    "scheduled_change": {
+                        "new_plan": "Starter",
+                        "effective_date": "2025-02-28"
+                    } or None
+                }
+            }
+
+        Example:
+            >>> status = await client.get_subscription_status()
+            >>> if status["subscription"]["scheduled_change"]:
+            ...     print(f"Downgrade scheduled for {status['subscription']['scheduled_change']['effective_date']}")
+        """
+        return await self._request_get("get_subscription_status", {"tenant_id": self.tenant_id})
+
+    async def get_billing_history(self, limit: int = 20) -> Optional[Dict[str, Any]]:
+        """
+        Get payment/billing history for this tenant.
+
+        Returns a list of payment events (charges, failures, subscription changes)
+        and optionally a portal URL for downloading invoices (Stripe only).
+
+        Args:
+            limit: Maximum number of records to return (default: 20)
+
+        Returns:
+            Dict with billing history:
+            {
+                "success": True,
+                "history": [
+                    {
+                        "date": "2025-02-01",
+                        "datetime": "2025-02-01 10:30:00",
+                        "event": "Payment Successful",
+                        "event_type": "invoice.payment_succeeded",
+                        "amount": 19.00,
+                        "currency": "USD",
+                        "status": "success",
+                        "gateway": "stripe"
+                    },
+                    ...
+                ],
+                "portal_url": "https://billing.stripe.com/session/xxx"  # Stripe only
+            }
+
+        Example:
+            >>> history = await client.get_billing_history(limit=10)
+            >>> for item in history["history"]:
+            ...     print(f"{item['date']}: {item['event']} - ${item['amount']}")
+        """
+        return await self._request_get("get_billing_history", {"tenant_id": self.tenant_id, "limit": limit})
+
+    # =========================================================================
+    # Conversation APIs
+    # =========================================================================
+
+    async def list_conversations(
+        self,
+        user_id: Optional[str] = None,
+        limit: int = 50,
+        offset: int = 0,
+        include_deleted: bool = False,
+    ) -> Optional[Dict[str, Any]]:
+        """List conversations for tenant."""
+        params = {
+            "tenant_id": self.tenant_id,
+            "limit": limit,
+            "offset": offset,
+            "include_deleted": include_deleted,
+        }
+        if user_id:
+            params["user_id"] = user_id
+        return await self._request_get("conversations.list_conversations", params)
+
+    async def get_conversation(self, conversation_id: str) -> Optional[Dict[str, Any]]:
+        """Get detailed information about a specific conversation."""
+        params = {"tenant_id": self.tenant_id, "conversation_id": conversation_id}
+        return await self._request_get("conversations.get_conversation", params)
+
+    async def get_messages(
+        self,
+        conversation_id: str,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> Optional[Dict[str, Any]]:
+        """Get messages for a specific conversation."""
+        params = {
+            "tenant_id": self.tenant_id,
+            "conversation_id": conversation_id,
+            "limit": limit,
+            "offset": offset,
+        }
+        return await self._request_get("conversations.get_messages", params)
+
+    # =========================================================================
+    # User & MCP Server APIs
+    # =========================================================================
+
+    async def register_user(
+        self,
+        user_id: str,
+        display_name: Optional[str] = None,
+        custom_instructions: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Register a user with Assistant Runtime."""
+        params = {"tenant_id": self.tenant_id, "user_id": user_id}
+        if display_name:
+            params["display_name"] = display_name
+        if custom_instructions:
+            params["custom_instructions"] = custom_instructions
+        return await self._request_post_form("users.register_user", params)
+
+    async def get_user(self, user_id: str) -> Optional[Dict[str, Any]]:
+        """Get user details including MCP server count."""
+        params = {"tenant_id": self.tenant_id, "user_id": user_id}
+        return await self._request_get("users.get_user", params)
+
+    async def get_user_auth_status(self, user_id: str) -> Dict[str, Any]:
+        """Check user authentication status and MCP server readiness."""
+        params = {"tenant_id": self.tenant_id, "user_id": user_id}
+        try:
+            return await self._request_get("users.get_user_auth_status", params)
+        except Exception as e:
+            return {
+                "user_exists": False,
+                "ready_for_streaming": False,
+                "error": str(e),
+            }
+
+    async def add_user_mcp_server(
+        self,
+        user_id: str,
+        server_name: str,
+        endpoint_url: str,
+        transport_type: str = "SSE",
+        auth_type: str = "OAuth",
+        access_token: Optional[str] = None,
+        refresh_token: Optional[str] = None,
+        token_expires_in: int = 3600,
+    ) -> Dict[str, Any]:
+        """Add or update an MCP server for a user."""
+        params = {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+            "server_name": server_name,
+            "endpoint_url": endpoint_url,
+            "transport_type": transport_type,
+            "auth_type": auth_type,
+        }
+        if access_token:
+            params["access_token"] = access_token
+        if refresh_token:
+            params["refresh_token"] = refresh_token
+        if token_expires_in:
+            params["token_expires_in"] = str(token_expires_in)
+        return await self._request_post_form("users.add_user_mcp_server", params)
+
+    async def get_user_mcp_servers(self, user_id: str) -> Dict[str, Any]:
+        """Get all MCP servers configured for a user."""
+        params = {"tenant_id": self.tenant_id, "user_id": user_id}
+        try:
+            return await self._request_get("users.get_user_mcp_servers", params)
+        except Exception as e:
+            return {"user_id": user_id, "mcp_servers": [], "error": str(e)}
+
+    async def remove_user_mcp_server(self, user_id: str, server_name: str) -> Dict[str, Any]:
+        """Remove an MCP server from a user."""
+        params = {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+            "server_name": server_name,
+        }
+        return await self._request_delete("users.remove_user_mcp_server", params)
+
+    async def list_users(
+        self,
+        status: Optional[str] = None,
+        limit: int = 50,
+        offset: int = 0,
+        include_mcp_count: bool = True,
+    ) -> Dict[str, Any]:
+        """
+        List all users for this tenant with pagination and filtering.
+
+        Args:
+            status: Filter by status (Active, Suspended, Revoked) - optional
+            limit: Max results per page (default 50, max 100)
+            offset: Pagination offset
+            include_mcp_count: Include MCP server count per user (default True)
+
+        Returns:
+            Dict with users list and pagination info
+        """
+        params = {
+            "tenant_id": self.tenant_id,
+            "limit": str(limit),
+            "offset": str(offset),
+            "include_mcp_count": str(include_mcp_count).lower(),
+        }
+        if status:
+            params["status"] = status
+        return await self._request_get("users.list_users", params)
+
+    async def update_user(
+        self,
+        user_id: str,
+        display_name: Optional[str] = None,
+        custom_instructions: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Update user display name and/or custom instructions.
+
+        Args:
+            user_id: User identifier
+            display_name: New display name (optional)
+            custom_instructions: New custom instructions (optional)
+
+        Returns:
+            Dict with success status and message
+        """
+        params = {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+        }
+        if display_name is not None:
+            params["display_name"] = display_name
+        if custom_instructions is not None:
+            params["custom_instructions"] = custom_instructions
+        return await self._request_post_form("users.update_user", params)
+
+    async def deregister_user(self, user_id: str) -> Dict[str, Any]:
+        """
+        Permanently delete a user and all their MCP servers.
+
+        This action is irreversible. Conversations are retained for audit.
+
+        Args:
+            user_id: User identifier
+
+        Returns:
+            Dict with success status and deleted MCP server count
+        """
+        params = {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+        }
+        return await self._request_post_form("users.deregister_user", params)
+
+    async def get_user_limit_status(self) -> Dict[str, Any]:
+        """
+        Get user count and limit for this tenant.
+
+        Returns:
+            Dict with plan, max_users, active_users, remaining, is_unlimited
+        """
+        params = {"tenant_id": self.tenant_id}
+        return await self._request_get("users.get_user_limit_status", params)
+
+    async def suspend_user(self, user_id: str) -> Dict[str, Any]:
+        """
+        Suspend a user (disable their access).
+
+        Args:
+            user_id: User identifier
+
+        Returns:
+            Dict with success status and message
+        """
+        params = {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+        }
+        return await self._request_post_form("users.suspend_user", params)
+
+    async def revoke_user(self, user_id: str) -> Dict[str, Any]:
+        """
+        Revoke a user (permanently disable, also disables their MCP servers).
+
+        Args:
+            user_id: User identifier
+
+        Returns:
+            Dict with success status and message
+        """
+        params = {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+        }
+        return await self._request_post_form("users.revoke_user", params)
