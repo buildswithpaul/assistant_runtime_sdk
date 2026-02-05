@@ -10,7 +10,7 @@ Both AssistantRuntimeClient (sync) and AsyncAssistantRuntimeClient (async) inher
 
 import json
 import logging
-from typing import Dict, Any, Optional, Protocol, runtime_checkable
+from typing import Dict, Any, List, Optional, Protocol, runtime_checkable
 
 from .auth import generate_signature
 from .streaming import parse_sse_line
@@ -213,6 +213,7 @@ class BaseAssistantRuntimeClient:
         user_id: str,
         context: Optional[Dict[str, Any]] = None,
         model_id: Optional[str] = None,
+        attachments: Optional[List[Dict[str, Any]]] = None,
     ) -> Dict[str, Any]:
         """
         Prepare JSON payload for stream_chat POST request.
@@ -223,6 +224,14 @@ class BaseAssistantRuntimeClient:
             user_id: User identifier (required)
             context: Optional page context (sent as native dict, not JSON string)
             model_id: Optional model ID
+            attachments: Optional list of attachments (images/documents)
+                Each attachment: {
+                    "type": "image" | "document",
+                    "format": "png" | "jpeg" | "gif" | "webp" | "pdf" | "txt",
+                    "data": "<base64-encoded-data>",
+                    "name": "optional-filename.png",  # Optional
+                    "file_url": "/files/..."  # Optional, for storage reference
+                }
 
         Returns:
             Payload dict ready for JSON body
@@ -246,6 +255,9 @@ class BaseAssistantRuntimeClient:
 
         if model_id:
             payload["model_id"] = model_id
+
+        if attachments:
+            payload["attachments"] = attachments
 
         return payload
 

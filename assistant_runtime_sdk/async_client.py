@@ -9,7 +9,7 @@ Requires the 'async' extra: pip install facl[async]
 """
 
 import json
-from typing import AsyncGenerator, Optional, Dict, Any
+from typing import AsyncGenerator, List, Optional, Dict, Any
 
 try:
     import aiohttp
@@ -231,6 +231,7 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         user_id: str,
         context: Optional[Dict[str, Any]] = None,
         model_id: Optional[str] = None,
+        attachments: Optional[List[Dict[str, Any]]] = None,
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """
         Stream chat response from Assistant Runtime asynchronously.
@@ -241,6 +242,14 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
             user_id: User identifier (required)
             context: Optional page context
             model_id: Optional model ID (use "auto" for auto-selection)
+            attachments: Optional list of attachments (images/documents)
+                Each attachment: {
+                    "type": "image" | "document",
+                    "format": "png" | "jpeg" | "gif" | "webp" | "pdf" | "txt",
+                    "data": "<base64-encoded-data>",
+                    "name": "optional-filename.png",  # Optional
+                    "file_url": "/files/..."  # Optional, for storage reference
+                }
 
         Yields:
             Parsed SSE events
@@ -251,7 +260,7 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
             ...         print(event["data"].get("content", ""), end="")
         """
         session = self._ensure_session()
-        payload = self._prepare_stream_payload(session_id, message, user_id, context, model_id)
+        payload = self._prepare_stream_payload(session_id, message, user_id, context, model_id, attachments)
         url = self._build_endpoint_url("streaming.stream_chat")
         headers = self._get_stream_headers(payload, for_json_body=True)
 

@@ -9,7 +9,7 @@ For async support, use AsyncAssistantRuntimeClient from facl.async_client.
 """
 
 import json
-from typing import Generator, Optional, Dict, Any
+from typing import Generator, List, Optional, Dict, Any
 
 import requests
 
@@ -169,6 +169,7 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         user_id: str,
         context: Optional[Dict[str, Any]] = None,
         model_id: Optional[str] = None,
+        attachments: Optional[List[Dict[str, Any]]] = None,
     ) -> Generator[Dict[str, Any], None, None]:
         """
         Stream chat response from Assistant Runtime.
@@ -181,6 +182,14 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
             user_id: User identifier (required)
             context: Optional page context (doctype, document info, etc.)
             model_id: Optional model ID to use (use "auto" for auto-selection)
+            attachments: Optional list of attachments (images/documents)
+                Each attachment: {
+                    "type": "image" | "document",
+                    "format": "png" | "jpeg" | "gif" | "webp" | "pdf" | "txt",
+                    "data": "<base64-encoded-data>",
+                    "name": "optional-filename.png",  # Optional
+                    "file_url": "/files/..."  # Optional, for storage reference
+                }
 
         Yields:
             Parsed SSE events with structure:
@@ -193,8 +202,20 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
             >>> for event in client.stream_chat("session-1", "Hello", "user@example.com"):
             ...     if event["event"] == "stream_chunk":
             ...         print(event["data"].get("content", ""), end="")
+
+            # With image attachment
+            >>> import base64
+            >>> with open("image.png", "rb") as f:
+            ...     image_data = base64.b64encode(f.read()).decode()
+            >>> for event in client.stream_chat(
+            ...     "session-1",
+            ...     "What's in this image?",
+            ...     "user@example.com",
+            ...     attachments=[{"type": "image", "format": "png", "data": image_data}]
+            ... ):
+            ...     print(event)
         """
-        payload = self._prepare_stream_payload(session_id, message, user_id, context, model_id)
+        payload = self._prepare_stream_payload(session_id, message, user_id, context, model_id, attachments)
         url = self._build_endpoint_url("streaming.stream_chat")
         headers = self._get_stream_headers(payload, for_json_body=True)
 
