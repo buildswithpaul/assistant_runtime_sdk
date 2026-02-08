@@ -14,7 +14,7 @@ from typing import Dict, Any, List, Optional, Protocol, runtime_checkable
 
 from .auth import generate_signature
 from .streaming import parse_sse_line
-from .exceptions import ARConfigurationError
+from .exceptions import ARConfigurationError, ARBillingUnavailableError
 
 
 @runtime_checkable
@@ -35,6 +35,7 @@ class BaseAssistantRuntimeClient:
     - HMAC signature generation for API requests
     - SSE line parsing for streaming responses
     - Common configuration and validation
+    - Dual API base routing (core + billing)
 
     Both AssistantRuntimeClient (sync) and AsyncAssistantRuntimeClient (async) inherit from this class.
 
@@ -44,6 +45,10 @@ class BaseAssistantRuntimeClient:
         ar_url: Base URL of Assistant Runtime server (default: https://ar.example.com)
         logger: Optional logger instance (uses stdlib logging if None)
         timeout: Default request timeout in seconds (default: 30.0)
+        billing_api_base: Override URL for billing API endpoints. Defaults to
+            ``{ar_url}/api/method/assistant_runtime_payments.api``. Pass a full
+            URL or just a Frappe dotted module path (e.g.
+            ``"assistant_runtime_payments.api"``).
 
     Example:
         >>> # Don't instantiate directly - use AssistantRuntimeClient or AsyncAssistantRuntimeClient
@@ -52,6 +57,7 @@ class BaseAssistantRuntimeClient:
     """
 
     DEFAULT_AR_URL = "https://ar.example.com"
+    DEFAULT_BILLING_API_MODULE = "assistant_runtime_payments.api"
     DEFAULT_TIMEOUT = 30.0
     STREAM_CONNECT_TIMEOUT = 10.0
     STREAM_READ_TIMEOUT = 300.0  # 5 minutes for long responses
@@ -63,6 +69,7 @@ class BaseAssistantRuntimeClient:
         ar_url: str = DEFAULT_AR_URL,
         logger: Optional[Logger] = None,
         timeout: float = DEFAULT_TIMEOUT,
+        billing_api_base: Optional[str] = None,
     ):
         # Validate required parameters
         if not tenant_id:
@@ -75,6 +82,18 @@ class BaseAssistantRuntimeClient:
         self.ar_url = ar_url.rstrip("/")
         self.api_base = f"{self.ar_url}/api/method/assistant_runtime.api"
         self.timeout = timeout
+
+        # Billing API base — routes billing methods to the payments app
+        if billing_api_base is None:
+            self.billing_api_base = f"{self.ar_url}/api/method/{self.DEFAULT_BILLING_API_MODULE}"
+        elif billing_api_base.startswith(("http://", "https://")):
+            self.billing_api_base = billing_api_base.rstrip("/")
+        else:
+            # Treat as a dotted module path
+            self.billing_api_base = f"{self.ar_url}/api/method/{billing_api_base}"
+
+        # Billing availability state — None means unknown (not yet probed)
+        self._billing_available: Optional[bool] = None
 
         # Setup logger
         if logger is None:
@@ -152,7 +171,7 @@ class BaseAssistantRuntimeClient:
 
     def _build_endpoint_url(self, endpoint: str) -> str:
         """
-        Build full URL for an API endpoint.
+        Build full URL for a core API endpoint.
 
         Args:
             endpoint: Endpoint path (e.g., 'streaming.stream_chat')
@@ -161,6 +180,32 @@ class BaseAssistantRuntimeClient:
             Full URL
         """
         return f"{self.api_base}.{endpoint}"
+
+    def _build_billing_endpoint_url(self, endpoint: str) -> str:
+        """
+        Build full URL for a billing/payments API endpoint.
+
+        Routes through ``billing_api_base`` which targets the payments app.
+
+        Args:
+            endpoint: Endpoint path (e.g., 'get_usage_dashboard')
+
+        Returns:
+            Full URL
+        """
+        return f"{self.billing_api_base}.{endpoint}"
+
+    def _require_billing(self) -> None:
+        """
+        Guard for billing methods.
+
+        Raises ``ARBillingUnavailableError`` only if billing has been explicitly
+        probed and found unavailable (``_billing_available is False``). When the
+        state is unknown (``None``), the call proceeds — it will succeed if the
+        payments app is installed, or fail with an HTTP error if not.
+        """
+        if self._billing_available is False:
+            raise ARBillingUnavailableError()
 
     def _prepare_stream_params(
         self,

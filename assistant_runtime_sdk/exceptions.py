@@ -134,6 +134,19 @@ class ARConnectionError(ARError):
         super().__init__(message, error_code="CONNECTION_ERROR")
 
 
+class ARBillingUnavailableError(ARError):
+    """
+    Billing features are not available on this server.
+
+    Raised when:
+    - The payments app is not installed on the target server
+    - check_billing_available() returned False and a billing method was called
+    """
+
+    def __init__(self, message: str = "Billing is not available"):
+        super().__init__(message, error_code="BILLING_UNAVAILABLE")
+
+
 # =============================================================================
 # Backwards Compatibility Aliases
 # =============================================================================
@@ -147,3 +160,4 @@ FACLConfigurationError = ARConfigurationError
 FACLAPIError = ARAPIError
 FACLTimeoutError = ARTimeoutError
 FACLConnectionError = ARConnectionError
+FACLBillingUnavailableError = ARBillingUnavailableError

@@ -108,6 +108,7 @@ from .exceptions import (
     ARAPIError,
     ARTimeoutError,
     ARConnectionError,
+    ARBillingUnavailableError,
     # Backwards compatibility aliases
     FACLError,
     FACLAuthenticationError,
@@ -117,6 +118,7 @@ from .exceptions import (
     FACLAPIError,
     FACLTimeoutError,
     FACLConnectionError,
+    FACLBillingUnavailableError,
 )
 
 # =============================================================================
@@ -196,6 +198,7 @@ __all__ = [
     "ARAPIError",
     "ARTimeoutError",
     "ARConnectionError",
+    "ARBillingUnavailableError",
     # Exceptions - backwards compatibility
     "FACLError",
     "FACLAuthenticationError",
@@ -205,6 +208,7 @@ __all__ = [
     "FACLAPIError",
     "FACLTimeoutError",
     "FACLConnectionError",
+    "FACLBillingUnavailableError",
     # Auth utilities
     "generate_signature",
     "verify_signature",

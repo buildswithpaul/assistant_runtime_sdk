@@ -42,13 +42,14 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         self,
         tenant_id: str,
         tenant_secret: str,
-        ar_url: str = BaseAssistantRuntimeClient.DEFAULT_FACL_URL,
+        ar_url: str = BaseAssistantRuntimeClient.DEFAULT_AR_URL,
         logger=None,
         timeout: float = BaseAssistantRuntimeClient.DEFAULT_TIMEOUT,
         session: Optional["aiohttp.ClientSession"] = None,
+        billing_api_base: Optional[str] = None,
     ):
         """
-        Initialize async FACL client.
+        Initialize async Assistant Runtime client.
 
         Args:
             tenant_id: Unique tenant identifier from Assistant Runtime
@@ -57,6 +58,7 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
             logger: Optional logger instance
             timeout: Default request timeout in seconds
             session: Optional aiohttp.ClientSession to reuse
+            billing_api_base: Override URL for billing API endpoints
         """
         if aiohttp is None:
             raise ImportError(
@@ -64,7 +66,7 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
                 "Install it with: pip install facl[async]"
             )
 
-        super().__init__(tenant_id, tenant_secret, ar_url, logger, timeout)
+        super().__init__(tenant_id, tenant_secret, ar_url, logger, timeout, billing_api_base)
         self._session = session
         self._owns_session = session is None
 
@@ -99,10 +101,11 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         endpoint: str,
         params: Dict[str, Any],
         timeout: Optional[float] = None,
+        api_base: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """Make authenticated async GET request."""
         session = self._ensure_session()
-        url = self._build_endpoint_url(endpoint)
+        url = f"{api_base}.{endpoint}" if api_base else self._build_endpoint_url(endpoint)
         headers = self._get_headers(params, for_query_string=True)
 
         try:
@@ -129,10 +132,11 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         endpoint: str,
         payload: Dict[str, Any],
         timeout: Optional[float] = None,
+        api_base: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """Make authenticated async POST request with JSON body."""
         session = self._ensure_session()
-        url = self._build_endpoint_url(endpoint)
+        url = f"{api_base}.{endpoint}" if api_base else self._build_endpoint_url(endpoint)
         headers = {
             **self._get_headers(payload, for_query_string=False),
             "Content-Type": "application/json",
@@ -162,10 +166,11 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         endpoint: str,
         params: Dict[str, Any],
         timeout: Optional[float] = None,
+        api_base: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """Make authenticated async POST request with form-urlencoded body."""
         session = self._ensure_session()
-        url = self._build_endpoint_url(endpoint)
+        url = f"{api_base}.{endpoint}" if api_base else self._build_endpoint_url(endpoint)
         headers = {
             **self._get_headers(params, for_query_string=True),
             "Content-Type": "application/x-www-form-urlencoded",
@@ -195,10 +200,11 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         endpoint: str,
         params: Dict[str, Any],
         timeout: Optional[float] = None,
+        api_base: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """Make authenticated async DELETE request."""
         session = self._ensure_session()
-        url = self._build_endpoint_url(endpoint)
+        url = f"{api_base}.{endpoint}" if api_base else self._build_endpoint_url(endpoint)
         headers = self._get_headers(params, for_query_string=True)
 
         try:
@@ -430,15 +436,53 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
     # =========================================================================
     # Billing & Subscription APIs
     # =========================================================================
+    # These methods route through billing_api_base → assistant_runtime_payments.api
 
-    async def get_usage_dashboard(self) -> Optional[Dict[str, Any]]:
-        """Get comprehensive usage and billing data for dashboard."""
-        return await self._request_post_json("get_usage_dashboard", {"tenant_id": self.tenant_id})
+    async def check_billing_available(self) -> bool:
+        """
+        Probe the server to check if billing features are available.
 
-    async def get_usage_history(self, days: int = 30) -> Optional[Dict[str, Any]]:
-        """Get historical usage data for charts."""
-        payload = {"tenant_id": self.tenant_id, "days": days}
-        return await self._request_post_json("get_usage_history", payload)
+        Calls ``get_capabilities`` on the core API and checks the
+        ``billing_enabled`` flag. The result is cached in ``_billing_available``.
+
+        Returns:
+            True if billing is available, False otherwise.
+        """
+        session = self._ensure_session()
+        try:
+            url = f"{self.api_base}.get_capabilities"
+            timeout_obj = aiohttp.ClientTimeout(total=self.timeout)
+            async with session.get(url, timeout=timeout_obj) as response:
+                response.raise_for_status()
+                data = await response.json()
+                result = data.get("message", data)
+                self._billing_available = result.get("billing_enabled", False)
+        except (aiohttp.ClientError, Exception):
+            self._billing_available = False
+        return self._billing_available
+
+    async def get_plan_comparison(self) -> Optional[Dict[str, Any]]:
+        """Get comparison of all available subscription plans (no auth required)."""
+        self._require_billing()
+        session = self._ensure_session()
+        url = self._build_billing_endpoint_url("get_plan_comparison")
+        try:
+            timeout_obj = aiohttp.ClientTimeout(total=self.timeout)
+            async with session.get(url, timeout=timeout_obj) as response:
+                response.raise_for_status()
+                data = await response.json()
+                return data.get("message", data)
+        except (aiohttp.ClientError, Exception) as e:
+            self._log_error(f"get_plan_comparison error: {e}")
+            return None
+
+    async def get_recommended_gateway(self) -> Optional[Dict[str, Any]]:
+        """Get the recommended payment gateway for this tenant."""
+        self._require_billing()
+        return await self._request_get(
+            "get_recommended_gateway", {"tenant_id": self.tenant_id},
+            api_base=self.billing_api_base,
+        )
 
     async def get_available_gateways(self) -> Optional[Dict[str, Any]]:
         """
@@ -449,7 +493,11 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
             Each gateway includes name, display_name, currency, description,
             is_recommended flag, and plans pricing dict.
         """
-        return await self._request_get("get_available_gateways", {"tenant_id": self.tenant_id})
+        self._require_billing()
+        return await self._request_get(
+            "get_available_gateways", {"tenant_id": self.tenant_id},
+            api_base=self.billing_api_base,
+        )
 
     async def initiate_checkout(
         self,
@@ -473,6 +521,7 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         Returns:
             Dict with checkout_url, session_id, and gateway used.
         """
+        self._require_billing()
         payload = {
             "tenant_id": self.tenant_id,
             "plan": plan,
@@ -484,14 +533,51 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
             payload["billing_name"] = billing_name
         if billing_email:
             payload["billing_email"] = billing_email
-        return await self._request_post_json("initiate_checkout", payload)
+        return await self._request_post_json("initiate_checkout", payload, api_base=self.billing_api_base)
 
     async def verify_checkout(self, session_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Verify payment completion after checkout."""
+        self._require_billing()
         payload = {"tenant_id": self.tenant_id}
         if session_id:
             payload["session_id"] = session_id
-        return await self._request_post_json("verify_checkout", payload)
+        return await self._request_post_json("verify_checkout", payload, api_base=self.billing_api_base)
+
+    async def get_usage_dashboard(self) -> Optional[Dict[str, Any]]:
+        """Get comprehensive usage and billing data for dashboard."""
+        self._require_billing()
+        return await self._request_post_json(
+            "get_usage_dashboard", {"tenant_id": self.tenant_id},
+            api_base=self.billing_api_base,
+        )
+
+    async def get_usage_history(self, days: int = 30) -> Optional[Dict[str, Any]]:
+        """Get historical usage data for charts."""
+        self._require_billing()
+        payload = {"tenant_id": self.tenant_id, "days": days}
+        return await self._request_post_json("get_usage_history", payload, api_base=self.billing_api_base)
+
+    async def get_invoices(self, limit: int = 10) -> Optional[Dict[str, Any]]:
+        """Get invoice history."""
+        self._require_billing()
+        payload = {"tenant_id": self.tenant_id, "limit": limit}
+        return await self._request_post_json("get_invoices", payload, api_base=self.billing_api_base)
+
+    async def get_upcoming_invoice(self) -> Optional[Dict[str, Any]]:
+        """Get upcoming invoice preview (Stripe only)."""
+        self._require_billing()
+        return await self._request_post_json(
+            "get_upcoming_invoice", {"tenant_id": self.tenant_id},
+            api_base=self.billing_api_base,
+        )
+
+    async def get_payment_methods(self) -> Optional[Dict[str, Any]]:
+        """Get saved payment methods."""
+        self._require_billing()
+        return await self._request_post_json(
+            "get_payment_methods", {"tenant_id": self.tenant_id},
+            api_base=self.billing_api_base,
+        )
 
     async def upgrade_plan(
         self,
@@ -549,6 +635,7 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
             >>> if result.get("effective_date"):
             ...     print(f"Change scheduled for {result['effective_date']}")
         """
+        self._require_billing()
         payload = {
             "tenant_id": self.tenant_id,
             "new_plan": new_plan,
@@ -560,7 +647,7 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
             payload["billing_name"] = billing_name
         if billing_email:
             payload["billing_email"] = billing_email
-        return await self._request_post_json("upgrade_plan", payload)
+        return await self._request_post_json("upgrade_plan", payload, api_base=self.billing_api_base)
 
     async def downgrade_to_free(self) -> Optional[Dict[str, Any]]:
         """
@@ -583,7 +670,11 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
             >>> if result["success"]:
             ...     print(f"Downgrade scheduled for {result['effective_date']}")
         """
-        return await self._request_post_json("downgrade_to_free", {"tenant_id": self.tenant_id})
+        self._require_billing()
+        return await self._request_post_json(
+            "downgrade_to_free", {"tenant_id": self.tenant_id},
+            api_base=self.billing_api_base,
+        )
 
     async def cancel_scheduled_change(self) -> Optional[Dict[str, Any]]:
         """
@@ -612,7 +703,52 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
             ...     result = await client.cancel_scheduled_change()
             ...     print(result["message"])
         """
-        return await self._request_post_json("cancel_scheduled_change", {"tenant_id": self.tenant_id})
+        self._require_billing()
+        return await self._request_post_json(
+            "cancel_scheduled_change", {"tenant_id": self.tenant_id},
+            api_base=self.billing_api_base,
+        )
+
+    async def cancel_subscription(self, cancel_immediately: bool = False) -> Optional[Dict[str, Any]]:
+        """Cancel subscription."""
+        self._require_billing()
+        payload = {
+            "tenant_id": self.tenant_id,
+            "cancel_immediately": cancel_immediately,
+        }
+        return await self._request_post_json("cancel_subscription", payload, api_base=self.billing_api_base)
+
+    async def reactivate_subscription(self) -> Optional[Dict[str, Any]]:
+        """Reactivate a subscription that was set to cancel at period end."""
+        self._require_billing()
+        return await self._request_post_json(
+            "reactivate_subscription", {"tenant_id": self.tenant_id},
+            api_base=self.billing_api_base,
+        )
+
+    async def pause_subscription(self) -> Optional[Dict[str, Any]]:
+        """Pause subscription (Razorpay only)."""
+        self._require_billing()
+        return await self._request_post_json(
+            "pause_subscription", {"tenant_id": self.tenant_id},
+            api_base=self.billing_api_base,
+        )
+
+    async def resume_subscription(self) -> Optional[Dict[str, Any]]:
+        """Resume a paused subscription (Razorpay only)."""
+        self._require_billing()
+        return await self._request_post_json(
+            "resume_subscription", {"tenant_id": self.tenant_id},
+            api_base=self.billing_api_base,
+        )
+
+    async def update_payment_method(self) -> Optional[Dict[str, Any]]:
+        """Get URL to update payment method."""
+        self._require_billing()
+        return await self._request_post_json(
+            "update_payment_method", {"tenant_id": self.tenant_id},
+            api_base=self.billing_api_base,
+        )
 
     async def get_subscription_status(self) -> Optional[Dict[str, Any]]:
         """
@@ -651,7 +787,11 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
             >>> if status["subscription"]["scheduled_change"]:
             ...     print(f"Downgrade scheduled for {status['subscription']['scheduled_change']['effective_date']}")
         """
-        return await self._request_get("get_subscription_status", {"tenant_id": self.tenant_id})
+        self._require_billing()
+        return await self._request_get(
+            "get_subscription_status", {"tenant_id": self.tenant_id},
+            api_base=self.billing_api_base,
+        )
 
     async def get_billing_history(self, limit: int = 20) -> Optional[Dict[str, Any]]:
         """
@@ -688,7 +828,11 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
             >>> for item in history["history"]:
             ...     print(f"{item['date']}: {item['event']} - ${item['amount']}")
         """
-        return await self._request_get("get_billing_history", {"tenant_id": self.tenant_id, "limit": limit})
+        self._require_billing()
+        return await self._request_get(
+            "get_billing_history", {"tenant_id": self.tenant_id, "limit": limit},
+            api_base=self.billing_api_base,
+        )
 
     # =========================================================================
     # Conversation APIs
