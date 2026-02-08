@@ -16,6 +16,7 @@ import requests
 from .base import BaseAssistantRuntimeClient
 from .exceptions import (
     ARAPIError,
+    ARAuthenticationError,
     ARTimeoutError,
     ARConnectionError,
     ARConfigurationError,
@@ -93,8 +94,11 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
             raise ARConnectionError(f"Failed to connect to {endpoint}") from e
         except requests.exceptions.HTTPError as e:
             self._log_error(f"GET {endpoint} HTTP error: {e}")
-            msg = self._extract_error_message(e.response) if e.response else None
-            raise ARAPIError(msg or str(e), status_code=e.response.status_code if e.response else None) from e
+            status_code = e.response.status_code if e.response is not None else None
+            msg = self._extract_error_message(e.response) if e.response is not None else None
+            if status_code == 401:
+                raise ARAuthenticationError(msg or "Authentication failed") from e
+            raise ARAPIError(msg or str(e), status_code=status_code) from e
         except requests.exceptions.RequestException as e:
             self._log_error(f"GET {endpoint} error: {e}")
             raise ARAPIError(str(e)) from e
@@ -126,8 +130,11 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
             raise ARConnectionError(f"Failed to connect to {endpoint}") from e
         except requests.exceptions.HTTPError as e:
             self._log_error(f"POST {endpoint} HTTP error: {e}")
-            msg = self._extract_error_message(e.response) if e.response else None
-            raise ARAPIError(msg or str(e), status_code=e.response.status_code if e.response else None) from e
+            status_code = e.response.status_code if e.response is not None else None
+            msg = self._extract_error_message(e.response) if e.response is not None else None
+            if status_code == 401:
+                raise ARAuthenticationError(msg or "Authentication failed") from e
+            raise ARAPIError(msg or str(e), status_code=status_code) from e
         except requests.exceptions.RequestException as e:
             self._log_error(f"POST {endpoint} error: {e}")
             raise ARAPIError(str(e)) from e
@@ -159,8 +166,11 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
             raise ARConnectionError(f"Failed to connect to {endpoint}") from e
         except requests.exceptions.HTTPError as e:
             self._log_error(f"POST form {endpoint} HTTP error: {e}")
-            msg = self._extract_error_message(e.response) if e.response else None
-            raise ARAPIError(msg or str(e), status_code=e.response.status_code if e.response else None) from e
+            status_code = e.response.status_code if e.response is not None else None
+            msg = self._extract_error_message(e.response) if e.response is not None else None
+            if status_code == 401:
+                raise ARAuthenticationError(msg or "Authentication failed") from e
+            raise ARAPIError(msg or str(e), status_code=status_code) from e
         except requests.exceptions.RequestException as e:
             self._log_error(f"POST form {endpoint} error: {e}")
             raise ARAPIError(str(e)) from e
@@ -189,8 +199,11 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
             raise ARConnectionError(f"Failed to connect to {endpoint}") from e
         except requests.exceptions.HTTPError as e:
             self._log_error(f"DELETE {endpoint} HTTP error: {e}")
-            msg = self._extract_error_message(e.response) if e.response else None
-            raise ARAPIError(msg or str(e), status_code=e.response.status_code if e.response else None) from e
+            status_code = e.response.status_code if e.response is not None else None
+            msg = self._extract_error_message(e.response) if e.response is not None else None
+            if status_code == 401:
+                raise ARAuthenticationError(msg or "Authentication failed") from e
+            raise ARAPIError(msg or str(e), status_code=status_code) from e
         except requests.exceptions.RequestException as e:
             self._log_error(f"DELETE {endpoint} error: {e}")
             raise ARAPIError(str(e)) from e
