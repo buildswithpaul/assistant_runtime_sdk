@@ -373,6 +373,22 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         return await self._request_post_json("prompts.get_prompt", payload)
 
     # =========================================================================
+    # Suggestion APIs
+    # =========================================================================
+
+    async def get_suggestions(
+        self,
+        user_id: str,
+        context: Optional[Dict[str, Any]] = None,
+        limit: int = 8,
+    ) -> Optional[Dict[str, Any]]:
+        """Get personalized prompt suggestions based on user conversation history."""
+        params = {"tenant_id": self.tenant_id, "user_id": user_id, "limit": str(limit)}
+        if context:
+            params["context"] = json.dumps(context)
+        return await self._request_get("suggestions.get_suggestions", params)
+
+    # =========================================================================
     # Resource APIs (Skills/Documentation)
     # =========================================================================
 

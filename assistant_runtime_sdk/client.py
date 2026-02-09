@@ -378,6 +378,42 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         return self._request_post_json("prompts.get_prompt", payload)
 
     # =========================================================================
+    # Suggestion APIs
+    # =========================================================================
+
+    def get_suggestions(
+        self,
+        user_id: str,
+        context: Optional[Dict[str, Any]] = None,
+        limit: int = 8,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Get personalized prompt suggestions based on user conversation history.
+
+        Uses frequency analysis of past conversations, frequently-used DocTypes,
+        and extracted memories to surface relevant suggestions. No LLM cost.
+
+        Args:
+            user_id: User identifier (required)
+            context: Optional page context {"type": "Form", "doctype": "Sales Invoice"}
+            limit: Max suggestions to return (default 8, max 20)
+
+        Returns:
+            Dict with suggestions, history flag, and stats:
+            {
+                "suggestions": [
+                    {"text": str, "source": "history"|"memory"|"doctype", "score": float}
+                ],
+                "has_history": bool,
+                "stats": {"total_conversations": int, "top_doctypes": [str]}
+            }
+        """
+        params = {"tenant_id": self.tenant_id, "user_id": user_id, "limit": str(limit)}
+        if context:
+            params["context"] = json.dumps(context)
+        return self._request_get("suggestions.get_suggestions", params)
+
+    # =========================================================================
     # Resource APIs (Skills/Documentation)
     # =========================================================================
 
