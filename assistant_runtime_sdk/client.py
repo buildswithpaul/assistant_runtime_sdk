@@ -566,6 +566,35 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
             payload["session_id"] = session_id
         return self._request_post_json("verify_checkout", payload, api_base=self.billing_api_base)
 
+    def verify_razorpay_payment(
+        self,
+        razorpay_payment_id: str,
+        razorpay_subscription_id: str,
+        razorpay_signature: str,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Verify Razorpay embedded checkout payment signature.
+
+        Called after the Razorpay Checkout.js widget completes to verify
+        the payment signature and activate the subscription.
+
+        Args:
+            razorpay_payment_id: Payment ID from Razorpay widget response
+            razorpay_subscription_id: Subscription ID from Razorpay widget response
+            razorpay_signature: Signature from Razorpay widget response
+
+        Returns:
+            {"success": True, "message": str, "subscription_status": str, "plan": str, "monthly_quota": int}
+        """
+        self._require_billing()
+        payload = {
+            "tenant_id": self.tenant_id,
+            "razorpay_payment_id": razorpay_payment_id,
+            "razorpay_subscription_id": razorpay_subscription_id,
+            "razorpay_signature": razorpay_signature,
+        }
+        return self._request_post_json("verify_razorpay_payment", payload, api_base=self.billing_api_base)
+
     def get_usage_dashboard(self) -> Optional[Dict[str, Any]]:
         """Get comprehensive usage and billing data for dashboard."""
         self._require_billing()
