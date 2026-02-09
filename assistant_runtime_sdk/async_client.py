@@ -835,6 +835,56 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         )
 
     # =========================================================================
+    # Prepaid Credit APIs
+    # =========================================================================
+
+    async def get_credit_balance(self) -> Optional[Dict[str, Any]]:
+        """
+        Get prepaid credit balance and recent transaction history.
+
+        Returns:
+            Dict with ``balance`` (int) and ``transactions`` (list).
+
+        Example:
+            >>> balance = await client.get_credit_balance()
+            >>> print(f"Credit balance: {balance['balance']:,} tokens")
+        """
+        self._require_billing()
+        return await self._request_post_json(
+            "get_credit_balance", {"tenant_id": self.tenant_id},
+            api_base=self.billing_api_base,
+        )
+
+    async def purchase_credits(
+        self, token_amount: int, gateway: str = None
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Create a one-time checkout session for purchasing prepaid credits.
+
+        Args:
+            token_amount: Number of tokens to purchase
+            gateway: "stripe" or "razorpay" (optional, auto-selects)
+
+        Returns:
+            Gateway-specific checkout data (checkout URL or order ID).
+
+        Example:
+            >>> result = await client.purchase_credits(100000, gateway="stripe")
+            >>> print(f"Checkout URL: {result['checkout_url']}")
+        """
+        self._require_billing()
+        payload: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "token_amount": token_amount,
+        }
+        if gateway:
+            payload["gateway"] = gateway
+        return await self._request_post_json(
+            "purchase_credits", payload,
+            api_base=self.billing_api_base,
+        )
+
+    # =========================================================================
     # Conversation APIs
     # =========================================================================
 

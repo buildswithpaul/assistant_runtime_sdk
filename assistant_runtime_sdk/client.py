@@ -861,6 +861,89 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         )
 
     # =========================================================================
+    # Prepaid Credit APIs
+    # =========================================================================
+
+    def get_credit_balance(self) -> Optional[Dict[str, Any]]:
+        """
+        Get prepaid credit balance and recent transaction history.
+
+        Returns:
+            Dict with credit info:
+            {
+                "balance": 50000,
+                "transactions": [
+                    {
+                        "name": "AR-CRT-2026-00001",
+                        "type": "Purchase",
+                        "tokens": 50000,
+                        "balance_after": 50000,
+                        "payment_reference": "pi_xxx",
+                        "notes": "Purchased 50,000 tokens via stripe",
+                        "creation": "2026-02-09 12:00:00"
+                    },
+                    ...
+                ]
+            }
+
+        Example:
+            >>> balance = client.get_credit_balance()
+            >>> print(f"Credit balance: {balance['balance']:,} tokens")
+        """
+        self._require_billing()
+        return self._request_post_json(
+            "get_credit_balance", {"tenant_id": self.tenant_id},
+            api_base=self.billing_api_base,
+        )
+
+    def purchase_credits(
+        self, token_amount: int, gateway: str = None
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Create a one-time checkout session for purchasing prepaid credits.
+
+        Args:
+            token_amount: Number of tokens to purchase
+            gateway: "stripe" or "razorpay" (optional, auto-selects)
+
+        Returns:
+            Gateway-specific checkout data.
+
+            For Stripe:
+            {
+                "gateway": "stripe",
+                "checkout_url": "https://checkout.stripe.com/...",
+                "session_id": "cs_xxx"
+            }
+
+            For Razorpay:
+            {
+                "gateway": "razorpay",
+                "order_id": "order_xxx",
+                "razorpay_key": "rzp_xxx",
+                "amount": 400000,
+                "currency": "INR",
+                "prefill": {"name": "...", "email": "..."},
+                "token_amount": 100000
+            }
+
+        Example:
+            >>> result = client.purchase_credits(100000, gateway="stripe")
+            >>> print(f"Checkout URL: {result['checkout_url']}")
+        """
+        self._require_billing()
+        payload: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "token_amount": token_amount,
+        }
+        if gateway:
+            payload["gateway"] = gateway
+        return self._request_post_json(
+            "purchase_credits", payload,
+            api_base=self.billing_api_base,
+        )
+
+    # =========================================================================
     # Conversation APIs
     # =========================================================================
 
