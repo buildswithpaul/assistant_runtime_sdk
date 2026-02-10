@@ -35,7 +35,7 @@ class BaseAssistantRuntimeClient:
     - HMAC signature generation for API requests
     - SSE line parsing for streaming responses
     - Common configuration and validation
-    - Dual API base routing (core + billing)
+    - Multi API base routing (core + billing + memory)
 
     Both AssistantRuntimeClient (sync) and AsyncAssistantRuntimeClient (async) inherit from this class.
 
@@ -49,6 +49,10 @@ class BaseAssistantRuntimeClient:
             ``{ar_url}/api/method/assistant_runtime_payments.api``. Pass a full
             URL or just a Frappe dotted module path (e.g.
             ``"assistant_runtime_payments.api"``).
+        memory_api_base: Override URL for memory/onboarding API endpoints. Defaults to
+            ``{ar_url}/api/method/assistant_runtime_memory.api``. Pass a full
+            URL or just a Frappe dotted module path (e.g.
+            ``"assistant_runtime_memory.api"``).
 
     Example:
         >>> # Don't instantiate directly - use AssistantRuntimeClient or AsyncAssistantRuntimeClient
@@ -58,6 +62,7 @@ class BaseAssistantRuntimeClient:
 
     DEFAULT_AR_URL = "https://ar.example.com"
     DEFAULT_BILLING_API_MODULE = "assistant_runtime_payments.api"
+    DEFAULT_MEMORY_API_MODULE = "assistant_runtime_memory.api"
     DEFAULT_TIMEOUT = 30.0
     STREAM_CONNECT_TIMEOUT = 10.0
     STREAM_READ_TIMEOUT = 300.0  # 5 minutes for long responses
@@ -70,6 +75,7 @@ class BaseAssistantRuntimeClient:
         logger: Optional[Logger] = None,
         timeout: float = DEFAULT_TIMEOUT,
         billing_api_base: Optional[str] = None,
+        memory_api_base: Optional[str] = None,
     ):
         # Validate required parameters
         if not tenant_id:
@@ -91,6 +97,15 @@ class BaseAssistantRuntimeClient:
         else:
             # Treat as a dotted module path
             self.billing_api_base = f"{self.ar_url}/api/method/{billing_api_base}"
+
+        # Memory API base — routes onboarding/memory methods to the memory app
+        if memory_api_base is None:
+            self.memory_api_base = f"{self.ar_url}/api/method/{self.DEFAULT_MEMORY_API_MODULE}"
+        elif memory_api_base.startswith(("http://", "https://")):
+            self.memory_api_base = memory_api_base.rstrip("/")
+        else:
+            # Treat as a dotted module path
+            self.memory_api_base = f"{self.ar_url}/api/method/{memory_api_base}"
 
         # Billing availability state — None means unknown (not yet probed)
         self._billing_available: Optional[bool] = None
@@ -194,6 +209,20 @@ class BaseAssistantRuntimeClient:
             Full URL
         """
         return f"{self.billing_api_base}.{endpoint}"
+
+    def _build_memory_endpoint_url(self, endpoint: str) -> str:
+        """
+        Build full URL for a memory/onboarding API endpoint.
+
+        Routes through ``memory_api_base`` which targets the memory app.
+
+        Args:
+            endpoint: Endpoint path (e.g., 'onboarding.get_onboarding_status')
+
+        Returns:
+            Full URL
+        """
+        return f"{self.memory_api_base}.{endpoint}"
 
     def _require_billing(self) -> None:
         """

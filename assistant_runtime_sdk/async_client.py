@@ -9,6 +9,8 @@ Requires the 'async' extra: pip install facl[async]
 """
 
 import json
+import mimetypes
+import os
 from typing import AsyncGenerator, List, Optional, Dict, Any
 
 try:
@@ -47,6 +49,7 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         timeout: float = BaseAssistantRuntimeClient.DEFAULT_TIMEOUT,
         session: Optional["aiohttp.ClientSession"] = None,
         billing_api_base: Optional[str] = None,
+        memory_api_base: Optional[str] = None,
     ):
         """
         Initialize async Assistant Runtime client.
@@ -59,6 +62,7 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
             timeout: Default request timeout in seconds
             session: Optional aiohttp.ClientSession to reuse
             billing_api_base: Override URL for billing API endpoints
+            memory_api_base: Override URL for memory/onboarding/document API endpoints
         """
         if aiohttp is None:
             raise ImportError(
@@ -66,7 +70,7 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
                 "Install it with: pip install facl[async]"
             )
 
-        super().__init__(tenant_id, tenant_secret, ar_url, logger, timeout, billing_api_base)
+        super().__init__(tenant_id, tenant_secret, ar_url, logger, timeout, billing_api_base, memory_api_base)
         self._session = session
         self._owns_session = session is None
 
@@ -193,6 +197,52 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
             raise ARAPIError(str(e), status_code=e.status) from e
         except aiohttp.ClientError as e:
             self._log_error(f"POST form {endpoint} error: {e}")
+            raise ARAPIError(str(e)) from e
+
+    async def _request_post_multipart(
+        self,
+        endpoint: str,
+        params: Dict[str, Any],
+        file_field: str,
+        file_name: str,
+        file_data: bytes,
+        content_type: str = "application/octet-stream",
+        timeout: Optional[float] = None,
+        api_base: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Make authenticated async POST request with multipart form data including a file."""
+        session = self._ensure_session()
+        url = f"{api_base}.{endpoint}" if api_base else self._build_endpoint_url(endpoint)
+        # Sign only non-file form fields — Frappe's form_dict excludes file parts
+        headers = self._get_headers(params, for_query_string=True)
+        # Do NOT set Content-Type — aiohttp sets multipart boundary automatically
+
+        form_data = aiohttp.FormData()
+        for key, value in params.items():
+            form_data.add_field(key, str(value))
+        form_data.add_field(
+            file_field, file_data,
+            filename=file_name,
+            content_type=content_type,
+        )
+
+        try:
+            timeout_obj = aiohttp.ClientTimeout(total=timeout or self.timeout)
+            async with session.post(url, data=form_data, headers=headers, timeout=timeout_obj) as response:
+                response.raise_for_status()
+                data = await response.json()
+                return data.get("message", data)
+        except aiohttp.ServerTimeoutError as e:
+            self._log_error(f"POST multipart {endpoint} timeout: {e}")
+            raise ARTimeoutError(f"Request to {endpoint} timed out") from e
+        except aiohttp.ClientConnectorError as e:
+            self._log_error(f"POST multipart {endpoint} connection error: {e}")
+            raise ARConnectionError(f"Failed to connect to {endpoint}") from e
+        except aiohttp.ClientResponseError as e:
+            self._log_error(f"POST multipart {endpoint} HTTP error: {e}")
+            raise ARAPIError(str(e), status_code=e.status) from e
+        except aiohttp.ClientError as e:
+            self._log_error(f"POST multipart {endpoint} error: {e}")
             raise ARAPIError(str(e)) from e
 
     async def _request_delete(
@@ -392,6 +442,7 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
     # =========================================================================
     # Onboarding APIs
     # =========================================================================
+    # These methods route through memory_api_base → assistant_runtime_memory.api
 
     async def get_onboarding_status(
         self,
@@ -399,7 +450,10 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
     ) -> Optional[Dict[str, Any]]:
         """Check if a user has completed onboarding."""
         params = {"tenant_id": self.tenant_id, "user_id": user_id}
-        return await self._request_get("onboarding.get_onboarding_status", params)
+        return await self._request_get(
+            "onboarding.get_onboarding_status", params,
+            api_base=self.memory_api_base,
+        )
 
     async def complete_onboarding(
         self,
@@ -413,7 +467,143 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         }
         if conversation_id:
             payload["conversation_id"] = conversation_id
-        return await self._request_post_json("onboarding.complete_onboarding", payload)
+        return await self._request_post_json(
+            "onboarding.complete_onboarding", payload,
+            api_base=self.memory_api_base,
+        )
+
+    # =========================================================================
+    # Document APIs (RAG)
+    # =========================================================================
+    # These methods route through memory_api_base → assistant_runtime_memory.api
+
+    async def upload_document(
+        self,
+        file_path: Optional[str] = None,
+        file_data: Optional[bytes] = None,
+        file_name: Optional[str] = None,
+        content_type: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Upload a document for RAG processing.
+
+        Accepts either a file path or raw bytes. Supported formats: PDF,
+        Markdown (.md), and plain text (.txt).
+
+        Args:
+            file_path: Path to the file to upload. Mutually exclusive with file_data.
+            file_data: Raw file bytes. Requires file_name.
+            file_name: Filename (required with file_data, optional with file_path).
+            content_type: MIME type override. Auto-detected from extension if omitted.
+
+        Returns:
+            {"status": "queued", "document_id": str, "file_name": str,
+             "file_size_mb": float, "message": str}
+        """
+        if file_path and file_data:
+            raise ARConfigurationError("Provide either file_path or file_data, not both")
+        if not file_path and not file_data:
+            raise ARConfigurationError("Either file_path or file_data is required")
+        if file_data and not file_name:
+            raise ARConfigurationError("file_name is required when using file_data")
+
+        if file_path:
+            with open(file_path, "rb") as f:
+                data = f.read()
+            if not file_name:
+                file_name = os.path.basename(file_path)
+        else:
+            data = file_data
+
+        if not content_type:
+            guessed, _ = mimetypes.guess_type(file_name)
+            content_type = guessed or "application/octet-stream"
+
+        return await self._request_post_multipart(
+            "documents.upload_document",
+            params={"tenant_id": self.tenant_id},
+            file_field="file",
+            file_name=file_name,
+            file_data=data,
+            content_type=content_type,
+            timeout=120.0,
+            api_base=self.memory_api_base,
+        )
+
+    async def list_documents(
+        self,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        List all RAG documents for this tenant.
+
+        Args:
+            limit: Maximum number of documents to return (default 50).
+            offset: Pagination offset (default 0).
+
+        Returns:
+            {"documents": [...], "pagination": {...}, "storage": {...}}
+        """
+        params = {
+            "tenant_id": self.tenant_id,
+            "limit": str(limit),
+            "offset": str(offset),
+        }
+        return await self._request_get(
+            "documents.list_documents", params,
+            api_base=self.memory_api_base,
+        )
+
+    async def get_document(self, document_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Get detailed information about a specific RAG document.
+
+        Args:
+            document_id: The document identifier.
+
+        Returns:
+            Document details including embedding_status, total_chunks,
+            and processing_error (if status is Failed).
+        """
+        params = {"tenant_id": self.tenant_id, "document_id": document_id}
+        return await self._request_get(
+            "documents.get_document", params,
+            api_base=self.memory_api_base,
+        )
+
+    async def delete_document(self, document_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Delete a RAG document and remove its embeddings.
+
+        Performs a soft delete — the document is marked as deleted and its
+        vector embeddings are removed from the search index.
+
+        Args:
+            document_id: The document identifier to delete.
+
+        Returns:
+            {"status": "deleted", "document_id": str, "file_size_mb": float}
+        """
+        payload = {"tenant_id": self.tenant_id, "document_id": document_id}
+        return await self._request_post_json(
+            "documents.delete_document", payload,
+            api_base=self.memory_api_base,
+        )
+
+    async def get_storage_info(self) -> Optional[Dict[str, Any]]:
+        """
+        Get storage quota and usage information for this tenant's RAG documents.
+
+        Returns:
+            {"quota_mb": float, "used_mb": float, "available_mb": float,
+             "usage_percentage": float, "document_count": int}
+        """
+        params = {"tenant_id": self.tenant_id}
+        return await self._request_get(
+            "documents.get_storage_info", params,
+            api_base=self.memory_api_base,
+        )
 
     # =========================================================================
     # Resource APIs (Skills/Documentation)

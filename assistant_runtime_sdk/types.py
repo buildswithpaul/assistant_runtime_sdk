@@ -460,3 +460,71 @@ class PromptsResponse(TypedDict):
     prompts: List[PromptInfo]
     servers_queried: List[str]
     errors: List[str]
+
+
+# =============================================================================
+# Document Types
+# =============================================================================
+
+
+class DocumentInfo(TypedDict):
+    """Summary info for a RAG document."""
+
+    document_id: str
+    file_name: str
+    file_size_mb: float
+    document_type: str
+    embedding_status: str
+    total_chunks: int
+    created_at: Optional[str]
+    processed_at: Optional[str]
+
+
+class DocumentDetailInfo(TypedDict):
+    """Detailed info including processing errors."""
+
+    document_id: str
+    file_name: str
+    file_size_mb: float
+    document_type: str
+    embedding_status: str
+    total_chunks: int
+    created_at: Optional[str]
+    processed_at: Optional[str]
+    processing_error: Optional[str]
+
+
+class DocumentUploadResponse(TypedDict):
+    """Response from upload_document."""
+
+    status: str
+    document_id: str
+    file_name: str
+    file_size_mb: float
+    message: str
+
+
+class DocumentDeleteResponse(TypedDict):
+    """Response from delete_document."""
+
+    status: str
+    document_id: str
+    file_size_mb: float
+
+
+class StorageInfo(TypedDict):
+    """Storage quota and usage stats."""
+
+    quota_mb: float  # -1 for unlimited
+    used_mb: float
+    available_mb: float  # -1 if unlimited
+    usage_percentage: float
+    document_count: int
+
+
+class DocumentsListResponse(TypedDict):
+    """Response from list_documents."""
+
+    documents: List[DocumentInfo]
+    pagination: PaginationInfo
+    storage: StorageInfo

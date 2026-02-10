@@ -168,6 +168,13 @@ from .types import (
     PromptArgument,
     PromptInfo,
     PromptsResponse,
+    # Document types
+    DocumentInfo,
+    DocumentDetailInfo,
+    DocumentUploadResponse,
+    DocumentDeleteResponse,
+    StorageInfo,
+    DocumentsListResponse,
 )
 
 # =============================================================================
@@ -252,4 +259,11 @@ __all__ = [
     "PromptArgument",
     "PromptInfo",
     "PromptsResponse",
+    # Types - Documents
+    "DocumentInfo",
+    "DocumentDetailInfo",
+    "DocumentUploadResponse",
+    "DocumentDeleteResponse",
+    "StorageInfo",
+    "DocumentsListResponse",
 ]
