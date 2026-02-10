@@ -259,6 +259,7 @@ class BaseAssistantRuntimeClient:
         context: Optional[Dict[str, Any]] = None,
         model_id: Optional[str] = None,
         attachments: Optional[List[Dict[str, Any]]] = None,
+        system_prompt_addendum: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Prepare JSON payload for stream_chat POST request.
@@ -277,6 +278,7 @@ class BaseAssistantRuntimeClient:
                     "name": "optional-filename.png",  # Optional
                     "file_url": "/files/..."  # Optional, for storage reference
                 }
+            system_prompt_addendum: Optional per-request addition to the system prompt
 
         Returns:
             Payload dict ready for JSON body
@@ -303,6 +305,9 @@ class BaseAssistantRuntimeClient:
 
         if attachments:
             payload["attachments"] = attachments
+
+        if system_prompt_addendum:
+            payload["system_prompt_addendum"] = system_prompt_addendum
 
         return payload
 

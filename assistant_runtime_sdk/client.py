@@ -220,6 +220,7 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         context: Optional[Dict[str, Any]] = None,
         model_id: Optional[str] = None,
         attachments: Optional[List[Dict[str, Any]]] = None,
+        system_prompt_addendum: Optional[str] = None,
     ) -> Generator[Dict[str, Any], None, None]:
         """
         Stream chat response from Assistant Runtime.
@@ -265,7 +266,7 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
             ... ):
             ...     print(event)
         """
-        payload = self._prepare_stream_payload(session_id, message, user_id, context, model_id, attachments)
+        payload = self._prepare_stream_payload(session_id, message, user_id, context, model_id, attachments, system_prompt_addendum)
         url = self._build_endpoint_url("streaming.stream_chat")
         headers = self._get_stream_headers(payload, for_json_body=True)
 
@@ -412,6 +413,50 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         if context:
             params["context"] = json.dumps(context)
         return self._request_get("suggestions.get_suggestions", params)
+
+    # =========================================================================
+    # Onboarding APIs
+    # =========================================================================
+
+    def get_onboarding_status(
+        self,
+        user_id: str,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Check if a user has completed onboarding.
+
+        Args:
+            user_id: User identifier (required)
+
+        Returns:
+            {"onboarding_complete": bool, "has_conversations": bool}
+        """
+        params = {"tenant_id": self.tenant_id, "user_id": user_id}
+        return self._request_get("onboarding.get_onboarding_status", params)
+
+    def complete_onboarding(
+        self,
+        user_id: str,
+        conversation_id: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Mark onboarding complete and trigger immediate memory extraction.
+
+        Args:
+            user_id: User identifier (required)
+            conversation_id: Optional session ID of the onboarding conversation.
+                If provided, memory extraction runs immediately.
+
+        Returns:
+            {"success": bool, "memories_extracted": int}
+        """
+        payload: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+        }
+        if conversation_id:
+            payload["conversation_id"] = conversation_id
+        return self._request_post_json("onboarding.complete_onboarding", payload)
 
     # =========================================================================
     # Resource APIs (Skills/Documentation)

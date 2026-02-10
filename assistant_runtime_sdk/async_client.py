@@ -238,6 +238,7 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         context: Optional[Dict[str, Any]] = None,
         model_id: Optional[str] = None,
         attachments: Optional[List[Dict[str, Any]]] = None,
+        system_prompt_addendum: Optional[str] = None,
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """
         Stream chat response from Assistant Runtime asynchronously.
@@ -266,7 +267,7 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
             ...         print(event["data"].get("content", ""), end="")
         """
         session = self._ensure_session()
-        payload = self._prepare_stream_payload(session_id, message, user_id, context, model_id, attachments)
+        payload = self._prepare_stream_payload(session_id, message, user_id, context, model_id, attachments, system_prompt_addendum)
         url = self._build_endpoint_url("streaming.stream_chat")
         headers = self._get_stream_headers(payload, for_json_body=True)
 
@@ -387,6 +388,32 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         if context:
             params["context"] = json.dumps(context)
         return await self._request_get("suggestions.get_suggestions", params)
+
+    # =========================================================================
+    # Onboarding APIs
+    # =========================================================================
+
+    async def get_onboarding_status(
+        self,
+        user_id: str,
+    ) -> Optional[Dict[str, Any]]:
+        """Check if a user has completed onboarding."""
+        params = {"tenant_id": self.tenant_id, "user_id": user_id}
+        return await self._request_get("onboarding.get_onboarding_status", params)
+
+    async def complete_onboarding(
+        self,
+        user_id: str,
+        conversation_id: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Mark onboarding complete and trigger immediate memory extraction."""
+        payload: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+        }
+        if conversation_id:
+            payload["conversation_id"] = conversation_id
+        return await self._request_post_json("onboarding.complete_onboarding", payload)
 
     # =========================================================================
     # Resource APIs (Skills/Documentation)
