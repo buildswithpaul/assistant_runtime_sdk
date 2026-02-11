@@ -1624,6 +1624,436 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         }
         return self._request_post_form("users.revoke_user", params)
 
+    # =========================================================================
+    # Workflow APIs
+    # =========================================================================
+    # These methods route through workflows_api_base → assistant_runtime_workflows.api
+
+    def create_workflow(
+        self,
+        workflow_name: str,
+        graph_json: Optional[str] = None,
+        description: str = "",
+        default_model_id: Optional[str] = None,
+        default_user_id: Optional[str] = None,
+        error_strategy: str = "fail_fast",
+        timeout_seconds: int = 600,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Create a new workflow.
+
+        Args:
+            workflow_name: Human-readable workflow name (must be unique per tenant)
+            graph_json: Workflow graph JSON string (optional, can be set later)
+            description: Optional description
+            default_model_id: Default LLM model for agent nodes
+            default_user_id: Default user whose MCP tools are used
+            error_strategy: "fail_fast", "continue", or "retry" (default: fail_fast)
+            timeout_seconds: Max execution time in seconds (default: 600)
+
+        Returns:
+            {"name": str, "workflow_name": str, "status": str, "version": int}
+
+        Example:
+            >>> wf = client.create_workflow(
+            ...     "Daily Report Generator",
+            ...     graph_json='{"version":"1.0","nodes":[...],"edges":[...]}',
+            ...     default_model_id="claude-sonnet-4-5-20250929",
+            ... )
+            >>> print(wf["name"])  # "WF-00001"
+        """
+        payload: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "workflow_name": workflow_name,
+            "description": description,
+            "error_strategy": error_strategy,
+            "timeout_seconds": timeout_seconds,
+        }
+        if graph_json:
+            payload["graph_json"] = graph_json
+        if default_model_id:
+            payload["default_model_id"] = default_model_id
+        if default_user_id:
+            payload["default_user_id"] = default_user_id
+        return self._request_post_json(
+            "workflows.create_workflow", payload,
+            api_base=self.workflows_api_base,
+        )
+
+    def get_workflow(
+        self,
+        name: Optional[str] = None,
+        workflow_name: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Get a workflow definition by document name or human-readable name.
+
+        Args:
+            name: Document name (e.g., "WF-00001")
+            workflow_name: Human-readable name (e.g., "Daily Report Generator")
+
+        Returns:
+            Full workflow definition including graph_json, schedule, and stats.
+
+        Example:
+            >>> wf = client.get_workflow(name="WF-00001")
+            >>> print(wf["graph_json"])
+        """
+        params: Dict[str, Any] = {"tenant_id": self.tenant_id}
+        if name:
+            params["name"] = name
+        if workflow_name:
+            params["workflow_name"] = workflow_name
+        return self._request_get(
+            "workflows.get_workflow", params,
+            api_base=self.workflows_api_base,
+        )
+
+    def update_workflow(
+        self,
+        name: str,
+        graph_json: Optional[str] = None,
+        workflow_name: Optional[str] = None,
+        description: Optional[str] = None,
+        status: Optional[str] = None,
+        default_model_id: Optional[str] = None,
+        default_user_id: Optional[str] = None,
+        error_strategy: Optional[str] = None,
+        timeout_seconds: Optional[int] = None,
+        max_node_executions: Optional[int] = None,
+        max_retries: Optional[int] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Update a workflow. Increments version when graph_json changes.
+
+        Args:
+            name: Document name (e.g., "WF-00001")
+            graph_json: Updated workflow graph (triggers version increment)
+            workflow_name: New human-readable name
+            description: New description
+            status: New status ("Draft", "Active", "Paused", "Archived")
+            default_model_id: New default model
+            default_user_id: New default user
+            error_strategy: New error strategy
+            timeout_seconds: New timeout
+            max_node_executions: New max executions (loop safety)
+            max_retries: New max retries
+
+        Returns:
+            {"name": str, "workflow_name": str, "status": str, "version": int}
+
+        Example:
+            >>> result = client.update_workflow("WF-00001", status="Active")
+        """
+        payload: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "name": name,
+        }
+        if graph_json is not None:
+            payload["graph_json"] = graph_json
+        if workflow_name is not None:
+            payload["workflow_name"] = workflow_name
+        if description is not None:
+            payload["description"] = description
+        if status is not None:
+            payload["status"] = status
+        if default_model_id is not None:
+            payload["default_model_id"] = default_model_id
+        if default_user_id is not None:
+            payload["default_user_id"] = default_user_id
+        if error_strategy is not None:
+            payload["error_strategy"] = error_strategy
+        if timeout_seconds is not None:
+            payload["timeout_seconds"] = timeout_seconds
+        if max_node_executions is not None:
+            payload["max_node_executions"] = max_node_executions
+        if max_retries is not None:
+            payload["max_retries"] = max_retries
+        return self._request_post_json(
+            "workflows.update_workflow", payload,
+            api_base=self.workflows_api_base,
+        )
+
+    def delete_workflow(self, name: str) -> Optional[Dict[str, Any]]:
+        """
+        Soft-delete a workflow (sets status to Archived).
+
+        Args:
+            name: Document name (e.g., "WF-00001")
+
+        Returns:
+            {"status": "archived", "name": str}
+        """
+        payload = {"tenant_id": self.tenant_id, "name": name}
+        return self._request_post_json(
+            "workflows.delete_workflow", payload,
+            api_base=self.workflows_api_base,
+        )
+
+    def list_workflows(
+        self,
+        status: Optional[str] = None,
+        page: int = 0,
+        page_size: int = 20,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        List workflows for this tenant.
+
+        Args:
+            status: Filter by status (optional, excludes Archived by default)
+            page: Page number, 0-indexed (default: 0)
+            page_size: Items per page, max 100 (default: 20)
+
+        Returns:
+            {"workflows": [...], "total": int, "page": int, "page_size": int}
+
+        Example:
+            >>> result = client.list_workflows(status="Active")
+            >>> for wf in result["workflows"]:
+            ...     print(f"{wf['name']}: {wf['workflow_name']}")
+        """
+        params: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "page": str(page),
+            "page_size": str(page_size),
+        }
+        if status:
+            params["status"] = status
+        return self._request_get(
+            "workflows.list_workflows", params,
+            api_base=self.workflows_api_base,
+        )
+
+    def execute_workflow(
+        self,
+        name: str,
+        input_data: Optional[str] = None,
+        user_id: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Manually trigger workflow execution.
+
+        The workflow is enqueued as a background job. Use ``get_workflow_run``
+        to poll for completion.
+
+        Args:
+            name: AR Workflow document name (e.g., "WF-00001")
+            input_data: Input data (JSON string or plain text)
+            user_id: User triggering the execution
+
+        Returns:
+            {"status": "queued", "workflow": str, "workflow_name": str, "message": str}
+
+        Example:
+            >>> result = client.execute_workflow("WF-00001", input_data='{"query": "Summarize sales"}')
+            >>> print(result["status"])  # "queued"
+        """
+        payload: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "name": name,
+        }
+        if input_data:
+            payload["input_data"] = input_data
+        if user_id:
+            payload["user_id"] = user_id
+        return self._request_post_json(
+            "workflows.execute_workflow", payload,
+            api_base=self.workflows_api_base,
+        )
+
+    def cancel_workflow_run(self, run_name: str) -> Optional[Dict[str, Any]]:
+        """
+        Cancel a queued or running workflow execution.
+
+        Args:
+            run_name: AR Workflow Run document name
+
+        Returns:
+            {"status": "cancelled", "run_name": str}
+        """
+        payload = {"tenant_id": self.tenant_id, "run_name": run_name}
+        return self._request_post_json(
+            "workflows.cancel_run", payload,
+            api_base=self.workflows_api_base,
+        )
+
+    def get_workflow_run(self, run_name: str) -> Optional[Dict[str, Any]]:
+        """
+        Get execution run details including per-node results.
+
+        Args:
+            run_name: AR Workflow Run document name
+
+        Returns:
+            Run details with nested ``node_runs`` list. Each node run includes
+            node_id, status, duration_ms, tokens_used, and model_id.
+
+        Example:
+            >>> run = client.get_workflow_run("abc123")
+            >>> print(run["status"])  # "Completed"
+            >>> for node in run["node_runs"]:
+            ...     print(f"  {node['node_label']}: {node['status']}")
+        """
+        params = {"tenant_id": self.tenant_id, "run_name": run_name}
+        return self._request_get(
+            "workflows.get_run", params,
+            api_base=self.workflows_api_base,
+        )
+
+    def list_workflow_runs(
+        self,
+        workflow_name: Optional[str] = None,
+        status: Optional[str] = None,
+        page: int = 0,
+        page_size: int = 20,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        List workflow execution runs.
+
+        Args:
+            workflow_name: Filter by workflow document name (optional)
+            status: Filter by status (optional)
+            page: Page number, 0-indexed (default: 0)
+            page_size: Items per page, max 100 (default: 20)
+
+        Returns:
+            {"runs": [...], "total": int, "page": int, "page_size": int}
+
+        Example:
+            >>> result = client.list_workflow_runs(workflow_name="WF-00001", status="Completed")
+            >>> for run in result["runs"]:
+            ...     print(f"{run['run_id']}: {run['status']} ({run['duration_ms']}ms)")
+        """
+        params: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "page": str(page),
+            "page_size": str(page_size),
+        }
+        if workflow_name:
+            params["workflow_name"] = workflow_name
+        if status:
+            params["status"] = status
+        return self._request_get(
+            "workflows.list_runs", params,
+            api_base=self.workflows_api_base,
+        )
+
+    def set_workflow_schedule(
+        self,
+        name: str,
+        cron_expression: str,
+        timezone: str = "UTC",
+        enabled: bool = True,
+        default_input: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Set or update cron schedule for a workflow.
+
+        Args:
+            name: AR Workflow document name
+            cron_expression: Standard cron expression (e.g., "0 9 * * 1-5")
+            timezone: IANA timezone (default: "UTC")
+            enabled: Whether schedule is active (default: True)
+            default_input: Input data for scheduled runs (JSON string)
+
+        Returns:
+            {"name": str, "schedule_enabled": bool, "cron_expression": str,
+             "timezone": str, "next_run_at": str}
+
+        Example:
+            >>> result = client.set_workflow_schedule(
+            ...     "WF-00001",
+            ...     cron_expression="0 9 * * 1-5",  # Weekdays at 9 AM
+            ...     timezone="America/New_York",
+            ... )
+            >>> print(f"Next run: {result['next_run_at']}")
+        """
+        payload: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "name": name,
+            "cron_expression": cron_expression,
+            "timezone": timezone,
+            "enabled": enabled,
+        }
+        if default_input is not None:
+            payload["default_input"] = default_input
+        return self._request_post_json(
+            "workflows.set_schedule", payload,
+            api_base=self.workflows_api_base,
+        )
+
+    def validate_workflow_graph(self, graph_json: str) -> Optional[Dict[str, Any]]:
+        """
+        Validate a workflow graph JSON without saving.
+
+        Args:
+            graph_json: Graph JSON string to validate
+
+        Returns:
+            If valid: {"valid": True, "stats": {"total_nodes": int, "agent_count": int, ...}}
+            If invalid: {"valid": False, "error": str}
+
+        Example:
+            >>> result = client.validate_workflow_graph(graph_json_str)
+            >>> if result["valid"]:
+            ...     print(f"Graph has {result['stats']['agent_count']} agent nodes")
+            >>> else:
+            ...     print(f"Invalid: {result['error']}")
+        """
+        payload = {"tenant_id": self.tenant_id, "graph_json": graph_json}
+        return self._request_post_json(
+            "workflows.validate_graph", payload,
+            api_base=self.workflows_api_base,
+        )
+
+    def test_workflow_node(
+        self,
+        node_json: str,
+        input_text: str = "Test input",
+        default_model_id: Optional[str] = None,
+        default_user_id: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Execute a single node in isolation for testing.
+
+        Creates a temporary workflow with input -> node -> output,
+        executes it, and returns the result.
+
+        Args:
+            node_json: Single node definition as JSON string
+            input_text: Test input text (default: "Test input")
+            default_model_id: LLM model to use for agent nodes
+            default_user_id: User whose MCP tools to use
+
+        Returns:
+            {"status": str, "node_result": {...}, "duration_ms": int, "tokens_used": int}
+
+        Example:
+            >>> import json
+            >>> node = json.dumps({
+            ...     "id": "summarizer",
+            ...     "type": "agent",
+            ...     "label": "Summarizer",
+            ...     "config": {"system_prompt": "Summarize the input text concisely."}
+            ... })
+            >>> result = client.test_workflow_node(node, input_text="Long text here...")
+            >>> print(result["node_result"]["output_text"])
+        """
+        payload: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "node_json": node_json,
+            "input_text": input_text,
+        }
+        if default_model_id:
+            payload["default_model_id"] = default_model_id
+        if default_user_id:
+            payload["default_user_id"] = default_user_id
+        return self._request_post_json(
+            "workflows.test_node", payload,
+            timeout=120.0,
+            api_base=self.workflows_api_base,
+        )
+
 
 # =============================================================================
 # Standalone Functions

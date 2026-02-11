@@ -35,7 +35,7 @@ class BaseAssistantRuntimeClient:
     - HMAC signature generation for API requests
     - SSE line parsing for streaming responses
     - Common configuration and validation
-    - Multi API base routing (core + billing + memory)
+    - Multi API base routing (core + billing + memory + workflows)
 
     Both AssistantRuntimeClient (sync) and AsyncAssistantRuntimeClient (async) inherit from this class.
 
@@ -53,6 +53,10 @@ class BaseAssistantRuntimeClient:
             ``{ar_url}/api/method/assistant_runtime_memory.api``. Pass a full
             URL or just a Frappe dotted module path (e.g.
             ``"assistant_runtime_memory.api"``).
+        workflows_api_base: Override URL for workflow API endpoints. Defaults to
+            ``{ar_url}/api/method/assistant_runtime_workflows.api``. Pass a full
+            URL or just a Frappe dotted module path (e.g.
+            ``"assistant_runtime_workflows.api"``).
 
     Example:
         >>> # Don't instantiate directly - use AssistantRuntimeClient or AsyncAssistantRuntimeClient
@@ -63,6 +67,7 @@ class BaseAssistantRuntimeClient:
     DEFAULT_AR_URL = "https://ar.example.com"
     DEFAULT_BILLING_API_MODULE = "assistant_runtime_payments.api"
     DEFAULT_MEMORY_API_MODULE = "assistant_runtime_memory.api"
+    DEFAULT_WORKFLOWS_API_MODULE = "assistant_runtime_workflows.api"
     DEFAULT_TIMEOUT = 30.0
     STREAM_CONNECT_TIMEOUT = 10.0
     STREAM_READ_TIMEOUT = 300.0  # 5 minutes for long responses
@@ -76,6 +81,7 @@ class BaseAssistantRuntimeClient:
         timeout: float = DEFAULT_TIMEOUT,
         billing_api_base: Optional[str] = None,
         memory_api_base: Optional[str] = None,
+        workflows_api_base: Optional[str] = None,
     ):
         # Validate required parameters
         if not tenant_id:
@@ -106,6 +112,15 @@ class BaseAssistantRuntimeClient:
         else:
             # Treat as a dotted module path
             self.memory_api_base = f"{self.ar_url}/api/method/{memory_api_base}"
+
+        # Workflows API base — routes workflow methods to the workflows app
+        if workflows_api_base is None:
+            self.workflows_api_base = f"{self.ar_url}/api/method/{self.DEFAULT_WORKFLOWS_API_MODULE}"
+        elif workflows_api_base.startswith(("http://", "https://")):
+            self.workflows_api_base = workflows_api_base.rstrip("/")
+        else:
+            # Treat as a dotted module path
+            self.workflows_api_base = f"{self.ar_url}/api/method/{workflows_api_base}"
 
         # Billing availability state — None means unknown (not yet probed)
         self._billing_available: Optional[bool] = None
@@ -223,6 +238,20 @@ class BaseAssistantRuntimeClient:
             Full URL
         """
         return f"{self.memory_api_base}.{endpoint}"
+
+    def _build_workflows_endpoint_url(self, endpoint: str) -> str:
+        """
+        Build full URL for a workflow API endpoint.
+
+        Routes through ``workflows_api_base`` which targets the workflows app.
+
+        Args:
+            endpoint: Endpoint path (e.g., 'workflows.create_workflow')
+
+        Returns:
+            Full URL
+        """
+        return f"{self.workflows_api_base}.{endpoint}"
 
     def _require_billing(self) -> None:
         """
