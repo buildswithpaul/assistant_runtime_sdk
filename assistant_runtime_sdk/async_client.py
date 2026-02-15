@@ -1753,3 +1753,146 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
             timeout=120.0,
             api_base=self.workflows_api_base,
         )
+
+    # --- Workflow Templates ---
+
+    async def export_workflow(
+        self,
+        name: str,
+        template_name: Optional[str] = None,
+        category: str = "General",
+        save_as_template: bool = False,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Export a workflow as a portable template JSON.
+
+        Strips tenant-specific data, extracts variables, detects required tools.
+        Optionally saves as a registered template.
+
+        Args:
+            name: AR Workflow document name
+            template_name: Override template name (defaults to workflow_name)
+            category: Template category
+            save_as_template: If True, also creates an AR Workflow Template record
+
+        Returns:
+            {"template": {...}, "template_record": str (if saved)}
+        """
+        payload: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "name": name,
+            "category": category,
+            "save_as_template": save_as_template,
+        }
+        if template_name:
+            payload["template_name"] = template_name
+        return await self._request_post_json(
+            "workflows.export_workflow", payload,
+            api_base=self.workflows_api_base,
+        )
+
+    async def list_templates(
+        self,
+        category: Optional[str] = None,
+        search: Optional[str] = None,
+        page: int = 0,
+        page_size: int = 20,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        List published workflow templates.
+
+        Args:
+            category: Filter by category (optional)
+            search: Text search on name, description, tags (optional)
+            page: Page number (0-indexed)
+            page_size: Items per page (max 100)
+
+        Returns:
+            {"templates": [...], "total": int, "page": int, "page_size": int}
+        """
+        params: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "page": page,
+            "page_size": page_size,
+        }
+        if category:
+            params["category"] = category
+        if search:
+            params["search"] = search
+        return await self._request_get(
+            "workflows.list_templates", params,
+            api_base=self.workflows_api_base,
+        )
+
+    async def get_template(
+        self,
+        template_name: Optional[str] = None,
+        name: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Get full template details including graph_json and variables_schema.
+
+        Args:
+            template_name: Template name (or)
+            name: Document name
+
+        Returns:
+            Full template details dict
+        """
+        params: Dict[str, Any] = {"tenant_id": self.tenant_id}
+        if name:
+            params["name"] = name
+        elif template_name:
+            params["template_name"] = template_name
+        return await self._request_get(
+            "workflows.get_template", params,
+            api_base=self.workflows_api_base,
+        )
+
+    async def import_template(
+        self,
+        user_id: str,
+        template_name: Optional[str] = None,
+        template_json: Optional[str] = None,
+        workflow_name: Optional[str] = None,
+        variables: Optional[str] = None,
+        default_user_id: Optional[str] = None,
+        default_model_id: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Import a template as a new workflow.
+
+        Accepts either a registered template (by name) or inline template JSON.
+
+        Args:
+            user_id: User who will own the workflow
+            template_name: Registered template name (or)
+            template_json: Inline template JSON
+            workflow_name: Custom workflow name (defaults to template name)
+            variables: JSON string of variable overrides
+            default_user_id: User whose MCP tools will be used
+            default_model_id: Override LLM model
+
+        Returns:
+            {"workflow": {...}, "warnings": [...], "variables_applied": {...}}
+        """
+        payload: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+        }
+        if template_name:
+            payload["template_name"] = template_name
+        if template_json:
+            payload["template_json"] = template_json
+        if workflow_name:
+            payload["workflow_name"] = workflow_name
+        if variables:
+            payload["variables"] = variables
+        if default_user_id:
+            payload["default_user_id"] = default_user_id
+        if default_model_id:
+            payload["default_model_id"] = default_model_id
+        return await self._request_post_json(
+            "workflows.import_template", payload,
+            api_base=self.workflows_api_base,
+        )
