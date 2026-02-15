@@ -1762,18 +1762,20 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         template_name: Optional[str] = None,
         category: str = "General",
         save_as_template: bool = False,
+        is_public: bool = False,
     ) -> Optional[Dict[str, Any]]:
         """
         Export a workflow as a portable template JSON.
 
         Strips tenant-specific data, extracts variables, detects required tools.
-        Optionally saves as a registered template.
+        Optionally saves as a registered template owned by the tenant.
 
         Args:
             name: AR Workflow document name
             template_name: Override template name (defaults to workflow_name)
             category: Template category
             save_as_template: If True, also creates an AR Workflow Template record
+            is_public: If True, the saved template is visible to all tenants
 
         Returns:
             {"template": {...}, "template_record": str (if saved)}
@@ -1783,6 +1785,7 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
             "name": name,
             "category": category,
             "save_as_template": save_as_template,
+            "is_public": is_public,
         }
         if template_name:
             payload["template_name"] = template_name
@@ -1795,15 +1798,21 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         self,
         category: Optional[str] = None,
         search: Optional[str] = None,
+        user_id: Optional[str] = None,
         page: int = 0,
         page_size: int = 20,
     ) -> Optional[Dict[str, Any]]:
         """
         List published workflow templates.
 
+        When ``user_id`` is provided, templates requiring MCP capabilities
+        the user lacks are excluded (matched against the user's MCP server
+        ``capabilities`` tags).
+
         Args:
             category: Filter by category (optional)
             search: Text search on name, description, tags (optional)
+            user_id: User identifier for capability-based filtering (optional)
             page: Page number (0-indexed)
             page_size: Items per page (max 100)
 
@@ -1819,6 +1828,8 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
             params["category"] = category
         if search:
             params["search"] = search
+        if user_id:
+            params["user_id"] = user_id
         return await self._request_get(
             "workflows.list_templates", params,
             api_base=self.workflows_api_base,
@@ -1828,13 +1839,20 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         self,
         template_name: Optional[str] = None,
         name: Optional[str] = None,
+        user_id: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """
         Get full template details including graph_json and variables_schema.
 
+        When ``user_id`` is provided, the response includes
+        ``user_has_capabilities`` (bool) and ``missing_capabilities`` (list)
+        indicating whether the user's MCP servers satisfy the template's
+        ``tool_hints``.
+
         Args:
             template_name: Template name (or)
             name: Document name
+            user_id: User identifier for capability checking (optional)
 
         Returns:
             Full template details dict
@@ -1844,6 +1862,8 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
             params["name"] = name
         elif template_name:
             params["template_name"] = template_name
+        if user_id:
+            params["user_id"] = user_id
         return await self._request_get(
             "workflows.get_template", params,
             api_base=self.workflows_api_base,
@@ -1894,5 +1914,84 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
             payload["default_model_id"] = default_model_id
         return await self._request_post_json(
             "workflows.import_template", payload,
+            api_base=self.workflows_api_base,
+        )
+
+    async def update_template(
+        self,
+        name: str,
+        template_name: Optional[str] = None,
+        description: Optional[str] = None,
+        category: Optional[str] = None,
+        is_public: Optional[bool] = None,
+        is_published: Optional[bool] = None,
+        graph_json: Optional[str] = None,
+        variables_schema: Optional[str] = None,
+        default_variables: Optional[str] = None,
+        default_model_id: Optional[str] = None,
+        error_strategy: Optional[str] = None,
+        timeout_seconds: Optional[int] = None,
+        tags: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Update a tenant's own template.
+
+        Cannot modify official templates. Only the owning tenant can update.
+
+        Args:
+            name: AR Workflow Template document name
+            (all other fields are optional updates)
+
+        Returns:
+            {"name": str, "template_name": str, "is_public": bool, "is_published": bool}
+        """
+        payload: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "name": name,
+        }
+        if template_name is not None:
+            payload["template_name"] = template_name
+        if description is not None:
+            payload["description"] = description
+        if category is not None:
+            payload["category"] = category
+        if is_public is not None:
+            payload["is_public"] = is_public
+        if is_published is not None:
+            payload["is_published"] = is_published
+        if graph_json is not None:
+            payload["graph_json"] = graph_json
+        if variables_schema is not None:
+            payload["variables_schema"] = variables_schema
+        if default_variables is not None:
+            payload["default_variables"] = default_variables
+        if default_model_id is not None:
+            payload["default_model_id"] = default_model_id
+        if error_strategy is not None:
+            payload["error_strategy"] = error_strategy
+        if timeout_seconds is not None:
+            payload["timeout_seconds"] = timeout_seconds
+        if tags is not None:
+            payload["tags"] = tags
+        return await self._request_post_json(
+            "workflows.update_template", payload,
+            api_base=self.workflows_api_base,
+        )
+
+    async def delete_template(self, name: str) -> Optional[Dict[str, Any]]:
+        """
+        Delete a tenant's own template.
+
+        Cannot delete official templates. Only the owning tenant can delete.
+
+        Args:
+            name: AR Workflow Template document name
+
+        Returns:
+            {"status": "deleted", "name": str}
+        """
+        return await self._request_post_json(
+            "workflows.delete_template",
+            {"tenant_id": self.tenant_id, "name": name},
             api_base=self.workflows_api_base,
         )
