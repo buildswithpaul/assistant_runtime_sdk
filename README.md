@@ -160,6 +160,9 @@ When streaming, you'll receive events with these types:
 - `list_prompts(user_id, cursor=None)` - List prompt templates
 - `get_prompt(prompt_name, arguments=None, user_id=None)` - Get rendered prompt
 
+#### Tools
+- `list_tools(user_id, server=None)` - List MCP tools with input schemas
+
 ### Standalone Functions
 
 ```python

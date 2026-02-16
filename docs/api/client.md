@@ -673,6 +673,61 @@ def get_prompt(
 
 ---
 
+## Tools API
+
+### list_tools()
+
+List available tools from user's configured MCP servers with full input schemas.
+
+```python
+def list_tools(
+    self,
+    user_id: str,
+    server: Optional[str] = None,
+) -> Optional[Dict[str, Any]]
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `user_id` | str | Yes | User identifier |
+| `server` | str | No | Filter to specific MCP server |
+
+**Returns:** `ToolsResponse` TypedDict
+
+```python
+{
+    "tools": [
+        {
+            "name": "brave:web_search",
+            "original_name": "web_search",
+            "description": "Search the web using Brave Search",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "Search query"}
+                },
+                "required": ["query"]
+            },
+            "server": "brave"
+        }
+    ],
+    "servers_queried": ["brave"],
+    "errors": null
+}
+```
+
+**Example:**
+
+```python
+tools = client.list_tools("user@example.com")
+for t in tools.get("tools", []):
+    print(f"{t['name']}: {t['description']}")
+```
+
+---
+
 ## Standalone Functions
 
 ### get_terms()

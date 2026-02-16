@@ -371,6 +371,40 @@ async def get_prompt(
 
 ---
 
+## Tools API
+
+### list_tools()
+
+List available tools from user's configured MCP servers with full input schemas.
+
+```python
+async def list_tools(
+    self,
+    user_id: str,
+    server: Optional[str] = None,
+) -> Optional[Dict[str, Any]]
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `user_id` | str | Yes | User identifier |
+| `server` | str | No | Filter to specific MCP server |
+
+**Returns:** `ToolsResponse` TypedDict
+
+**Example:**
+
+```python
+async with AsyncFACLClient(tenant_id, secret) as client:
+    tools = await client.list_tools("user@example.com")
+    for t in tools.get("tools", []):
+        print(f"{t['name']}: {t['description']}")
+```
+
+---
+
 ## Concurrent Operations
 
 ### Multiple API Calls

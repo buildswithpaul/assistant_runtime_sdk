@@ -730,6 +730,51 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         return self._request_post_json("resources.read_resource", params)
 
     # =========================================================================
+    # Tool APIs
+    # =========================================================================
+
+    def list_tools(
+        self,
+        user_id: str,
+        server: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        List available tools from user's configured MCP servers.
+
+        Returns tools with their names, descriptions, and input schemas.
+        Useful for building workflow tool directives in the UI.
+
+        Args:
+            user_id: User identifier (required)
+            server: Optional - filter to specific MCP server
+
+        Returns:
+            Dict with tools list, servers_queried, and any errors:
+            {
+                "tools": [
+                    {
+                        "name": "server_name:tool_name",
+                        "original_name": "tool_name",
+                        "description": "...",
+                        "inputSchema": {...},
+                        "server": "server_name"
+                    }
+                ],
+                "servers_queried": ["server_name"],
+                "errors": null
+            }
+
+        Example:
+            >>> tools = client.list_tools("user@example.com")
+            >>> for t in tools.get("tools", []):
+            ...     print(f"{t['name']}: {t['description']}")
+        """
+        params = {"tenant_id": self.tenant_id, "user_id": user_id}
+        if server:
+            params["server"] = server
+        return self._request_get("tools.list_tools", params)
+
+    # =========================================================================
     # Billing & Subscription APIs
     # =========================================================================
     # These methods route through billing_api_base → assistant_runtime_payments.api
@@ -2051,6 +2096,57 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         return self._request_post_json(
             "workflows.test_node", payload,
             timeout=120.0,
+            api_base=self.workflows_api_base,
+        )
+
+    def resolve_workflow_tools(
+        self,
+        user_id: str,
+        tool_directives: List[Dict[str, Any]],
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Preview how tool directives resolve against a user's MCP tools.
+
+        Checks each tool directive against the user's available MCP tools
+        and returns resolution status. Used by the workflow builder to show
+        availability indicators on tool directives.
+
+        Args:
+            user_id: User whose MCP tools to check against
+            tool_directives: List of directive dicts with at least
+                ``tool_name`` and ``capability``
+
+        Returns:
+            {
+                "resolved": [
+                    {
+                        "capability": "web_search",
+                        "tool_name": "web_search",
+                        "status": "resolved" | "missing",
+                        "prefixed_name": "brave:web_search" | null,
+                        "server_name": "brave" | null,
+                        "inputSchema": {...} | null,
+                        "description": "..."
+                    }
+                ],
+                "all_tools_available": true | false,
+                "missing_tools": ["tool_name_x"]
+            }
+
+        Example:
+            >>> result = client.resolve_workflow_tools(
+            ...     "user@example.com",
+            ...     [{"capability": "web_search", "tool_name": "web_search"}]
+            ... )
+            >>> print(result["all_tools_available"])
+        """
+        payload: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+            "tool_directives": json.dumps(tool_directives),
+        }
+        return self._request_post_json(
+            "workflows.resolve_workflow_tools", payload,
             api_base=self.workflows_api_base,
         )
 
