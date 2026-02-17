@@ -2125,8 +2125,7 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
                         "status": "resolved" | "missing",
                         "prefixed_name": "brave:web_search" | null,
                         "server_name": "brave" | null,
-                        "inputSchema": {...} | null,
-                        "description": "..."
+                        "inputSchema": {...} | null
                     }
                 ],
                 "all_tools_available": true | false,
@@ -2147,6 +2146,62 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         }
         return self._request_post_json(
             "workflows.resolve_workflow_tools", payload,
+            api_base=self.workflows_api_base,
+        )
+
+    def run_workflow_node(
+        self,
+        name: str,
+        node_id: str,
+        input_text: str = "Test input",
+        user_id: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Run a single node from a saved workflow with manual input.
+
+        Extracts the target node from the workflow's graph, wraps it in a
+        temporary mini-workflow, and executes it. The node inherits the
+        parent workflow's model, user, and global variables.
+
+        Args:
+            name: Workflow document name or workflow_name
+            node_id: Node ID within the graph (e.g., "invoice_collector")
+            input_text: Input text to feed the node
+            user_id: Override the workflow's default_user_id
+
+        Returns:
+            {
+                "status": "Completed",
+                "node_id": "invoice_collector",
+                "node_label": "Invoice Collector",
+                "node_result": {
+                    "status": "Completed",
+                    "output_text": "...",
+                    "tokens_used": 1800,
+                    "duration_ms": 7200,
+                    "error_message": null
+                },
+                "duration_ms": 7500,
+                "tokens_used": 1800
+            }
+
+        Example:
+            >>> result = client.run_workflow_node(
+            ...     "WF-00001", "invoice_collector",
+            ...     input_text="Check overdue invoices"
+            ... )
+            >>> print(result["node_result"]["output_text"])
+        """
+        payload: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "name": name,
+            "node_id": node_id,
+            "input_text": input_text,
+        }
+        if user_id is not None:
+            payload["user_id"] = user_id
+        return self._request_post_json(
+            "workflows.run_workflow_node", payload,
             api_base=self.workflows_api_base,
         )
 
