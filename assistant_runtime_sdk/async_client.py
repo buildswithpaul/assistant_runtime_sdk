@@ -849,6 +849,35 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         }
         return await self._request_post_json("verify_razorpay_payment", payload, api_base=self.billing_api_base)
 
+    async def verify_razorpay_credit_payment(
+        self,
+        razorpay_payment_id: str,
+        razorpay_order_id: str,
+        razorpay_signature: str,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Verify Razorpay payment for a credit (token) purchase.
+
+        Called from the Razorpay widget handler after a successful order-based payment.
+        Verifies the HMAC signature and adds credits to the tenant's balance.
+
+        Args:
+            razorpay_payment_id: Payment ID from Razorpay widget response.
+            razorpay_order_id: Order ID from Razorpay widget response.
+            razorpay_signature: Signature from Razorpay widget response.
+
+        Returns:
+            {"success": True, "balance": int, "tokens_added": int, "message": str}
+        """
+        self._require_billing()
+        payload = {
+            "tenant_id": self.tenant_id,
+            "razorpay_payment_id": razorpay_payment_id,
+            "razorpay_order_id": razorpay_order_id,
+            "razorpay_signature": razorpay_signature,
+        }
+        return await self._request_post_json("verify_razorpay_credit_payment", payload, api_base=self.billing_api_base)
+
     async def get_usage_dashboard(self) -> Optional[Dict[str, Any]]:
         """Get comprehensive usage and billing data for dashboard."""
         self._require_billing()
@@ -1903,6 +1932,7 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         return await self._request_post_json(
             "workflows.run_workflow_node", payload,
             api_base=self.workflows_api_base,
+            timeout=120.0,
         )
 
     # --- Workflow Templates ---
