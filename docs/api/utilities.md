@@ -6,10 +6,10 @@ Reference for authentication and streaming utility functions.
 
 ### generate_signature()
 
-Generate HMAC-SHA256 signature for FACL API request.
+Generate HMAC-SHA256 signature for Assistant Runtime API request.
 
 ```python
-from facl import generate_signature
+from assistant_runtime_sdk import generate_signature
 
 signature = generate_signature(
     tenant_id: str,
@@ -35,7 +35,7 @@ signature = generate_signature(
 **Example:**
 
 ```python
-from facl import generate_signature
+from assistant_runtime_sdk import generate_signature
 
 params = {"tenant_id": "my-tenant", "message": "Hello"}
 signature = generate_signature(
@@ -51,10 +51,10 @@ signature = generate_signature(
 
 ### verify_signature()
 
-Verify HMAC-SHA256 signature from FACL request.
+Verify HMAC-SHA256 signature from Assistant Runtime request.
 
 ```python
-from facl import verify_signature
+from assistant_runtime_sdk import verify_signature
 
 is_valid = verify_signature(
     signature_header: str,
@@ -70,7 +70,7 @@ is_valid = verify_signature(
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `signature_header` | str | Yes | - | X-FACL-Signature header value |
+| `signature_header` | str | Yes | - | X-AR-Signature header value |
 | `tenant_id` | str | Yes | - | Expected tenant ID |
 | `tenant_secret` | str | Yes | - | HMAC secret |
 | `params` | dict | Yes | - | Request parameters to verify |
@@ -82,11 +82,11 @@ is_valid = verify_signature(
 **Example:**
 
 ```python
-from facl import verify_signature
+from assistant_runtime_sdk import verify_signature
 
 # Verify incoming webhook
 is_valid = verify_signature(
-    signature_header=request.headers["X-FACL-Signature"],
+    signature_header=request.headers["X-AR-Signature"],
     tenant_id="my-tenant",
     tenant_secret="my-secret",
     params=request.json,
@@ -102,10 +102,10 @@ if not is_valid:
 
 ### get_signature_header()
 
-Generate headers dict with FACL signature.
+Generate headers dict with Assistant Runtime signature.
 
 ```python
-from facl import get_signature_header
+from assistant_runtime_sdk import get_signature_header
 
 headers = get_signature_header(
     tenant_id: str,
@@ -115,17 +115,17 @@ headers = get_signature_header(
 ) -> Dict[str, str]
 ```
 
-**Returns:** Dict with `X-FACL-Signature` key
+**Returns:** Dict with `X-AR-Signature` key
 
 **Example:**
 
 ```python
-from facl import get_signature_header
+from assistant_runtime_sdk import get_signature_header
 import requests
 
 params = {"message": "Hello"}
 headers = get_signature_header("my-tenant", "my-secret", params)
-# headers = {"X-FACL-Signature": "1704067200:..."}
+# headers = {"X-AR-Signature": "1704067200:..."}
 
 response = requests.get(url, params=params, headers=headers)
 ```
@@ -139,7 +139,7 @@ response = requests.get(url, params=params, headers=headers)
 Enum of SSE event types.
 
 ```python
-from facl import SSEEventType
+from assistant_runtime_sdk import SSEEventType
 
 class SSEEventType(str, Enum):
     STREAM_START = "stream_start"
@@ -162,7 +162,7 @@ class SSEEventType(str, Enum):
 **Example:**
 
 ```python
-from facl import SSEEventType
+from assistant_runtime_sdk import SSEEventType
 
 # Compare with string
 if event["event"] == SSEEventType.STREAM_CHUNK:
@@ -184,7 +184,7 @@ event_type = SSEEventType.from_string("custom_event")
 Parse a single SSE line.
 
 ```python
-from facl import parse_sse_line
+from assistant_runtime_sdk import parse_sse_line
 
 result = parse_sse_line(line: str) -> Optional[Dict[str, Any]]
 ```
@@ -204,7 +204,7 @@ result = parse_sse_line(line: str) -> Optional[Dict[str, Any]]
 **Example:**
 
 ```python
-from facl import parse_sse_line
+from assistant_runtime_sdk import parse_sse_line
 
 # Parse event line
 result = parse_sse_line("event: stream_chunk")
@@ -234,7 +234,7 @@ result = parse_sse_line(": heartbeat")
 Parse an SSE stream from an iterator.
 
 ```python
-from facl import parse_sse_stream
+from assistant_runtime_sdk import parse_sse_stream
 
 events = parse_sse_stream(
     lines: Iterator[str]
@@ -249,7 +249,7 @@ events = parse_sse_stream(
 **Example:**
 
 ```python
-from facl import parse_sse_stream
+from assistant_runtime_sdk import parse_sse_stream
 
 # From raw lines
 lines = [
@@ -275,7 +275,7 @@ for event in parse_sse_stream(iter(lines)):
 Check if an event type indicates stream end.
 
 ```python
-from facl.streaming import is_terminal_event
+from assistant_runtime_sdk.streaming import is_terminal_event
 
 is_terminal_event(event_type: str) -> bool
 ```
@@ -288,7 +288,7 @@ is_terminal_event(event_type: str) -> bool
 **Example:**
 
 ```python
-from facl.streaming import is_terminal_event
+from assistant_runtime_sdk.streaming import is_terminal_event
 
 for event in client.stream_chat(...):
     process(event)
@@ -305,7 +305,7 @@ for event in client.stream_chat(...):
 Extract metrics from stream_complete event.
 
 ```python
-from facl.streaming import extract_stream_metrics
+from assistant_runtime_sdk.streaming import extract_stream_metrics
 
 metrics = extract_stream_metrics(
     complete_event: Dict[str, Any]
@@ -328,7 +328,7 @@ metrics = extract_stream_metrics(
 **Example:**
 
 ```python
-from facl.streaming import extract_stream_metrics
+from assistant_runtime_sdk.streaming import extract_stream_metrics
 
 for event in client.stream_chat(...):
     if event["event"] == "stream_complete":
@@ -344,7 +344,7 @@ for event in client.stream_chat(...):
 Format data as SSE event string (for servers).
 
 ```python
-from facl.streaming import format_sse_event
+from assistant_runtime_sdk.streaming import format_sse_event
 
 sse_string = format_sse_event(
     event_type: str,
@@ -356,7 +356,7 @@ sse_string = format_sse_event(
 **Example:**
 
 ```python
-from facl.streaming import format_sse_event
+from assistant_runtime_sdk.streaming import format_sse_event
 
 sse = format_sse_event("stream_chunk", {"content": "Hello"})
 # Returns:
@@ -382,7 +382,7 @@ sse = format_sse_event("stream_chunk", {"content": "Hello"}, event_id="msg-1")
 
 ```python
 import requests
-from facl import parse_sse_stream, get_signature_header
+from assistant_runtime_sdk import parse_sse_stream, get_signature_header
 
 def custom_stream(url, params, tenant_id, tenant_secret):
     """Custom SSE streaming with raw requests."""
@@ -404,7 +404,7 @@ def custom_stream(url, params, tenant_id, tenant_secret):
 
 ```python
 from flask import Flask, Response
-from facl.streaming import format_sse_event
+from assistant_runtime_sdk.streaming import format_sse_event
 
 app = Flask(__name__)
 
@@ -425,4 +425,4 @@ def stream():
 
 - [Authentication Guide](../guides/authentication.md)
 - [Streaming Guide](../guides/streaming.md)
-- [FACLClient Reference](client.md)
+- [AssistantRuntimeClient Reference](client.md)

@@ -14,7 +14,7 @@ from typing import Dict, Any, List, Optional, Protocol, runtime_checkable
 
 from .auth import generate_signature
 from .streaming import parse_sse_line
-from .exceptions import ARConfigurationError, ARBillingUnavailableError
+from .exceptions import ARConfigurationError, ARBillingUnavailableError, ARAuthenticationError
 
 
 @runtime_checkable
@@ -95,32 +95,10 @@ class BaseAssistantRuntimeClient:
         self.api_base = f"{self.ar_url}/api/method/assistant_runtime.api"
         self.timeout = timeout
 
-        # Billing API base — routes billing methods to the payments app
-        if billing_api_base is None:
-            self.billing_api_base = f"{self.ar_url}/api/method/{self.DEFAULT_BILLING_API_MODULE}"
-        elif billing_api_base.startswith(("http://", "https://")):
-            self.billing_api_base = billing_api_base.rstrip("/")
-        else:
-            # Treat as a dotted module path
-            self.billing_api_base = f"{self.ar_url}/api/method/{billing_api_base}"
-
-        # Memory API base — routes onboarding/memory methods to the memory app
-        if memory_api_base is None:
-            self.memory_api_base = f"{self.ar_url}/api/method/{self.DEFAULT_MEMORY_API_MODULE}"
-        elif memory_api_base.startswith(("http://", "https://")):
-            self.memory_api_base = memory_api_base.rstrip("/")
-        else:
-            # Treat as a dotted module path
-            self.memory_api_base = f"{self.ar_url}/api/method/{memory_api_base}"
-
-        # Workflows API base — routes workflow methods to the workflows app
-        if workflows_api_base is None:
-            self.workflows_api_base = f"{self.ar_url}/api/method/{self.DEFAULT_WORKFLOWS_API_MODULE}"
-        elif workflows_api_base.startswith(("http://", "https://")):
-            self.workflows_api_base = workflows_api_base.rstrip("/")
-        else:
-            # Treat as a dotted module path
-            self.workflows_api_base = f"{self.ar_url}/api/method/{workflows_api_base}"
+        # Companion app API bases
+        self.billing_api_base = self._resolve_api_base(billing_api_base, self.DEFAULT_BILLING_API_MODULE)
+        self.memory_api_base = self._resolve_api_base(memory_api_base, self.DEFAULT_MEMORY_API_MODULE)
+        self.workflows_api_base = self._resolve_api_base(workflows_api_base, self.DEFAULT_WORKFLOWS_API_MODULE)
 
         # Billing availability state — None means unknown (not yet probed)
         self._billing_available: Optional[bool] = None
@@ -130,6 +108,14 @@ class BaseAssistantRuntimeClient:
             self.logger = logging.getLogger(__name__)
         else:
             self.logger = logger
+
+    def _resolve_api_base(self, override: Optional[str], default_module: str) -> str:
+        """Resolve an API base URL from an override or default module path."""
+        if override is None:
+            return f"{self.ar_url}/api/method/{default_module}"
+        if override.startswith(("http://", "https://")):
+            return override.rstrip("/")
+        return f"{self.ar_url}/api/method/{override}"
 
     def _generate_signature(self, params: Dict[str, Any], for_query_string: bool = False) -> str:
         """
@@ -265,50 +251,6 @@ class BaseAssistantRuntimeClient:
         if self._billing_available is False:
             raise ARBillingUnavailableError()
 
-    def _prepare_stream_params(
-        self,
-        session_id: str,
-        message: str,
-        user_id: str,
-        context: Optional[Dict[str, Any]] = None,
-        model_id: Optional[str] = None,
-    ) -> Dict[str, Any]:
-        """
-        Prepare parameters for stream_chat request (legacy GET format).
-
-        DEPRECATED: Use _prepare_stream_payload for POST requests.
-
-        Args:
-            session_id: Conversation session identifier
-            message: User's message
-            user_id: User identifier (required)
-            context: Optional page context
-            model_id: Optional model ID
-
-        Returns:
-            Parameters dict ready for request
-
-        Raises:
-            ARConfigurationError: If user_id is missing
-        """
-        if not user_id:
-            raise ARConfigurationError("user_id is required for stream_chat")
-
-        params = {
-            "tenant_id": self.tenant_id,
-            "session_id": session_id,
-            "message": message,
-            "user_id": user_id,
-        }
-
-        if context:
-            params["context"] = json.dumps(context)
-
-        if model_id:
-            params["model_id"] = model_id
-
-        return params
-
     def _prepare_stream_payload(
         self,
         session_id: str,
@@ -408,6 +350,925 @@ class BaseAssistantRuntimeClient:
         """Log a debug message."""
         self.logger.debug(message, extra={"category": category})
 
+    # =========================================================================
+    # Error Extraction
+    # =========================================================================
 
-# Backwards compatibility alias
-BaseFACLClient = BaseAssistantRuntimeClient
+    @staticmethod
+    def _extract_error_from_data(data: dict) -> Optional[str]:
+        """Extract a human-readable error message from a Frappe error response dict.
+
+        Works with both sync and async clients since it accepts a parsed dict
+        rather than a library-specific response object.
+        """
+        try:
+            server_messages = data.get("_server_messages")
+            if server_messages:
+                messages = json.loads(server_messages)
+                if messages:
+                    msg = json.loads(messages[0])
+                    return msg.get("message", str(msg))
+            if data.get("exception"):
+                exc = data["exception"]
+                lines = exc.strip().splitlines()
+                if lines:
+                    last = lines[-1]
+                    if ": " in last:
+                        return last.split(": ", 1)[1]
+                    return last
+            if data.get("message"):
+                return data["message"]
+        except Exception:
+            pass
+        return None
+
+    # =========================================================================
+    # Prepare Methods — Tenant
+    # =========================================================================
+
+    def _prepare_get_tenant_info(self) -> tuple:
+        """Returns (endpoint, params)."""
+        return "get_tenant_info", {"tenant_id": self.tenant_id}
+
+    def _prepare_accept_terms(self, terms_version: str, accepted_by: str) -> tuple:
+        """Returns (endpoint, payload)."""
+        return "accept_terms", {
+            "tenant_id": self.tenant_id,
+            "terms_version": terms_version,
+            "accepted_by": accepted_by,
+        }
+
+    # =========================================================================
+    # Prepare Methods — Models
+    # =========================================================================
+
+    def _prepare_list_available_models(self) -> tuple:
+        return "streaming.list_available_models", {"tenant_id": self.tenant_id}
+
+    def _prepare_get_available_models(self) -> tuple:
+        return "get_available_models", {"tenant_id": self.tenant_id}
+
+    def _prepare_set_preferred_model(self, model_id: str) -> tuple:
+        return "set_preferred_model", {"tenant_id": self.tenant_id, "model_id": model_id}
+
+    # =========================================================================
+    # Prepare Methods — Prompts & Suggestions
+    # =========================================================================
+
+    def _prepare_list_prompts(self, user_id: str, cursor: Optional[str] = None) -> tuple:
+        params = {"tenant_id": self.tenant_id, "user_id": user_id}
+        if cursor:
+            params["cursor"] = cursor
+        return "prompts.list_prompts", params
+
+    def _prepare_get_prompt(self, prompt_name: str, user_id: str,
+                            arguments: Optional[Dict[str, Any]] = None) -> tuple:
+        payload = {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+            "prompt_name": prompt_name,
+        }
+        if arguments:
+            payload["arguments"] = arguments
+        return "prompts.get_prompt", payload
+
+    def _prepare_get_suggestions(self, user_id: str,
+                                 context: Optional[Dict[str, Any]] = None,
+                                 limit: int = 8) -> tuple:
+        params: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+            "limit": str(limit),
+        }
+        if context:
+            params["context"] = json.dumps(context)
+        return "suggestions.get_suggestions", params
+
+    # =========================================================================
+    # Prepare Methods — Onboarding
+    # =========================================================================
+
+    def _prepare_get_onboarding_status(self, user_id: str) -> tuple:
+        return "onboarding.get_onboarding_status", {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+        }
+
+    def _prepare_complete_onboarding(self, user_id: str,
+                                     conversation_id: Optional[str] = None) -> tuple:
+        payload: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+        }
+        if conversation_id:
+            payload["conversation_id"] = conversation_id
+        return "onboarding.complete_onboarding", payload
+
+    # =========================================================================
+    # Prepare Methods — Documents
+    # =========================================================================
+
+    def _prepare_upload_document(
+        self,
+        file_path: Optional[str] = None,
+        file_data: Optional[bytes] = None,
+        file_name: Optional[str] = None,
+        content_type: Optional[str] = None,
+    ) -> tuple:
+        """Returns (endpoint, params, file_field, file_name, file_data, content_type)."""
+        import mimetypes as _mt
+        import os as _os
+
+        if file_path and file_data:
+            raise ARConfigurationError("Provide either file_path or file_data, not both")
+        if not file_path and not file_data:
+            raise ARConfigurationError("Either file_path or file_data is required")
+        if file_data and not file_name:
+            raise ARConfigurationError("file_name is required when using file_data")
+
+        if file_path:
+            with open(file_path, "rb") as f:
+                data = f.read()
+            if not file_name:
+                file_name = _os.path.basename(file_path)
+        else:
+            data = file_data
+
+        if not content_type:
+            guessed, _ = _mt.guess_type(file_name)
+            content_type = guessed or "application/octet-stream"
+
+        return (
+            "documents.upload_document",
+            {"tenant_id": self.tenant_id},
+            "file",
+            file_name,
+            data,
+            content_type,
+        )
+
+    def _prepare_list_documents(self, limit: int = 50, offset: int = 0) -> tuple:
+        return "documents.list_documents", {
+            "tenant_id": self.tenant_id,
+            "limit": str(limit),
+            "offset": str(offset),
+        }
+
+    def _prepare_get_document(self, document_id: str) -> tuple:
+        return "documents.get_document", {
+            "tenant_id": self.tenant_id,
+            "document_id": document_id,
+        }
+
+    def _prepare_delete_document(self, document_id: str) -> tuple:
+        return "documents.delete_document", {
+            "tenant_id": self.tenant_id,
+            "document_id": document_id,
+        }
+
+    def _prepare_get_storage_info(self) -> tuple:
+        return "documents.get_storage_info", {"tenant_id": self.tenant_id}
+
+    # =========================================================================
+    # Prepare Methods — Tools
+    # =========================================================================
+
+    def _prepare_list_tools(self, user_id: str,
+                            server: Optional[str] = None) -> tuple:
+        params: Dict[str, Any] = {"tenant_id": self.tenant_id, "user_id": user_id}
+        if server:
+            params["server"] = server
+        return "tools.list_tools", params
+
+    # =========================================================================
+    # Prepare Methods — Billing
+    # =========================================================================
+
+    def _prepare_get_recommended_gateway(self) -> tuple:
+        self._require_billing()
+        return "get_recommended_gateway", {"tenant_id": self.tenant_id}
+
+    def _prepare_get_available_gateways(self) -> tuple:
+        self._require_billing()
+        return "get_available_gateways", {"tenant_id": self.tenant_id}
+
+    def _prepare_initiate_checkout(
+        self, plan: str, billing_cycle: str = "monthly",
+        gateway: Optional[str] = None, billing_name: Optional[str] = None,
+        billing_email: Optional[str] = None,
+    ) -> tuple:
+        self._require_billing()
+        payload: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "plan": plan,
+            "billing_cycle": billing_cycle,
+        }
+        if gateway:
+            payload["gateway"] = gateway
+        if billing_name:
+            payload["billing_name"] = billing_name
+        if billing_email:
+            payload["billing_email"] = billing_email
+        return "initiate_checkout", payload
+
+    def _prepare_verify_checkout(self, session_id: Optional[str] = None) -> tuple:
+        self._require_billing()
+        payload: Dict[str, Any] = {"tenant_id": self.tenant_id}
+        if session_id:
+            payload["session_id"] = session_id
+        return "verify_checkout", payload
+
+    def _prepare_verify_razorpay_payment(
+        self, razorpay_payment_id: str,
+        razorpay_subscription_id: str, razorpay_signature: str,
+    ) -> tuple:
+        self._require_billing()
+        return "verify_razorpay_payment", {
+            "tenant_id": self.tenant_id,
+            "razorpay_payment_id": razorpay_payment_id,
+            "razorpay_subscription_id": razorpay_subscription_id,
+            "razorpay_signature": razorpay_signature,
+        }
+
+    def _prepare_verify_razorpay_credit_payment(
+        self, razorpay_payment_id: str,
+        razorpay_order_id: str, razorpay_signature: str,
+    ) -> tuple:
+        self._require_billing()
+        return "verify_razorpay_credit_payment", {
+            "tenant_id": self.tenant_id,
+            "razorpay_payment_id": razorpay_payment_id,
+            "razorpay_order_id": razorpay_order_id,
+            "razorpay_signature": razorpay_signature,
+        }
+
+    def _prepare_get_usage_dashboard(self) -> tuple:
+        self._require_billing()
+        return "get_usage_dashboard", {"tenant_id": self.tenant_id}
+
+    def _prepare_get_usage_history(self, days: int = 30) -> tuple:
+        self._require_billing()
+        return "get_usage_history", {"tenant_id": self.tenant_id, "days": days}
+
+    def _prepare_get_invoices(self, limit: int = 10) -> tuple:
+        self._require_billing()
+        return "get_invoices", {"tenant_id": self.tenant_id, "limit": limit}
+
+    def _prepare_get_upcoming_invoice(self) -> tuple:
+        self._require_billing()
+        return "get_upcoming_invoice", {"tenant_id": self.tenant_id}
+
+    def _prepare_get_payment_methods(self) -> tuple:
+        self._require_billing()
+        return "get_payment_methods", {"tenant_id": self.tenant_id}
+
+    def _prepare_upgrade_plan(
+        self, new_plan: str, billing_cycle: str = "monthly",
+        gateway: Optional[str] = None, billing_name: Optional[str] = None,
+        billing_email: Optional[str] = None,
+    ) -> tuple:
+        self._require_billing()
+        payload: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "new_plan": new_plan,
+            "billing_cycle": billing_cycle,
+        }
+        if gateway:
+            payload["gateway"] = gateway
+        if billing_name:
+            payload["billing_name"] = billing_name
+        if billing_email:
+            payload["billing_email"] = billing_email
+        return "upgrade_plan", payload
+
+    def _prepare_downgrade_to_free(self) -> tuple:
+        self._require_billing()
+        return "downgrade_to_free", {"tenant_id": self.tenant_id}
+
+    def _prepare_cancel_scheduled_change(self) -> tuple:
+        self._require_billing()
+        return "cancel_scheduled_change", {"tenant_id": self.tenant_id}
+
+    def _prepare_cancel_subscription(self, cancel_immediately: bool = False) -> tuple:
+        self._require_billing()
+        return "cancel_subscription", {
+            "tenant_id": self.tenant_id,
+            "cancel_immediately": cancel_immediately,
+        }
+
+    def _prepare_reactivate_subscription(self) -> tuple:
+        self._require_billing()
+        return "reactivate_subscription", {"tenant_id": self.tenant_id}
+
+    def _prepare_pause_subscription(self) -> tuple:
+        self._require_billing()
+        return "pause_subscription", {"tenant_id": self.tenant_id}
+
+    def _prepare_resume_subscription(self) -> tuple:
+        self._require_billing()
+        return "resume_subscription", {"tenant_id": self.tenant_id}
+
+    def _prepare_update_payment_method(self) -> tuple:
+        self._require_billing()
+        return "update_payment_method", {"tenant_id": self.tenant_id}
+
+    def _prepare_get_subscription_status(self) -> tuple:
+        self._require_billing()
+        return "get_subscription_status", {"tenant_id": self.tenant_id}
+
+    def _prepare_get_billing_history(self, limit: int = 20) -> tuple:
+        self._require_billing()
+        return "get_billing_history", {"tenant_id": self.tenant_id, "limit": limit}
+
+    def _prepare_get_credit_balance(self) -> tuple:
+        self._require_billing()
+        return "get_credit_balance", {"tenant_id": self.tenant_id}
+
+    def _prepare_purchase_credits(self, token_amount: int,
+                                  gateway: Optional[str] = None) -> tuple:
+        self._require_billing()
+        payload: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "token_amount": token_amount,
+        }
+        if gateway:
+            payload["gateway"] = gateway
+        return "purchase_credits", payload
+
+    # =========================================================================
+    # Prepare Methods — Conversations
+    # =========================================================================
+
+    def _prepare_list_conversations(
+        self, user_id: Optional[str] = None, limit: int = 50,
+        offset: int = 0, include_deleted: bool = False,
+        from_date: Optional[str] = None, to_date: Optional[str] = None,
+    ) -> tuple:
+        params: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "limit": limit,
+            "offset": offset,
+            "include_deleted": include_deleted,
+        }
+        if user_id:
+            params["user_id"] = user_id
+        if from_date:
+            params["from_date"] = from_date
+        if to_date:
+            params["to_date"] = to_date
+        return "conversations.list_conversations", params
+
+    def _prepare_get_conversation(self, conversation_id: str) -> tuple:
+        return "conversations.get_conversation", {
+            "tenant_id": self.tenant_id,
+            "conversation_id": conversation_id,
+        }
+
+    def _prepare_get_messages(
+        self, conversation_id: str, limit: int = 100,
+        offset: int = 0, include_deleted: bool = False,
+    ) -> tuple:
+        return "conversations.get_messages", {
+            "tenant_id": self.tenant_id,
+            "conversation_id": conversation_id,
+            "limit": limit,
+            "offset": offset,
+            "include_deleted": include_deleted,
+        }
+
+    def _prepare_create_message(
+        self, conversation_id: str, message_id: str, role: str, content: str,
+        user_id: Optional[str] = None, tokens_used: int = 0,
+        context: Optional[Dict[str, Any]] = None,
+    ) -> tuple:
+        payload: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "conversation_id": conversation_id,
+            "message_id": message_id,
+            "role": role,
+            "content": content,
+            "tokens_used": tokens_used,
+        }
+        if user_id:
+            payload["user_id"] = user_id
+        if context:
+            payload["context"] = context
+        return "conversations.create_message", payload
+
+    def _prepare_update_conversation(
+        self, conversation_id: str,
+        title: Optional[str] = None, user_id: Optional[str] = None,
+    ) -> tuple:
+        payload: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "conversation_id": conversation_id,
+        }
+        if title is not None:
+            payload["title"] = title
+        if user_id is not None:
+            payload["user_id"] = user_id
+        return "conversations.update_conversation", payload
+
+    def _prepare_delete_conversation(self, conversation_id: str) -> tuple:
+        return "conversations.delete_conversation", {
+            "tenant_id": self.tenant_id,
+            "conversation_id": conversation_id,
+        }
+
+    def _prepare_delete_message(self, conversation_id: str, message_id: str) -> tuple:
+        return "conversations.delete_message", {
+            "tenant_id": self.tenant_id,
+            "conversation_id": conversation_id,
+            "message_id": message_id,
+        }
+
+    def _prepare_get_sync_stats(self) -> tuple:
+        return "conversations.get_sync_stats", {"tenant_id": self.tenant_id}
+
+    def _prepare_get_message_events(
+        self, conversation_id: str, message_id: Optional[str] = None,
+        event_types: Optional[list] = None, limit: int = 100, offset: int = 0,
+    ) -> tuple:
+        params: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "conversation_id": conversation_id,
+            "limit": limit,
+            "offset": offset,
+        }
+        if message_id:
+            params["message_id"] = message_id
+        if event_types:
+            params["event_types"] = ",".join(event_types) if isinstance(event_types, list) else event_types
+        return "conversations.get_message_events", params
+
+    def _prepare_get_tool_execution_stats(
+        self, conversation_id: Optional[str] = None,
+        from_date: Optional[str] = None, to_date: Optional[str] = None,
+    ) -> tuple:
+        params: Dict[str, Any] = {"tenant_id": self.tenant_id}
+        if conversation_id:
+            params["conversation_id"] = conversation_id
+        if from_date:
+            params["from_date"] = from_date
+        if to_date:
+            params["to_date"] = to_date
+        return "conversations.get_tool_execution_stats", params
+
+    # =========================================================================
+    # Prepare Methods — Users & MCP Servers
+    # =========================================================================
+
+    def _prepare_register_user(
+        self, user_id: str, display_name: Optional[str] = None,
+        custom_instructions: Optional[str] = None,
+    ) -> tuple:
+        params: Dict[str, Any] = {"tenant_id": self.tenant_id, "user_id": user_id}
+        if display_name:
+            params["display_name"] = display_name
+        if custom_instructions:
+            params["custom_instructions"] = custom_instructions
+        return "users.register_user", params
+
+    def _prepare_get_user(self, user_id: str) -> tuple:
+        return "users.get_user", {"tenant_id": self.tenant_id, "user_id": user_id}
+
+    def _prepare_get_user_auth_status(self, user_id: str) -> tuple:
+        return "users.get_user_auth_status", {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+        }
+
+    def _prepare_add_user_mcp_server(
+        self, user_id: str, server_name: str, endpoint_url: str,
+        transport_type: str = "SSE", auth_type: str = "OAuth",
+        oauth_client_id: Optional[str] = None,
+        oauth_client_secret: Optional[str] = None,
+        access_token: Optional[str] = None,
+        refresh_token: Optional[str] = None,
+        token_expires_in: int = 3600,
+        api_key: Optional[str] = None,
+        api_key_header: str = "Authorization",
+        allowed_tools: Optional[list] = None,
+        blocked_tools: Optional[list] = None,
+    ) -> tuple:
+        params: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+            "server_name": server_name,
+            "endpoint_url": endpoint_url,
+            "transport_type": transport_type,
+            "auth_type": auth_type,
+        }
+        if oauth_client_id:
+            params["oauth_client_id"] = oauth_client_id
+        if oauth_client_secret:
+            params["oauth_client_secret"] = oauth_client_secret
+        if access_token:
+            params["access_token"] = access_token
+        if refresh_token:
+            params["refresh_token"] = refresh_token
+        if token_expires_in:
+            params["token_expires_in"] = str(token_expires_in)
+        if api_key:
+            params["api_key"] = api_key
+        if api_key_header:
+            params["api_key_header"] = api_key_header
+        if allowed_tools:
+            params["allowed_tools"] = json.dumps(allowed_tools)
+        if blocked_tools:
+            params["blocked_tools"] = json.dumps(blocked_tools)
+        return "users.add_user_mcp_server", params
+
+    def _prepare_get_user_mcp_servers(self, user_id: str) -> tuple:
+        return "users.get_user_mcp_servers", {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+        }
+
+    def _prepare_update_mcp_server_tokens(
+        self, user_id: str, server_name: str, access_token: str,
+        refresh_token: Optional[str] = None, token_expires_in: int = 3600,
+    ) -> tuple:
+        params: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+            "server_name": server_name,
+            "access_token": access_token,
+            "token_expires_in": str(token_expires_in),
+        }
+        if refresh_token:
+            params["refresh_token"] = refresh_token
+        return "users.update_mcp_server_tokens", params
+
+    def _prepare_remove_user_mcp_server(self, user_id: str, server_name: str) -> tuple:
+        return "users.remove_user_mcp_server", {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+            "server_name": server_name,
+        }
+
+    def _prepare_list_users(
+        self, status: Optional[str] = None, limit: int = 50,
+        offset: int = 0, include_mcp_count: bool = True,
+    ) -> tuple:
+        params: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "limit": str(limit),
+            "offset": str(offset),
+            "include_mcp_count": str(include_mcp_count).lower(),
+        }
+        if status:
+            params["status"] = status
+        return "users.list_users", params
+
+    def _prepare_update_user(
+        self, user_id: str, display_name: Optional[str] = None,
+        custom_instructions: Optional[str] = None,
+    ) -> tuple:
+        params: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+        }
+        if display_name is not None:
+            params["display_name"] = display_name
+        if custom_instructions is not None:
+            params["custom_instructions"] = custom_instructions
+        return "users.update_user", params
+
+    def _prepare_deregister_user(self, user_id: str) -> tuple:
+        return "users.deregister_user", {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+        }
+
+    def _prepare_get_user_limit_status(self) -> tuple:
+        return "users.get_user_limit_status", {"tenant_id": self.tenant_id}
+
+    def _prepare_suspend_user(self, user_id: str) -> tuple:
+        return "users.suspend_user", {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+        }
+
+    def _prepare_revoke_user(self, user_id: str) -> tuple:
+        return "users.revoke_user", {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+        }
+
+    # =========================================================================
+    # Prepare Methods — Workflows
+    # =========================================================================
+
+    def _prepare_create_workflow(
+        self, workflow_name: str, graph_json: Optional[str] = None,
+        description: str = "", default_model_id: Optional[str] = None,
+        default_user_id: Optional[str] = None,
+        error_strategy: str = "fail_fast", timeout_seconds: int = 600,
+    ) -> tuple:
+        payload: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "workflow_name": workflow_name,
+            "description": description,
+            "error_strategy": error_strategy,
+            "timeout_seconds": timeout_seconds,
+        }
+        if graph_json:
+            payload["graph_json"] = graph_json
+        if default_model_id:
+            payload["default_model_id"] = default_model_id
+        if default_user_id:
+            payload["default_user_id"] = default_user_id
+        return "workflows.create_workflow", payload
+
+    def _prepare_get_workflow(
+        self, name: Optional[str] = None, workflow_name: Optional[str] = None,
+    ) -> tuple:
+        params: Dict[str, Any] = {"tenant_id": self.tenant_id}
+        if name:
+            params["name"] = name
+        if workflow_name:
+            params["workflow_name"] = workflow_name
+        return "workflows.get_workflow", params
+
+    def _prepare_update_workflow(
+        self, name: str, graph_json: Optional[str] = None,
+        workflow_name: Optional[str] = None, description: Optional[str] = None,
+        status: Optional[str] = None, default_model_id: Optional[str] = None,
+        default_user_id: Optional[str] = None,
+        error_strategy: Optional[str] = None,
+        timeout_seconds: Optional[int] = None,
+        max_node_executions: Optional[int] = None,
+        max_retries: Optional[int] = None,
+    ) -> tuple:
+        payload: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "name": name,
+        }
+        if graph_json is not None:
+            payload["graph_json"] = graph_json
+        if workflow_name is not None:
+            payload["workflow_name"] = workflow_name
+        if description is not None:
+            payload["description"] = description
+        if status is not None:
+            payload["status"] = status
+        if default_model_id is not None:
+            payload["default_model_id"] = default_model_id
+        if default_user_id is not None:
+            payload["default_user_id"] = default_user_id
+        if error_strategy is not None:
+            payload["error_strategy"] = error_strategy
+        if timeout_seconds is not None:
+            payload["timeout_seconds"] = timeout_seconds
+        if max_node_executions is not None:
+            payload["max_node_executions"] = max_node_executions
+        if max_retries is not None:
+            payload["max_retries"] = max_retries
+        return "workflows.update_workflow", payload
+
+    def _prepare_delete_workflow(self, name: str) -> tuple:
+        return "workflows.delete_workflow", {
+            "tenant_id": self.tenant_id,
+            "name": name,
+        }
+
+    def _prepare_list_workflows(
+        self, status: Optional[str] = None,
+        page: int = 0, page_size: int = 20,
+    ) -> tuple:
+        params: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "page": str(page),
+            "page_size": str(page_size),
+        }
+        if status:
+            params["status"] = status
+        return "workflows.list_workflows", params
+
+    def _prepare_execute_workflow(
+        self, name: str, input_data: Optional[str] = None,
+        user_id: Optional[str] = None,
+    ) -> tuple:
+        payload: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "name": name,
+        }
+        if input_data:
+            payload["input_data"] = input_data
+        if user_id:
+            payload["user_id"] = user_id
+        return "workflows.execute_workflow", payload
+
+    def _prepare_cancel_workflow_run(self, run_name: str) -> tuple:
+        return "workflows.cancel_run", {
+            "tenant_id": self.tenant_id,
+            "run_name": run_name,
+        }
+
+    def _prepare_get_workflow_run(self, run_name: str) -> tuple:
+        return "workflows.get_run", {
+            "tenant_id": self.tenant_id,
+            "run_name": run_name,
+        }
+
+    def _prepare_list_workflow_runs(
+        self, workflow_name: Optional[str] = None,
+        status: Optional[str] = None,
+        page: int = 0, page_size: int = 20,
+    ) -> tuple:
+        params: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "page": str(page),
+            "page_size": str(page_size),
+        }
+        if workflow_name:
+            params["workflow_name"] = workflow_name
+        if status:
+            params["status"] = status
+        return "workflows.list_runs", params
+
+    def _prepare_set_workflow_schedule(
+        self, name: str, cron_expression: str,
+        timezone: str = "UTC", enabled: bool = True,
+        default_input: Optional[str] = None,
+    ) -> tuple:
+        payload: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "name": name,
+            "cron_expression": cron_expression,
+            "timezone": timezone,
+            "enabled": enabled,
+        }
+        if default_input is not None:
+            payload["default_input"] = default_input
+        return "workflows.set_schedule", payload
+
+    def _prepare_validate_workflow_graph(self, graph_json: str) -> tuple:
+        return "workflows.validate_graph", {
+            "tenant_id": self.tenant_id,
+            "graph_json": graph_json,
+        }
+
+    def _prepare_test_workflow_node(
+        self, node_json: str, input_text: str = "Test input",
+        default_model_id: Optional[str] = None,
+        default_user_id: Optional[str] = None,
+    ) -> tuple:
+        payload: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "node_json": node_json,
+            "input_text": input_text,
+        }
+        if default_model_id:
+            payload["default_model_id"] = default_model_id
+        if default_user_id:
+            payload["default_user_id"] = default_user_id
+        return "workflows.test_node", payload
+
+    def _prepare_resolve_workflow_tools(
+        self, user_id: str, tool_directives: List[Dict[str, Any]],
+    ) -> tuple:
+        return "workflows.resolve_workflow_tools", {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+            "tool_directives": json.dumps(tool_directives),
+        }
+
+    def _prepare_run_workflow_node(
+        self, name: str, node_id: str, input_text: str = "Test input",
+        user_id: Optional[str] = None,
+    ) -> tuple:
+        payload: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "name": name,
+            "node_id": node_id,
+            "input_text": input_text,
+        }
+        if user_id is not None:
+            payload["user_id"] = user_id
+        return "workflows.run_workflow_node", payload
+
+    # =========================================================================
+    # Prepare Methods — Workflow Templates
+    # =========================================================================
+
+    def _prepare_export_workflow(
+        self, name: str, template_name: Optional[str] = None,
+        category: str = "General", save_as_template: bool = False,
+        is_public: bool = False,
+    ) -> tuple:
+        payload: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "name": name,
+            "category": category,
+            "save_as_template": save_as_template,
+            "is_public": is_public,
+        }
+        if template_name:
+            payload["template_name"] = template_name
+        return "workflows.export_workflow", payload
+
+    def _prepare_list_templates(
+        self, category: Optional[str] = None, search: Optional[str] = None,
+        user_id: Optional[str] = None, page: int = 0, page_size: int = 20,
+    ) -> tuple:
+        params: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "page": page,
+            "page_size": page_size,
+        }
+        if category:
+            params["category"] = category
+        if search:
+            params["search"] = search
+        if user_id:
+            params["user_id"] = user_id
+        return "workflows.list_templates", params
+
+    def _prepare_get_template(
+        self, template_name: Optional[str] = None,
+        name: Optional[str] = None, user_id: Optional[str] = None,
+    ) -> tuple:
+        params: Dict[str, Any] = {"tenant_id": self.tenant_id}
+        if name:
+            params["name"] = name
+        elif template_name:
+            params["template_name"] = template_name
+        if user_id:
+            params["user_id"] = user_id
+        return "workflows.get_template", params
+
+    def _prepare_import_template(
+        self, user_id: str, template_name: Optional[str] = None,
+        template_json: Optional[str] = None,
+        workflow_name: Optional[str] = None,
+        variables: Optional[str] = None,
+        default_user_id: Optional[str] = None,
+        default_model_id: Optional[str] = None,
+    ) -> tuple:
+        payload: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+        }
+        if template_name:
+            payload["template_name"] = template_name
+        if template_json:
+            payload["template_json"] = template_json
+        if workflow_name:
+            payload["workflow_name"] = workflow_name
+        if variables:
+            payload["variables"] = variables
+        if default_user_id:
+            payload["default_user_id"] = default_user_id
+        if default_model_id:
+            payload["default_model_id"] = default_model_id
+        return "workflows.import_template", payload
+
+    def _prepare_update_template(
+        self, name: str, template_name: Optional[str] = None,
+        description: Optional[str] = None, category: Optional[str] = None,
+        is_public: Optional[bool] = None, is_published: Optional[bool] = None,
+        graph_json: Optional[str] = None,
+        variables_schema: Optional[str] = None,
+        default_variables: Optional[str] = None,
+        default_model_id: Optional[str] = None,
+        error_strategy: Optional[str] = None,
+        timeout_seconds: Optional[int] = None,
+        tags: Optional[str] = None,
+    ) -> tuple:
+        payload: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "name": name,
+        }
+        if template_name is not None:
+            payload["template_name"] = template_name
+        if description is not None:
+            payload["description"] = description
+        if category is not None:
+            payload["category"] = category
+        if is_public is not None:
+            payload["is_public"] = is_public
+        if is_published is not None:
+            payload["is_published"] = is_published
+        if graph_json is not None:
+            payload["graph_json"] = graph_json
+        if variables_schema is not None:
+            payload["variables_schema"] = variables_schema
+        if default_variables is not None:
+            payload["default_variables"] = default_variables
+        if default_model_id is not None:
+            payload["default_model_id"] = default_model_id
+        if error_strategy is not None:
+            payload["error_strategy"] = error_strategy
+        if timeout_seconds is not None:
+            payload["timeout_seconds"] = timeout_seconds
+        if tags is not None:
+            payload["tags"] = tags
+        return "workflows.update_template", payload
+
+    def _prepare_delete_template(self, name: str) -> tuple:
+        return "workflows.delete_template", {
+            "tenant_id": self.tenant_id,
+            "name": name,
+        }

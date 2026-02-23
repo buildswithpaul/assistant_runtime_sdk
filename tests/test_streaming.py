@@ -1,11 +1,11 @@
-# FACL SDK - Streaming Tests
+# Assistant Runtime SDK - Streaming Tests
 # Copyright (C) 2025 Paul Clinton
 # AGPL-3.0 License
 
 """Unit tests for SSE streaming utilities."""
 
 import pytest
-from facl.streaming import (
+from assistant_runtime_sdk.streaming import (
     SSEEventType,
     parse_sse_line,
     parse_sse_stream,

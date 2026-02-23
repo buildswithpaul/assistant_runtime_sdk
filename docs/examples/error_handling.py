@@ -1,32 +1,32 @@
 #!/usr/bin/env python3
 """
-Error Handling Example - FACL SDK
+Error Handling Example - Assistant Runtime SDK
 
 This example demonstrates comprehensive error handling patterns
-for the FACL SDK.
+for the Assistant Runtime SDK.
 
 Usage:
     python error_handling.py
 
 Environment Variables:
-    FACL_TENANT_ID: Your FACL tenant ID
-    FACL_TENANT_SECRET: Your FACL tenant secret
+    AR_TENANT_ID: Your Assistant Runtime tenant ID
+    AR_TENANT_SECRET: Your Assistant Runtime tenant secret
 """
 
 import os
 import time
 import random
 from typing import Callable, Any
-from facl import (
-    FACLClient,
-    FACLError,
-    FACLAuthenticationError,
-    FACLRateLimitError,
-    FACLStreamError,
-    FACLConfigurationError,
-    FACLAPIError,
-    FACLTimeoutError,
-    FACLConnectionError,
+from assistant_runtime_sdk import (
+    AssistantRuntimeClient,
+    ARError,
+    ARAuthenticationError,
+    ARRateLimitError,
+    ARStreamError,
+    ARConfigurationError,
+    ARAPIError,
+    ARTimeoutError,
+    ARConnectionError,
 )
 
 
@@ -60,11 +60,11 @@ def with_retry(
                 try:
                     return func(*args, **kwargs)
 
-                except FACLAuthenticationError:
+                except ARAuthenticationError:
                     # Don't retry auth errors
                     raise
 
-                except FACLRateLimitError as e:
+                except ARRateLimitError as e:
                     # Use server-provided retry_after
                     last_exception = e
                     if attempt < max_retries:
@@ -74,7 +74,7 @@ def with_retry(
                         continue
                     raise
 
-                except (FACLTimeoutError, FACLConnectionError) as e:
+                except (ARTimeoutError, ARConnectionError) as e:
                     # Retry with exponential backoff
                     last_exception = e
                     if attempt < max_retries:
@@ -91,7 +91,7 @@ def with_retry(
                         continue
                     raise
 
-                except FACLAPIError as e:
+                except ARAPIError as e:
                     # Retry only server errors (5xx)
                     last_exception = e
                     if e.status_code and e.status_code >= 500:
@@ -114,9 +114,9 @@ def with_retry(
 
 
 class SafeAPIClient:
-    """Wrapper around FACLClient with built-in error handling."""
+    """Wrapper around AssistantRuntimeClient with built-in error handling."""
 
-    def __init__(self, client: FACLClient):
+    def __init__(self, client: AssistantRuntimeClient):
         self.client = client
 
     @with_retry(max_retries=3)
@@ -184,11 +184,11 @@ class SafeAPIClient:
                         error_msg = data.get("error", "Unknown error")
                         if on_error:
                             on_error(error_msg)
-                        raise FACLStreamError(error_msg)
+                        raise ARStreamError(error_msg)
 
                     elif event_type == "rate_limited":
                         retry_after = data.get("retry_after", 60)
-                        raise FACLRateLimitError(
+                        raise ARRateLimitError(
                             "All models rate limited",
                             retry_after=retry_after,
                             models_checked=data.get("models_checked", []),
@@ -197,7 +197,7 @@ class SafeAPIClient:
                 # Stream ended without complete event
                 return "".join(accumulated), metadata
 
-            except (FACLConnectionError, FACLStreamError) as e:
+            except (ARConnectionError, ARStreamError) as e:
                 if attempt < max_retries:
                     print(f"Stream error: {e}. Retrying...")
                     # Keep accumulated content
@@ -209,7 +209,7 @@ class SafeAPIClient:
                         return partial, {"partial": True, "error": str(e)}
                     raise
 
-            except FACLRateLimitError as e:
+            except ARRateLimitError as e:
                 if attempt < max_retries:
                     print(f"Rate limited. Waiting {e.retry_after}s...")
                     time.sleep(e.retry_after)
@@ -226,7 +226,7 @@ class SafeAPIClient:
 
 def categorize_error(error: Exception) -> dict:
     """
-    Categorize a FACL error for user-friendly handling.
+    Categorize a AR error for user-friendly handling.
 
     Returns:
         Dict with:
@@ -235,7 +235,7 @@ def categorize_error(error: Exception) -> dict:
         - retry_allowed: Whether retry makes sense
         - retry_delay: Suggested retry delay in seconds
     """
-    if isinstance(error, FACLAuthenticationError):
+    if isinstance(error, ARAuthenticationError):
         return {
             "category": "auth",
             "user_message": "Service configuration error. Please contact support.",
@@ -243,7 +243,7 @@ def categorize_error(error: Exception) -> dict:
             "retry_delay": None,
         }
 
-    elif isinstance(error, FACLRateLimitError):
+    elif isinstance(error, ARRateLimitError):
         return {
             "category": "rate_limit",
             "user_message": f"Service is busy. Please try again in {error.retry_after or 60} seconds.",
@@ -251,7 +251,7 @@ def categorize_error(error: Exception) -> dict:
             "retry_delay": error.retry_after or 60,
         }
 
-    elif isinstance(error, FACLTimeoutError):
+    elif isinstance(error, ARTimeoutError):
         return {
             "category": "timeout",
             "user_message": "Request timed out. Please try a shorter message.",
@@ -259,7 +259,7 @@ def categorize_error(error: Exception) -> dict:
             "retry_delay": 5,
         }
 
-    elif isinstance(error, FACLConnectionError):
+    elif isinstance(error, ARConnectionError):
         return {
             "category": "connection",
             "user_message": "Connection error. Please check your internet and try again.",
@@ -267,7 +267,7 @@ def categorize_error(error: Exception) -> dict:
             "retry_delay": 10,
         }
 
-    elif isinstance(error, FACLAPIError):
+    elif isinstance(error, ARAPIError):
         if error.status_code == 404:
             return {
                 "category": "not_found",
@@ -297,7 +297,7 @@ def categorize_error(error: Exception) -> dict:
                 "retry_delay": 5,
             }
 
-    elif isinstance(error, FACLConfigurationError):
+    elif isinstance(error, ARConfigurationError):
         return {
             "category": "config",
             "user_message": "Service is not properly configured.",
@@ -305,7 +305,7 @@ def categorize_error(error: Exception) -> dict:
             "retry_delay": None,
         }
 
-    elif isinstance(error, FACLStreamError):
+    elif isinstance(error, ARStreamError):
         return {
             "category": "stream",
             "user_message": "Stream interrupted. Please try again.",
@@ -328,15 +328,15 @@ def categorize_error(error: Exception) -> dict:
 
 
 def main():
-    tenant_id = os.environ.get("FACL_TENANT_ID")
-    tenant_secret = os.environ.get("FACL_TENANT_SECRET")
+    tenant_id = os.environ.get("AR_TENANT_ID")
+    tenant_secret = os.environ.get("AR_TENANT_SECRET")
 
     if not tenant_id or not tenant_secret:
-        print("Error: Set FACL_TENANT_ID and FACL_TENANT_SECRET")
+        print("Error: Set AR_TENANT_ID and AR_TENANT_SECRET")
         return
 
     # Create base client
-    base_client = FACLClient(
+    base_client = AssistantRuntimeClient(
         tenant_id=tenant_id,
         tenant_secret=tenant_secret,
     )
@@ -353,7 +353,7 @@ def main():
     try:
         models = client.list_models()
         print(f"Found {len(models.get('models', []))} models")
-    except FACLError as e:
+    except ARError as e:
         error_info = categorize_error(e)
         print(f"Category: {error_info['category']}")
         print(f"User message: {error_info['user_message']}")
@@ -379,7 +379,7 @@ def main():
         print(f"\n\nResponse length: {len(response)}")
         print(f"Metadata: {metadata}")
 
-    except FACLError as e:
+    except ARError as e:
         error_info = categorize_error(e)
         print(f"\nFailed: {error_info['user_message']}")
         if error_info['retry_allowed']:
@@ -389,13 +389,13 @@ def main():
     print("\n--- Example 3: Error Categorization ---")
 
     test_errors = [
-        FACLAuthenticationError("Invalid signature"),
-        FACLRateLimitError("Rate limit", retry_after=30),
-        FACLTimeoutError("Connection timeout"),
-        FACLConnectionError("DNS resolution failed"),
-        FACLAPIError("Not found", status_code=404),
-        FACLAPIError("Server error", status_code=500),
-        FACLStreamError("Connection dropped"),
+        ARAuthenticationError("Invalid signature"),
+        ARRateLimitError("Rate limit", retry_after=30),
+        ARTimeoutError("Connection timeout"),
+        ARConnectionError("DNS resolution failed"),
+        ARAPIError("Not found", status_code=404),
+        ARAPIError("Server error", status_code=500),
+        ARStreamError("Connection dropped"),
     ]
 
     for error in test_errors:

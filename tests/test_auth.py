@@ -1,4 +1,4 @@
-# FACL SDK - Auth Tests
+# Assistant Runtime SDK - Auth Tests
 # Copyright (C) 2025 Paul Clinton
 # AGPL-3.0 License
 
@@ -6,7 +6,7 @@
 
 import pytest
 import time
-from facl.auth import generate_signature, verify_signature, get_signature_header
+from assistant_runtime_sdk.auth import generate_signature, verify_signature, get_signature_header
 
 
 class TestGenerateSignature:
@@ -125,12 +125,12 @@ class TestGetSignatureHeader:
     """Tests for get_signature_header function."""
 
     def test_returns_dict_with_correct_key(self):
-        """Test that function returns dict with X-FACL-Signature key."""
+        """Test that function returns dict with X-AR-Signature key."""
         headers = get_signature_header("tenant", "secret", {"a": "b"})
 
         assert isinstance(headers, dict)
-        assert "X-FACL-Signature" in headers
-        assert ":" in headers["X-FACL-Signature"]
+        assert "X-AR-Signature" in headers
+        assert ":" in headers["X-AR-Signature"]
 
     def test_signature_can_be_verified(self):
         """Test that signature from header can be verified."""
@@ -138,7 +138,7 @@ class TestGetSignatureHeader:
         headers = get_signature_header("tenant", "secret", params, for_query_string=True)
 
         is_valid = verify_signature(
-            headers["X-FACL-Signature"],
+            headers["X-AR-Signature"],
             "tenant",
             "secret",
             params,

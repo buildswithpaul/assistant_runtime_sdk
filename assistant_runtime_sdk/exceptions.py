@@ -6,7 +6,6 @@
 Custom exceptions for the Assistant Runtime SDK.
 
 All exceptions inherit from ARError for easy catching.
-Old FACL* names are available as aliases for backwards compatibility.
 """
 
 from typing import Optional, List
@@ -145,19 +144,3 @@ class ARBillingUnavailableError(ARError):
 
     def __init__(self, message: str = "Billing is not available"):
         super().__init__(message, error_code="BILLING_UNAVAILABLE")
-
-
-# =============================================================================
-# Backwards Compatibility Aliases
-# =============================================================================
-# These aliases allow existing code using FACL* names to continue working
-
-FACLError = ARError
-FACLAuthenticationError = ARAuthenticationError
-FACLRateLimitError = ARRateLimitError
-FACLStreamError = ARStreamError
-FACLConfigurationError = ARConfigurationError
-FACLAPIError = ARAPIError
-FACLTimeoutError = ARTimeoutError
-FACLConnectionError = ARConnectionError
-FACLBillingUnavailableError = ARBillingUnavailableError

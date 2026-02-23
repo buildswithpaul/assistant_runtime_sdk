@@ -1,20 +1,20 @@
-# AsyncFACLClient API Reference
+# AsyncAssistantRuntimeClient API Reference
 
-Complete API reference for the asynchronous `AsyncFACLClient` class.
+Complete API reference for the asynchronous `AsyncAssistantRuntimeClient` class.
 
-## Class: AsyncFACLClient
+## Class: AsyncAssistantRuntimeClient
 
 ```python
-from facl import AsyncFACLClient
+from assistant_runtime_sdk import AsyncAssistantRuntimeClient
 ```
 
 ### Constructor
 
 ```python
-AsyncFACLClient(
+AsyncAssistantRuntimeClient(
     tenant_id: str,
     tenant_secret: str,
-    facl_url: str = "https://facl.frappe.cloud",
+    ar_url: str = "https://ar.example.com",
     logger: Optional[logging.Logger] = None,
     timeout: float = 30.0,
     session: Optional[aiohttp.ClientSession] = None
@@ -27,7 +27,7 @@ AsyncFACLClient(
 |-----------|------|----------|---------|-------------|
 | `tenant_id` | str | Yes | - | Unique tenant identifier |
 | `tenant_secret` | str | Yes | - | HMAC secret for signing |
-| `facl_url` | str | No | `https://facl.frappe.cloud` | FACL server URL |
+| `ar_url` | str | No | `https://ar.example.com` | Assistant Runtime server URL |
 | `logger` | Logger | No | None | Custom logger instance |
 | `timeout` | float | No | 30.0 | Request timeout in seconds |
 | `session` | ClientSession | No | None | Existing aiohttp session to reuse |
@@ -38,9 +38,9 @@ AsyncFACLClient(
 **Example:**
 
 ```python
-from facl import AsyncFACLClient
+from assistant_runtime_sdk import AsyncAssistantRuntimeClient
 
-async with AsyncFACLClient(
+async with AsyncAssistantRuntimeClient(
     tenant_id="your-tenant-id",
     tenant_secret="your-secret"
 ) as client:
@@ -56,7 +56,7 @@ async with AsyncFACLClient(
 Enter async context - creates session if needed.
 
 ```python
-async def __aenter__(self) -> "AsyncFACLClient"
+async def __aenter__(self) -> "AsyncAssistantRuntimeClient"
 ```
 
 **Returns:** The client instance
@@ -73,7 +73,7 @@ async def __aexit__(self, exc_type, exc_val, exc_tb) -> None
 
 ```python
 # Recommended: Use as context manager
-async with AsyncFACLClient(tenant_id, secret) as client:
+async with AsyncAssistantRuntimeClient(tenant_id, secret) as client:
     # Session is managed automatically
     result = await client.list_available_models()
 # Session is closed automatically
@@ -113,7 +113,7 @@ async def stream_chat(
 **Example:**
 
 ```python
-async with AsyncFACLClient(tenant_id, secret) as client:
+async with AsyncAssistantRuntimeClient(tenant_id, secret) as client:
     async for event in client.stream_chat(
         session_id="session-123",
         message="Hello!",
@@ -228,7 +228,7 @@ async def get_messages(
 
 ### register_user()
 
-Register a user with FACL.
+Register a user with Assistant Runtime.
 
 ```python
 async def register_user(
@@ -397,7 +397,7 @@ async def list_tools(
 **Example:**
 
 ```python
-async with AsyncFACLClient(tenant_id, secret) as client:
+async with AsyncAssistantRuntimeClient(tenant_id, secret) as client:
     tools = await client.list_tools("user@example.com")
     for t in tools.get("tools", []):
         print(f"{t['name']}: {t['description']}")
@@ -412,7 +412,7 @@ async with AsyncFACLClient(tenant_id, secret) as client:
 ```python
 import asyncio
 
-async with AsyncFACLClient(tenant_id, secret) as client:
+async with AsyncAssistantRuntimeClient(tenant_id, secret) as client:
     # Run multiple requests concurrently
     models, tenant, usage = await asyncio.gather(
         client.list_available_models(),
@@ -428,7 +428,7 @@ async def check_users(client, user_ids):
     tasks = [client.get_user_auth_status(uid) for uid in user_ids]
     return await asyncio.gather(*tasks, return_exceptions=True)
 
-async with AsyncFACLClient(tenant_id, secret) as client:
+async with AsyncAssistantRuntimeClient(tenant_id, secret) as client:
     results = await check_users(client, ["user1@example.com", "user2@example.com"])
 ```
 
@@ -448,7 +448,7 @@ async def with_custom_session():
 
     try:
         # Pass session to client
-        client = AsyncFACLClient(
+        client = AsyncAssistantRuntimeClient(
             tenant_id="...",
             tenant_secret="...",
             session=session  # Reuse session
@@ -472,7 +472,7 @@ async def high_throughput():
     )
 
     async with aiohttp.ClientSession(connector=connector) as session:
-        client = AsyncFACLClient(
+        client = AsyncAssistantRuntimeClient(
             tenant_id="...",
             tenant_secret="...",
             session=session
@@ -488,23 +488,23 @@ async def high_throughput():
 ## Error Handling
 
 ```python
-from facl import (
-    AsyncFACLClient,
-    FACLConnectionError,
-    FACLTimeoutError,
-    FACLRateLimitError,
+from assistant_runtime_sdk import (
+    AsyncAssistantRuntimeClient,
+    ARConnectionError,
+    ARTimeoutError,
+    ARRateLimitError,
 )
 
 async def safe_call(client, method, *args, **kwargs):
     try:
         return await method(*args, **kwargs)
-    except FACLRateLimitError as e:
+    except ARRateLimitError as e:
         await asyncio.sleep(e.retry_after)
         return await method(*args, **kwargs)
-    except FACLConnectionError as e:
+    except ARConnectionError as e:
         print(f"Connection error: {e}")
         return None
-    except FACLTimeoutError as e:
+    except ARTimeoutError as e:
         print(f"Timeout: {e}")
         return None
 ```
@@ -514,15 +514,15 @@ async def safe_call(client, method, *args, **kwargs):
 ## Constants
 
 ```python
-# Inherited from BaseFACLClient
-AsyncFACLClient.DEFAULT_FACL_URL = "https://facl.frappe.cloud"
-AsyncFACLClient.DEFAULT_TIMEOUT = 30.0
-AsyncFACLClient.STREAM_CONNECT_TIMEOUT = 30.0
-AsyncFACLClient.STREAM_READ_TIMEOUT = 300.0
+# Inherited from BaseAssistantRuntimeClient
+AsyncAssistantRuntimeClient.DEFAULT_AR_URL = "https://ar.example.com"
+AsyncAssistantRuntimeClient.DEFAULT_TIMEOUT = 30.0
+AsyncAssistantRuntimeClient.STREAM_CONNECT_TIMEOUT = 30.0
+AsyncAssistantRuntimeClient.STREAM_READ_TIMEOUT = 300.0
 ```
 
 ## See Also
 
 - [Async Usage Guide](../guides/async-usage.md)
-- [FACLClient Reference](client.md)
+- [AssistantRuntimeClient Reference](client.md)
 - [Error Handling Guide](../guides/error-handling.md)

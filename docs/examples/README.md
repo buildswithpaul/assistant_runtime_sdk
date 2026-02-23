@@ -1,22 +1,22 @@
-# FACL SDK Examples
+# Assistant Runtime SDK Examples
 
-This directory contains working code examples demonstrating how to use the FACL SDK.
+This directory contains working code examples demonstrating how to use the Assistant Runtime SDK.
 
 ## Setup
 
 Before running examples, set your environment variables:
 
 ```bash
-export FACL_TENANT_ID="your-tenant-id"
-export FACL_TENANT_SECRET="your-tenant-secret"
-export FACL_URL="https://facl.frappe.cloud"  # Optional
+export AR_TENANT_ID="your-tenant-id"
+export AR_TENANT_SECRET="your-tenant-secret"
+export AR_URL="https://ar.example.com"  # Optional
 ```
 
 ## Examples
 
 ### [basic_chat.py](basic_chat.py)
 
-The simplest way to use the FACL SDK - send a message and receive a streaming response.
+The simplest way to use the Assistant Runtime SDK - send a message and receive a streaming response.
 
 ```bash
 python basic_chat.py
@@ -48,12 +48,12 @@ python streaming_chat.py
 Asynchronous chat streaming with concurrent operations.
 
 ```bash
-pip install facl[async]
+pip install assistant_runtime_sdk[async]
 python async_chat.py
 ```
 
 **Demonstrates:**
-- AsyncFACLClient usage
+- AsyncAssistantRuntimeClient usage
 - Async context manager
 - Concurrent API calls
 - Parallel chat sessions
@@ -92,7 +92,7 @@ python error_handling.py
 
 1. Install the SDK:
    ```bash
-   pip install facl[all]
+   pip install assistant_runtime_sdk[all]
    ```
 
 2. Set environment variables (see Setup above)

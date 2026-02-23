@@ -1,12 +1,12 @@
-# FACL SDK - Client Tests
+# Assistant Runtime SDK - Client Tests
 # Copyright (C) 2025 Paul Clinton
 # AGPL-3.0 License
 
-"""Unit tests for FACLClient."""
+"""Unit tests for AssistantRuntimeClient."""
 
 import pytest
-from facl import FACLClient
-from facl.exceptions import FACLConfigurationError
+from assistant_runtime_sdk import AssistantRuntimeClient
+from assistant_runtime_sdk.exceptions import ARConfigurationError
 
 
 class TestClientInitialization:
@@ -14,38 +14,48 @@ class TestClientInitialization:
 
     def test_basic_initialization(self):
         """Test basic client initialization."""
-        client = FACLClient(
+        client = AssistantRuntimeClient(
             tenant_id="test-tenant",
             tenant_secret="test-secret",
-            facl_url="https://facl.example.com",
+            ar_url="https://ar.example.com",
         )
 
         assert client.tenant_id == "test-tenant"
         assert client.tenant_secret == "test-secret"
-        assert client.facl_url == "https://facl.example.com"
+        assert client.ar_url == "https://ar.example.com"
 
     def test_default_url(self):
-        """Test that default FACL URL is used."""
-        client = FACLClient(
+        """Test that default AR URL is used."""
+        client = AssistantRuntimeClient(
             tenant_id="test-tenant",
             tenant_secret="test-secret",
         )
 
-        assert client.facl_url == "https://facl.frappe.cloud"
+        assert client.ar_url == "https://ar.example.com"
 
     def test_url_trailing_slash_removed(self):
         """Test that trailing slash is removed from URL."""
-        client = FACLClient(
+        client = AssistantRuntimeClient(
             tenant_id="test-tenant",
             tenant_secret="test-secret",
-            facl_url="https://facl.example.com/",
+            ar_url="https://ar.example.com/",
         )
 
-        assert client.facl_url == "https://facl.example.com"
+        assert client.ar_url == "https://ar.example.com"
+
+    def test_missing_tenant_id_raises(self):
+        """Test that missing tenant_id raises ARConfigurationError."""
+        with pytest.raises(ARConfigurationError):
+            AssistantRuntimeClient(tenant_id="", tenant_secret="test-secret")
+
+    def test_missing_tenant_secret_raises(self):
+        """Test that missing tenant_secret raises ARConfigurationError."""
+        with pytest.raises(ARConfigurationError):
+            AssistantRuntimeClient(tenant_id="test-tenant", tenant_secret="")
 
     def test_custom_timeout(self):
         """Test custom timeout setting."""
-        client = FACLClient(
+        client = AssistantRuntimeClient(
             tenant_id="test-tenant",
             tenant_secret="test-secret",
             timeout=60.0,
@@ -58,7 +68,7 @@ class TestClientInitialization:
         import logging
 
         logger = logging.getLogger("test")
-        client = FACLClient(
+        client = AssistantRuntimeClient(
             tenant_id="test-tenant",
             tenant_secret="test-secret",
             logger=logger,
@@ -67,12 +77,59 @@ class TestClientInitialization:
         assert client.logger is logger
 
 
+class TestAPIBaseResolution:
+    """Tests for API base URL resolution."""
+
+    def test_default_api_bases(self):
+        """Test that default API bases use standard module paths."""
+        client = AssistantRuntimeClient(
+            tenant_id="test-tenant",
+            tenant_secret="test-secret",
+            ar_url="https://ar.example.com",
+        )
+
+        assert client.api_base == "https://ar.example.com/api/method/assistant_runtime.api"
+        assert client.billing_api_base == "https://ar.example.com/api/method/assistant_runtime_payments.api"
+        assert client.memory_api_base == "https://ar.example.com/api/method/assistant_runtime_memory.api"
+        assert client.workflows_api_base == "https://ar.example.com/api/method/assistant_runtime_workflows.api"
+
+    def test_full_url_override(self):
+        """Test overriding API base with a full URL."""
+        client = AssistantRuntimeClient(
+            tenant_id="test-tenant",
+            tenant_secret="test-secret",
+            billing_api_base="https://billing.example.com/api",
+        )
+
+        assert client.billing_api_base == "https://billing.example.com/api"
+
+    def test_full_url_override_trailing_slash(self):
+        """Test that trailing slash is stripped from URL overrides."""
+        client = AssistantRuntimeClient(
+            tenant_id="test-tenant",
+            tenant_secret="test-secret",
+            memory_api_base="https://memory.example.com/api/",
+        )
+
+        assert client.memory_api_base == "https://memory.example.com/api"
+
+    def test_module_path_override(self):
+        """Test overriding API base with a dotted module path."""
+        client = AssistantRuntimeClient(
+            tenant_id="test-tenant",
+            tenant_secret="test-secret",
+            workflows_api_base="my_custom_app.api",
+        )
+
+        assert client.workflows_api_base == "https://ar.example.com/api/method/my_custom_app.api"
+
+
 class TestSignatureGeneration:
     """Tests for client signature generation."""
 
     def test_signature_in_headers(self):
-        """Test that headers include FACL signature."""
-        client = FACLClient(
+        """Test that headers include AR signature."""
+        client = AssistantRuntimeClient(
             tenant_id="test-tenant",
             tenant_secret="test-secret",
         )
@@ -80,104 +137,161 @@ class TestSignatureGeneration:
         params = {"message": "test"}
         headers = client._get_headers(params, for_query_string=True)
 
-        assert "X-FACL-Signature" in headers
-        # Signature format: timestamp:hex
-        sig = headers["X-FACL-Signature"]
+        assert "X-AR-Signature" in headers
+        sig = headers["X-AR-Signature"]
         assert ":" in sig
         parts = sig.split(":", 1)
         assert parts[0].isdigit()
 
 
-class TestStreamParamsPreparation:
-    """Tests for stream parameter preparation."""
+class TestStreamPayloadPreparation:
+    """Tests for stream payload preparation."""
 
-    def test_basic_stream_params(self):
-        """Test basic stream parameters."""
-        client = FACLClient(
+    def test_basic_stream_payload(self):
+        """Test basic stream payload."""
+        client = AssistantRuntimeClient(
             tenant_id="test-tenant",
             tenant_secret="test-secret",
         )
 
-        params = client._prepare_stream_params(
+        payload = client._prepare_stream_payload(
             session_id="session-123",
             message="Hello",
             user_id="user@example.com",
-            context=None,
-            model_id=None,
         )
 
-        assert params["tenant_id"] == "test-tenant"
-        assert params["session_id"] == "session-123"
-        assert params["message"] == "Hello"
-        assert params["user_id"] == "user@example.com"
-        assert "context" not in params
-        assert "model_id" not in params
+        assert payload["tenant_id"] == "test-tenant"
+        assert payload["session_id"] == "session-123"
+        assert payload["message"] == "Hello"
+        assert payload["user_id"] == "user@example.com"
+        assert "context" not in payload
+        assert "model_id" not in payload
 
-    def test_stream_params_with_context(self):
-        """Test stream parameters with context."""
-        client = FACLClient(
+    def test_stream_payload_with_context(self):
+        """Test stream payload with context (native dict, not JSON string)."""
+        client = AssistantRuntimeClient(
             tenant_id="test-tenant",
             tenant_secret="test-secret",
         )
 
         context = {"page": "home", "doctype": "User"}
-        params = client._prepare_stream_params(
+        payload = client._prepare_stream_payload(
             session_id="session-123",
             message="Hello",
             user_id="user@example.com",
             context=context,
-            model_id=None,
         )
 
-        assert "context" in params
-        # Context should be JSON-encoded string
-        import json
+        assert payload["context"] == context
+        assert isinstance(payload["context"], dict)
 
-        assert json.loads(params["context"]) == context
-
-    def test_stream_params_with_model(self):
-        """Test stream parameters with model_id."""
-        client = FACLClient(
+    def test_stream_payload_with_model(self):
+        """Test stream payload with model_id."""
+        client = AssistantRuntimeClient(
             tenant_id="test-tenant",
             tenant_secret="test-secret",
         )
 
-        params = client._prepare_stream_params(
+        payload = client._prepare_stream_payload(
             session_id="session-123",
             message="Hello",
             user_id="user@example.com",
-            context=None,
             model_id="auto",
         )
 
-        assert params["model_id"] == "auto"
+        assert payload["model_id"] == "auto"
+
+    def test_stream_payload_with_attachments(self):
+        """Test stream payload with attachments."""
+        client = AssistantRuntimeClient(
+            tenant_id="test-tenant",
+            tenant_secret="test-secret",
+        )
+
+        attachments = [{"type": "image", "format": "png", "data": "base64data"}]
+        payload = client._prepare_stream_payload(
+            session_id="session-123",
+            message="What's in this image?",
+            user_id="user@example.com",
+            attachments=attachments,
+        )
+
+        assert payload["attachments"] == attachments
+
+    def test_stream_payload_with_system_prompt_addendum(self):
+        """Test stream payload with system_prompt_addendum."""
+        client = AssistantRuntimeClient(
+            tenant_id="test-tenant",
+            tenant_secret="test-secret",
+        )
+
+        payload = client._prepare_stream_payload(
+            session_id="session-123",
+            message="Hello",
+            user_id="user@example.com",
+            system_prompt_addendum="Be concise.",
+        )
+
+        assert payload["system_prompt_addendum"] == "Be concise."
+
+    def test_stream_payload_missing_user_id_raises(self):
+        """Test that missing user_id raises ARConfigurationError."""
+        client = AssistantRuntimeClient(
+            tenant_id="test-tenant",
+            tenant_secret="test-secret",
+        )
+
+        with pytest.raises(ARConfigurationError, match="user_id"):
+            client._prepare_stream_payload(
+                session_id="session-123",
+                message="Hello",
+                user_id="",
+            )
 
 
 class TestEndpointURLBuilding:
     """Tests for endpoint URL building."""
 
-    def test_build_endpoint_url(self):
-        """Test endpoint URL construction."""
-        client = FACLClient(
+    def test_build_core_endpoint_url(self):
+        """Test core endpoint URL construction."""
+        client = AssistantRuntimeClient(
             tenant_id="test-tenant",
             tenant_secret="test-secret",
-            facl_url="https://facl.example.com",
+            ar_url="https://ar.example.com",
         )
 
         url = client._build_endpoint_url("streaming.stream_chat")
-        expected = "https://facl.example.com/api/method/frappe_assistant_cloud.api.streaming.stream_chat"
+        assert url == "https://ar.example.com/api/method/assistant_runtime.api.streaming.stream_chat"
 
-        assert url == expected
-
-    def test_build_endpoint_url_simple(self):
-        """Test endpoint URL for simple endpoint."""
-        client = FACLClient(
+    def test_build_billing_endpoint_url(self):
+        """Test billing endpoint URL construction."""
+        client = AssistantRuntimeClient(
             tenant_id="test-tenant",
             tenant_secret="test-secret",
-            facl_url="https://facl.example.com",
+            ar_url="https://ar.example.com",
         )
 
-        url = client._build_endpoint_url("get_tenant_info")
-        expected = "https://facl.example.com/api/method/frappe_assistant_cloud.api.get_tenant_info"
+        url = client._build_billing_endpoint_url("get_usage_dashboard")
+        assert url == "https://ar.example.com/api/method/assistant_runtime_payments.api.get_usage_dashboard"
 
-        assert url == expected
+    def test_build_memory_endpoint_url(self):
+        """Test memory endpoint URL construction."""
+        client = AssistantRuntimeClient(
+            tenant_id="test-tenant",
+            tenant_secret="test-secret",
+            ar_url="https://ar.example.com",
+        )
+
+        url = client._build_memory_endpoint_url("onboarding.get_onboarding_status")
+        assert url == "https://ar.example.com/api/method/assistant_runtime_memory.api.onboarding.get_onboarding_status"
+
+    def test_build_workflows_endpoint_url(self):
+        """Test workflows endpoint URL construction."""
+        client = AssistantRuntimeClient(
+            tenant_id="test-tenant",
+            tenant_secret="test-secret",
+            ar_url="https://ar.example.com",
+        )
+
+        url = client._build_workflows_endpoint_url("workflows.create_workflow")
+        assert url == "https://ar.example.com/api/method/assistant_runtime_workflows.api.workflows.create_workflow"

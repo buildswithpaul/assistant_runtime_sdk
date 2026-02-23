@@ -1,12 +1,12 @@
-# Getting Started with FACL SDK
+# Getting Started with Assistant Runtime SDK
 
-This guide walks you through installing and using the FACL SDK to integrate AI capabilities into your Python application.
+This guide walks you through installing and using the Assistant Runtime SDK to integrate AI capabilities into your Python application.
 
 ## Prerequisites
 
 - Python 3.10 or higher
-- A FACL tenant account (tenant_id and tenant_secret)
-- Network access to your FACL server
+- An Assistant Runtime tenant account (tenant_id and tenant_secret)
+- Network access to your Assistant Runtime server
 
 ## Installation
 
@@ -15,7 +15,7 @@ This guide walks you through installing and using the FACL SDK to integrate AI c
 For most use cases, install the base package:
 
 ```bash
-pip install facl
+pip install assistant_runtime_sdk
 ```
 
 This installs the synchronous client using the `requests` library.
@@ -25,24 +25,24 @@ This installs the synchronous client using the `requests` library.
 If you need async/await support:
 
 ```bash
-pip install facl[async]
+pip install assistant_runtime_sdk[async]
 ```
 
-This adds `aiohttp` for the `AsyncFACLClient`.
+This adds `aiohttp` for the `AsyncAssistantRuntimeClient`.
 
 ### Development Installation
 
 For development with testing tools:
 
 ```bash
-pip install facl[dev]
+pip install assistant_runtime_sdk[dev]
 ```
 
 ### From Source
 
 ```bash
-git clone https://github.com/anthropics/facl-sdk.git
-cd facl-sdk
+git clone https://github.com/anthropics/assistant-runtime-sdk.git
+cd assistant-runtime-sdk
 pip install -e ".[all]"
 ```
 
@@ -51,16 +51,16 @@ pip install -e ".[all]"
 ### 1. Import the Client
 
 ```python
-from facl import FACLClient
+from assistant_runtime_sdk import AssistantRuntimeClient
 ```
 
 ### 2. Create a Client Instance
 
 ```python
-client = FACLClient(
+client = AssistantRuntimeClient(
     tenant_id="your-tenant-id",
     tenant_secret="your-tenant-secret",
-    facl_url="https://facl.frappe.cloud"  # Optional, this is the default
+    ar_url="https://ar.example.com"  # Optional, this is the default
 )
 ```
 
@@ -127,10 +127,10 @@ When streaming, you'll receive various event types:
 ### Client Parameters
 
 ```python
-client = FACLClient(
-    tenant_id="your-tenant-id",      # Required: Your FACL tenant ID
+client = AssistantRuntimeClient(
+    tenant_id="your-tenant-id",      # Required: Your Assistant Runtime tenant ID
     tenant_secret="your-secret",      # Required: HMAC signing secret
-    facl_url="https://facl.frappe.cloud",  # Optional: FACL server URL
+    ar_url="https://ar.example.com",  # Optional: Assistant Runtime server URL
     timeout=30.0,                     # Optional: Request timeout in seconds
     logger=my_logger,                 # Optional: Custom logger instance
 )
@@ -142,12 +142,12 @@ You can also configure via environment variables:
 
 ```python
 import os
-from facl import FACLClient
+from assistant_runtime_sdk import AssistantRuntimeClient
 
-client = FACLClient(
-    tenant_id=os.environ["FACL_TENANT_ID"],
-    tenant_secret=os.environ["FACL_TENANT_SECRET"],
-    facl_url=os.environ.get("FACL_URL", "https://facl.frappe.cloud"),
+client = AssistantRuntimeClient(
+    tenant_id=os.environ["AR_TENANT_ID"],
+    tenant_secret=os.environ["AR_TENANT_SECRET"],
+    ar_url=os.environ.get("AR_URL", "https://ar.example.com"),
 )
 ```
 
@@ -165,7 +165,7 @@ client = FACLClient(
 
 If you get connection errors:
 
-1. Verify your `facl_url` is correct
+1. Verify your `ar_url` is correct
 2. Check network connectivity
 3. Ensure your tenant is registered and active
 
@@ -186,10 +186,10 @@ If you get rate limited:
 3. Check `retry_after` in the error response
 
 ```python
-from facl import FACLRateLimitError
+from assistant_runtime_sdk import ARRateLimitError
 
 try:
     response = client.some_api_call()
-except FACLRateLimitError as e:
+except ARRateLimitError as e:
     print(f"Rate limited. Retry after {e.retry_after} seconds")
 ```

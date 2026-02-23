@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Frappe Integration Example - FACL SDK
+Frappe Integration Example - Assistant Runtime SDK
 
-This example demonstrates how to integrate the FACL SDK with
+This example demonstrates how to integrate the Assistant Runtime SDK with
 Frappe Framework applications.
 
 Note: This file is meant to be used within a Frappe application,
@@ -11,32 +11,32 @@ not as a standalone script.
 Structure:
     my_app/
     ├── my_app/
-    │   ├── facl_client.py    # This file
+    │   ├── ar_client.py    # This file
     │   ├── api.py            # Whitelisted API methods
     │   └── realtime.py       # Socket.IO streaming
-    └── pyproject.toml        # Add facl dependency
+    └── pyproject.toml        # Add assistant_runtime_sdk dependency
 """
 
 # =============================================================================
-# facl_client.py - Client factory and adapters
+# ar_client.py - Client factory and adapters
 # =============================================================================
 
 import frappe
-from facl import FACLClient as BaseFACLClient
-from facl import (
+from assistant_runtime_sdk import AssistantRuntimeClient as BaseAssistantRuntimeClient
+from assistant_runtime_sdk import (
     get_terms as base_get_terms,
     register_tenant as base_register_tenant,
-    FACLError,
-    FACLAuthenticationError,
-    FACLRateLimitError,
+    ARError,
+    ARAuthenticationError,
+    ARRateLimitError,
 )
 
 
 class FrappeLogger:
-    """Adapter to use Frappe's logging with the FACL SDK."""
+    """Adapter to use Frappe's logging with the Assistant Runtime SDK."""
 
     def error(self, msg, *args, **kwargs):
-        category = kwargs.get("category", "FACL")
+        category = kwargs.get("category", "AR")
         frappe.log_error(msg, category)
 
     def warning(self, msg, *args, **kwargs):
@@ -49,43 +49,43 @@ class FrappeLogger:
         frappe.logger().debug(msg)
 
 
-def get_facl_client() -> BaseFACLClient:
+def get_ar_client() -> BaseAssistantRuntimeClient:
     """
-    Factory function to get a configured FACL client.
+    Factory function to get a configured Assistant Runtime client.
 
     Returns:
-        Configured FACLClient instance
+        Configured AssistantRuntimeClient instance
 
     Raises:
-        frappe.ValidationError: If FACL is not configured
+        frappe.ValidationError: If Assistant Runtime is not configured
     """
     settings = frappe.get_single("My App Settings")
 
     if settings.registration_status != "Registered":
         frappe.throw(
-            "FACL is not configured. Please register first.",
+            "Assistant Runtime is not configured. Please register first.",
             title="Configuration Error"
         )
 
-    return BaseFACLClient(
+    return BaseAssistantRuntimeClient(
         tenant_id=settings.tenant_id,
         tenant_secret=settings.get_password("tenant_secret"),
-        facl_url=settings.facl_url or "https://facl.frappe.cloud",
+        ar_url=settings.ar_url or "https://ar.example.com",
         logger=FrappeLogger(),
     )
 
 
-def get_terms(facl_url: str = None):
-    """Get FACL terms and conditions."""
-    url = facl_url or frappe.get_single("My App Settings").facl_url
-    return base_get_terms(url or "https://facl.frappe.cloud")
+def get_terms(ar_url: str = None):
+    """Get Assistant Runtime terms and conditions."""
+    url = ar_url or frappe.get_single("My App Settings").ar_url
+    return base_get_terms(url or "https://ar.example.com")
 
 
 def register_tenant(**kwargs):
-    """Register a new tenant with FACL."""
+    """Register a new tenant with Assistant Runtime."""
     settings = frappe.get_single("My App Settings")
     return base_register_tenant(
-        facl_url=settings.facl_url or "https://facl.frappe.cloud",
+        ar_url=settings.ar_url or "https://ar.example.com",
         **kwargs
     )
 
@@ -97,14 +97,14 @@ def register_tenant(**kwargs):
 @frappe.whitelist()
 def list_models():
     """List available AI models."""
-    client = get_facl_client()
+    client = get_ar_client()
     return client.list_available_models()
 
 
 @frappe.whitelist()
 def get_usage():
     """Get usage dashboard data."""
-    client = get_facl_client()
+    client = get_ar_client()
     return client.get_usage_dashboard()
 
 
@@ -125,7 +125,7 @@ def send_message(session_id: str, message: str, context: dict = None):
     if not message or len(message) > 10000:
         frappe.throw("Invalid message")
 
-    client = get_facl_client()
+    client = get_ar_client()
     user_id = frappe.session.user
 
     full_response = ""
@@ -154,15 +154,15 @@ def send_message(session_id: str, message: str, context: dict = None):
                 retry_after = event["data"].get("retry_after", 60)
                 frappe.throw(f"Service busy. Please try again in {retry_after} seconds.")
 
-    except FACLAuthenticationError:
-        frappe.log_error("FACL authentication failed", "FACL Auth Error")
+    except ARAuthenticationError:
+        frappe.log_error("AR operation failed", "AR Auth Error")
         frappe.throw("AI service configuration error. Contact administrator.")
 
-    except FACLRateLimitError as e:
+    except ARRateLimitError as e:
         frappe.throw(f"Service busy. Please try again in {e.retry_after} seconds.")
 
-    except FACLError as e:
-        frappe.log_error(str(e), "FACL Error")
+    except ARError as e:
+        frappe.log_error(str(e), "AR Error")
         frappe.throw("AI service error. Please try again later.")
 
     return {
@@ -174,8 +174,8 @@ def send_message(session_id: str, message: str, context: dict = None):
 
 @frappe.whitelist()
 def register_current_user():
-    """Register the current user with FACL."""
-    client = get_facl_client()
+    """Register the current user with Assistant Runtime."""
+    client = get_ar_client()
     user = frappe.session.user
     user_doc = frappe.get_doc("User", user)
 
@@ -197,14 +197,14 @@ def register_current_user():
 
 def stream_to_user(session_id: str, message: str, user: str, socket_room: str):
     """
-    Stream FACL response to user via Socket.IO.
+    Stream Assistant Runtime response to user via Socket.IO.
 
     This function should be called via frappe.enqueue() for background execution.
     """
     from frappe.realtime import emit_via_redis
 
     try:
-        client = get_facl_client()
+        client = get_ar_client()
     except Exception as e:
         emit_via_redis(socket_room, {
             "event": "error",
@@ -249,7 +249,7 @@ def start_stream(session_id: str, message: str):
         frappe.throw("Invalid message")
 
     user = frappe.session.user
-    socket_room = f"facl_stream_{user}_{session_id}"
+    socket_room = f"ar_stream_{user}_{session_id}"
 
     # Enqueue background job
     frappe.enqueue(
@@ -272,13 +272,13 @@ def start_stream(session_id: str, message: str):
 
 def on_login(login_manager):
     """
-    Register user with FACL on login.
+    Register user with Assistant Runtime on login.
 
     Add to hooks.py:
-        on_login = "my_app.facl_client.on_login"
+        on_login = "my_app.ar_client.on_login"
     """
     try:
-        client = get_facl_client()
+        client = get_ar_client()
         user = frappe.session.user
         user_doc = frappe.get_doc("User", user)
 
@@ -287,8 +287,8 @@ def on_login(login_manager):
             display_name=user_doc.full_name,
         )
     except Exception as e:
-        # Don't block login on FACL errors
-        frappe.log_error(f"FACL user registration failed: {e}", "FACL")
+        # Don't block login on Assistant Runtime errors
+        frappe.log_error(f"Assistant Runtime user registration failed: {e}","AR")
 
 
 # =============================================================================

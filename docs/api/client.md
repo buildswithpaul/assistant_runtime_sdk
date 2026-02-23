@@ -1,20 +1,20 @@
-# FACLClient API Reference
+# AssistantRuntimeClient API Reference
 
-Complete API reference for the synchronous `FACLClient` class.
+Complete API reference for the synchronous `AssistantRuntimeClient` class.
 
-## Class: FACLClient
+## Class: AssistantRuntimeClient
 
 ```python
-from facl import FACLClient
+from assistant_runtime_sdk import AssistantRuntimeClient
 ```
 
 ### Constructor
 
 ```python
-FACLClient(
+AssistantRuntimeClient(
     tenant_id: str,
     tenant_secret: str,
-    facl_url: str = "https://facl.frappe.cloud",
+    ar_url: str = "https://ar.example.com",
     logger: Optional[logging.Logger] = None,
     timeout: float = 30.0
 )
@@ -24,19 +24,19 @@ FACLClient(
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `tenant_id` | str | Yes | - | Unique tenant identifier from FACL |
+| `tenant_id` | str | Yes | - | Unique tenant identifier from Assistant Runtime |
 | `tenant_secret` | str | Yes | - | HMAC secret for request signing |
-| `facl_url` | str | No | `https://facl.frappe.cloud` | Base URL of FACL server |
+| `ar_url` | str | No | `https://ar.example.com` | Base URL of Assistant Runtime server |
 | `logger` | Logger | No | None | Custom logger instance |
 | `timeout` | float | No | 30.0 | Default request timeout in seconds |
 
 **Example:**
 
 ```python
-client = FACLClient(
+client = AssistantRuntimeClient(
     tenant_id="your-tenant-id",
     tenant_secret="your-secret",
-    facl_url="https://facl.frappe.cloud",
+    ar_url="https://ar.example.com",
     timeout=60.0
 )
 ```
@@ -47,7 +47,7 @@ client = FACLClient(
 
 ### stream_chat()
 
-Stream a chat response from FACL.
+Stream a chat response from Assistant Runtime.
 
 ```python
 def stream_chat(
@@ -355,7 +355,7 @@ def delete_message(
 
 ### register_user()
 
-Register a user with FACL.
+Register a user with Assistant Runtime.
 
 ```python
 def register_user(
@@ -732,12 +732,12 @@ for t in tools.get("tools", []):
 
 ### get_terms()
 
-Get current FACL terms and conditions (no auth required).
+Get current Assistant Runtime terms and conditions (no auth required).
 
 ```python
-from facl import get_terms
+from assistant_runtime_sdk import get_terms
 
-terms = get_terms("https://facl.frappe.cloud")
+terms = get_terms("https://ar.example.com")
 ```
 
 **Returns:** `TermsInfo` TypedDict
@@ -756,13 +756,13 @@ terms = get_terms("https://facl.frappe.cloud")
 
 ### register_tenant()
 
-Register a new tenant with FACL.
+Register a new tenant with Assistant Runtime.
 
 ```python
-from facl import register_tenant
+from assistant_runtime_sdk import register_tenant
 
 result = register_tenant(
-    facl_url="https://facl.frappe.cloud",
+    ar_url="https://ar.example.com",
     site_url="https://mysite.frappe.cloud",
     terms_accepted=True,
     terms_version="1.0",
@@ -786,15 +786,15 @@ result = register_tenant(
 
 ```python
 # Default values
-FACLClient.DEFAULT_FACL_URL = "https://facl.frappe.cloud"
-FACLClient.DEFAULT_TIMEOUT = 30.0
-FACLClient.STREAM_CONNECT_TIMEOUT = 30.0
-FACLClient.STREAM_READ_TIMEOUT = 300.0
+AssistantRuntimeClient.DEFAULT_AR_URL = "https://ar.example.com"
+AssistantRuntimeClient.DEFAULT_TIMEOUT = 30.0
+AssistantRuntimeClient.STREAM_CONNECT_TIMEOUT = 30.0
+AssistantRuntimeClient.STREAM_READ_TIMEOUT = 300.0
 ```
 
 ## See Also
 
 - [Getting Started Guide](../guides/getting-started.md)
 - [Streaming Guide](../guides/streaming.md)
-- [AsyncFACLClient Reference](async-client.md)
+- [AsyncAssistantRuntimeClient Reference](async-client.md)
 - [Type Definitions](types.md)

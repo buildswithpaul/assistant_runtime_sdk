@@ -51,11 +51,6 @@ Standalone Functions:
     ...     accepted_by="admin@example.com"
     ... )
 
-Backwards Compatibility:
-    The old FACL* class names are still available as aliases:
-    - FACLClient -> AssistantRuntimeClient
-    - AsyncFACLClient -> AsyncAssistantRuntimeClient
-    - FACLError -> ARError (and all other exceptions)
 """
 
 __version__ = "0.1.0"
@@ -83,23 +78,14 @@ def __getattr__(name: str):
         from .skills import AsyncSkillProvider
         return AsyncSkillProvider
 
-    # Backwards compatibility aliases for old FACL names
-    if name == "FACLClient":
-        from .client import AssistantRuntimeClient
-        return AssistantRuntimeClient
-    if name == "AsyncFACLClient":
-        from .async_client import AsyncAssistantRuntimeClient
-        return AsyncAssistantRuntimeClient
-
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 # =============================================================================
-# Exceptions (with backwards compatibility aliases)
+# Exceptions
 # =============================================================================
 
 from .exceptions import (
-    # New names
     ARError,
     ARAuthenticationError,
     ARRateLimitError,
@@ -109,16 +95,6 @@ from .exceptions import (
     ARTimeoutError,
     ARConnectionError,
     ARBillingUnavailableError,
-    # Backwards compatibility aliases
-    FACLError,
-    FACLAuthenticationError,
-    FACLRateLimitError,
-    FACLStreamError,
-    FACLConfigurationError,
-    FACLAPIError,
-    FACLTimeoutError,
-    FACLConnectionError,
-    FACLBillingUnavailableError,
 )
 
 # =============================================================================
@@ -187,9 +163,6 @@ __all__ = [
     # Core clients - new names
     "AssistantRuntimeClient",
     "AsyncAssistantRuntimeClient",
-    # Core clients - backwards compatibility
-    "FACLClient",
-    "AsyncFACLClient",
     # Skill providers (for Strands Agent integration)
     "SkillProvider",
     "AsyncSkillProvider",
@@ -206,16 +179,6 @@ __all__ = [
     "ARTimeoutError",
     "ARConnectionError",
     "ARBillingUnavailableError",
-    # Exceptions - backwards compatibility
-    "FACLError",
-    "FACLAuthenticationError",
-    "FACLRateLimitError",
-    "FACLStreamError",
-    "FACLConfigurationError",
-    "FACLAPIError",
-    "FACLTimeoutError",
-    "FACLConnectionError",
-    "FACLBillingUnavailableError",
     # Auth utilities
     "generate_signature",
     "verify_signature",

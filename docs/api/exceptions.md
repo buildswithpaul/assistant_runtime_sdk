@@ -1,44 +1,44 @@
 # Exceptions Reference
 
-Complete reference for FACL SDK exceptions.
+Complete reference for Assistant Runtime SDK exceptions.
 
 ## Exception Hierarchy
 
 ```
-FACLError (base)
-├── FACLAuthenticationError
-├── FACLRateLimitError
-├── FACLStreamError
-├── FACLConfigurationError
-├── FACLAPIError
-├── FACLTimeoutError
-└── FACLConnectionError
+ARError (base)
+├── ARAuthenticationError
+├── ARRateLimitError
+├── ARStreamError
+├── ARConfigurationError
+├── ARAPIError
+├── ARTimeoutError
+└── ARConnectionError
 ```
 
 ## Importing
 
 ```python
-from facl import (
-    FACLError,
-    FACLAuthenticationError,
-    FACLRateLimitError,
-    FACLStreamError,
-    FACLConfigurationError,
-    FACLAPIError,
-    FACLTimeoutError,
-    FACLConnectionError,
+from assistant_runtime_sdk import (
+    ARError,
+    ARAuthenticationError,
+    ARRateLimitError,
+    ARStreamError,
+    ARConfigurationError,
+    ARAPIError,
+    ARTimeoutError,
+    ARConnectionError,
 )
 ```
 
 ---
 
-## FACLError
+## ARError
 
-Base exception for all FACL SDK errors.
+Base exception for all Assistant Runtime SDK errors.
 
 ```python
-class FACLError(Exception):
-    """Base exception for FACL SDK errors."""
+class ARError(Exception):
+    """Base exception for Assistant Runtime SDK errors."""
     pass
 ```
 
@@ -47,19 +47,19 @@ class FACLError(Exception):
 ```python
 try:
     result = client.api_call()
-except FACLError as e:
-    # Catches any FACL error
-    print(f"FACL error: {e}")
+except ARError as e:
+    # Catches any AR error
+    print(f"AR error: {e}")
 ```
 
 ---
 
-## FACLAuthenticationError
+## ARAuthenticationError
 
 Raised when HMAC signature validation fails.
 
 ```python
-class FACLAuthenticationError(FACLError):
+class ARAuthenticationError(ARError):
     """HMAC signature validation failed."""
     pass
 ```
@@ -74,18 +74,18 @@ class FACLAuthenticationError(FACLError):
 ```python
 try:
     client.list_available_models()
-except FACLAuthenticationError as e:
+except ARAuthenticationError as e:
     print("Authentication failed - check tenant credentials")
 ```
 
 ---
 
-## FACLRateLimitError
+## ARRateLimitError
 
 Raised when rate limits are exceeded.
 
 ```python
-class FACLRateLimitError(FACLError):
+class ARRateLimitError(ARError):
     """Rate limit exceeded."""
 
     def __init__(
@@ -109,7 +109,7 @@ class FACLRateLimitError(FACLError):
 try:
     for event in client.stream_chat(...):
         process(event)
-except FACLRateLimitError as e:
+except ARRateLimitError as e:
     print(f"Rate limited. Retry in {e.retry_after} seconds")
     print(f"Models checked: {e.models_checked}")
     time.sleep(e.retry_after)
@@ -118,12 +118,12 @@ except FACLRateLimitError as e:
 
 ---
 
-## FACLStreamError
+## ARStreamError
 
 Raised when SSE streaming encounters an error.
 
 ```python
-class FACLStreamError(FACLError):
+class ARStreamError(ARError):
     """SSE streaming error."""
     pass
 ```
@@ -139,18 +139,18 @@ class FACLStreamError(FACLError):
 try:
     for event in client.stream_chat(...):
         process(event)
-except FACLStreamError as e:
+except ARStreamError as e:
     print(f"Stream failed: {e}")
 ```
 
 ---
 
-## FACLConfigurationError
+## ARConfigurationError
 
 Raised for invalid client configuration.
 
 ```python
-class FACLConfigurationError(FACLError):
+class ARConfigurationError(ARError):
     """Invalid configuration."""
     pass
 ```
@@ -158,29 +158,29 @@ class FACLConfigurationError(FACLError):
 **Causes:**
 - Missing required parameters
 - Invalid URL format
-- AsyncFACLClient used without context manager
+- AsyncAssistantRuntimeClient used without context manager
 
 **Example:**
 
 ```python
-from facl import AsyncFACLClient, FACLConfigurationError
+from assistant_runtime_sdk import AsyncAssistantRuntimeClient, ARConfigurationError
 
-# This will raise FACLConfigurationError
-client = AsyncFACLClient(tenant_id="...", tenant_secret="...")
+# This will raise ARConfigurationError
+client = AsyncAssistantRuntimeClient(tenant_id="...", tenant_secret="...")
 try:
     await client.list_available_models()  # No session!
-except FACLConfigurationError as e:
+except ARConfigurationError as e:
     print(e)  # "No active session. Use as context manager..."
 ```
 
 ---
 
-## FACLAPIError
+## ARAPIError
 
 Raised for HTTP API errors.
 
 ```python
-class FACLAPIError(FACLError):
+class ARAPIError(ARError):
     """HTTP/API error."""
 
     def __init__(
@@ -203,14 +203,14 @@ class FACLAPIError(FACLError):
 | 401 | Unauthorized - invalid credentials |
 | 403 | Forbidden - insufficient permissions |
 | 404 | Not Found - resource doesn't exist |
-| 500 | Server Error - FACL server issue |
+| 500 | Server Error - Assistant Runtime server issue |
 
 **Example:**
 
 ```python
 try:
     result = client.get_conversation("invalid-id")
-except FACLAPIError as e:
+except ARAPIError as e:
     if e.status_code == 404:
         print("Conversation not found")
     elif e.status_code == 403:
@@ -221,12 +221,12 @@ except FACLAPIError as e:
 
 ---
 
-## FACLTimeoutError
+## ARTimeoutError
 
 Raised when a request times out.
 
 ```python
-class FACLTimeoutError(FACLError):
+class ARTimeoutError(ARError):
     """Request timeout."""
     pass
 ```
@@ -242,18 +242,18 @@ class FACLTimeoutError(FACLError):
 try:
     for event in client.stream_chat(...):
         process(event)
-except FACLTimeoutError as e:
+except ARTimeoutError as e:
     print("Request timed out - try with shorter message")
 ```
 
 ---
 
-## FACLConnectionError
+## ARConnectionError
 
 Raised when network connection fails.
 
 ```python
-class FACLConnectionError(FACLError):
+class ARConnectionError(ARError):
     """Network connection error."""
     pass
 ```
@@ -269,7 +269,7 @@ class FACLConnectionError(FACLError):
 ```python
 try:
     result = client.list_available_models()
-except FACLConnectionError as e:
+except ARConnectionError as e:
     print(f"Connection failed: {e}")
     print("Check network and server URL")
 ```
@@ -281,14 +281,14 @@ except FACLConnectionError as e:
 ### Comprehensive Handler
 
 ```python
-from facl import (
-    FACLClient,
-    FACLAuthenticationError,
-    FACLRateLimitError,
-    FACLAPIError,
-    FACLTimeoutError,
-    FACLConnectionError,
-    FACLError,
+from assistant_runtime_sdk import (
+    AssistantRuntimeClient,
+    ARAuthenticationError,
+    ARRateLimitError,
+    ARAPIError,
+    ARTimeoutError,
+    ARConnectionError,
+    ARError,
 )
 import time
 
@@ -299,28 +299,28 @@ def safe_api_call(func, *args, max_retries=3, **kwargs):
         try:
             return func(*args, **kwargs)
 
-        except FACLAuthenticationError:
+        except ARAuthenticationError:
             # Don't retry auth errors
             raise
 
-        except FACLRateLimitError as e:
+        except ARRateLimitError as e:
             if attempt < max_retries - 1:
                 time.sleep(e.retry_after or 60)
                 continue
             raise
 
-        except FACLTimeoutError:
+        except ARTimeoutError:
             if attempt < max_retries - 1:
                 continue
             raise
 
-        except FACLConnectionError:
+        except ARConnectionError:
             if attempt < max_retries - 1:
                 time.sleep(2 ** attempt)  # Exponential backoff
                 continue
             raise
 
-        except FACLAPIError as e:
+        except ARAPIError as e:
             if e.status_code and e.status_code >= 500:
                 if attempt < max_retries - 1:
                     time.sleep(1)
@@ -334,7 +334,7 @@ def safe_api_call(func, *args, max_retries=3, **kwargs):
 
 ```python
 import asyncio
-from facl import AsyncFACLClient, FACLRateLimitError
+from assistant_runtime_sdk import AsyncAssistantRuntimeClient, ARRateLimitError
 
 async def resilient_call(client, method, *args, **kwargs):
     """Async call with retry logic."""
@@ -342,7 +342,7 @@ async def resilient_call(client, method, *args, **kwargs):
     for attempt in range(3):
         try:
             return await method(*args, **kwargs)
-        except FACLRateLimitError as e:
+        except ARRateLimitError as e:
             if attempt < 2:
                 await asyncio.sleep(e.retry_after or 60)
                 continue
@@ -366,7 +366,7 @@ def stream_with_recovery(client, session_id, message, user_id):
             elif event["event"] == "stream_complete":
                 return "".join(accumulated)
 
-    except (FACLStreamError, FACLConnectionError):
+    except (ARStreamError, ARConnectionError):
         # Return partial response
         partial = "".join(accumulated)
         if partial:
@@ -379,5 +379,5 @@ def stream_with_recovery(client, session_id, message, user_id):
 ## See Also
 
 - [Error Handling Guide](../guides/error-handling.md)
-- [FACLClient Reference](client.md)
+- [AssistantRuntimeClient Reference](client.md)
 - [Streaming Guide](../guides/streaming.md)

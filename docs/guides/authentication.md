@@ -1,10 +1,10 @@
 # Authentication Guide
 
-FACL uses HMAC-SHA256 signatures to authenticate API requests. This guide explains how authentication works and how to use the SDK's authentication utilities.
+Assistant Runtime uses HMAC-SHA256 signatures to authenticate API requests. This guide explains how authentication works and how to use the SDK's authentication utilities.
 
-## How FACL Authentication Works
+## How Assistant Runtime Authentication Works
 
-Every request to FACL must include an `X-FACL-Signature` header containing:
+Every request to Assistant Runtime must include an `X-AR-Signature` header containing:
 
 ```
 {timestamp}:{signature}
@@ -32,9 +32,9 @@ Where `params_json` is the JSON-encoded request parameters, sorted by key.
 The SDK handles authentication automatically. Just provide your credentials:
 
 ```python
-from facl import FACLClient
+from assistant_runtime_sdk import AssistantRuntimeClient
 
-client = FACLClient(
+client = AssistantRuntimeClient(
     tenant_id="your-tenant-id",
     tenant_secret="your-tenant-secret"
 )
@@ -50,7 +50,7 @@ For custom integrations or debugging, you can generate signatures manually:
 ### Basic Signature Generation
 
 ```python
-from facl import generate_signature
+from assistant_runtime_sdk import generate_signature
 
 # Generate signature for GET request (query string params)
 params = {"tenant_id": "my-tenant", "message": "Hello"}
@@ -67,7 +67,7 @@ print(signature)  # "1704067200:a1b2c3d4e5f6..."
 ### For POST Requests with JSON Body
 
 ```python
-from facl import generate_signature
+from assistant_runtime_sdk import generate_signature
 
 # Generate signature for POST request (JSON body)
 payload = {"tenant_id": "my-tenant", "data": {"count": 42}}
@@ -82,7 +82,7 @@ signature = generate_signature(
 ### Getting Headers Dict
 
 ```python
-from facl import get_signature_header
+from assistant_runtime_sdk import get_signature_header
 
 # Get headers ready to use with requests
 headers = get_signature_header(
@@ -98,14 +98,14 @@ response = requests.get(url, params=params, headers=headers)
 
 ## Signature Verification
 
-If you're building a server that receives FACL callbacks:
+If you're building a server that receives Assistant Runtime callbacks:
 
 ```python
-from facl import verify_signature
+from assistant_runtime_sdk import verify_signature
 
 # Verify incoming request signature
 is_valid = verify_signature(
-    signature_header=request.headers["X-FACL-Signature"],
+    signature_header=request.headers["X-AR-Signature"],
     tenant_id="expected-tenant",
     tenant_secret="shared-secret",
     params=request.json,
@@ -119,7 +119,7 @@ if not is_valid:
 
 ## Query String vs JSON Body
 
-FACL signature generation differs based on request type:
+Assistant Runtime signature generation differs based on request type:
 
 ### GET Requests (Query String)
 
@@ -129,7 +129,7 @@ When parameters are sent as query strings, all values become strings:
 # Original params
 params = {"count": 42, "active": True}
 
-# After query string conversion (what FACL server sees)
+# After query string conversion (what Assistant Runtime server sees)
 # count=42&active=True (all strings)
 
 # Generate signature with for_query_string=True
@@ -166,13 +166,13 @@ Never expose your `tenant_secret`:
 ```python
 # GOOD: Use environment variables
 import os
-client = FACLClient(
-    tenant_id=os.environ["FACL_TENANT_ID"],
-    tenant_secret=os.environ["FACL_TENANT_SECRET"]
+client = AssistantRuntimeClient(
+    tenant_id=os.environ["AR_TENANT_ID"],
+    tenant_secret=os.environ["AR_TENANT_SECRET"]
 )
 
 # BAD: Hardcoded secrets
-client = FACLClient(
+client = AssistantRuntimeClient(
     tenant_id="my-tenant",
     tenant_secret="my-secret-key"  # Don't do this!
 )
@@ -208,7 +208,7 @@ Implement secret rotation:
 
 ```python
 # Support multiple secrets during rotation
-secrets = [os.environ["FACL_SECRET_NEW"], os.environ["FACL_SECRET_OLD"]]
+secrets = [os.environ["AR_SECRET_NEW"], os.environ["AR_SECRET_OLD"]]
 
 for secret in secrets:
     if verify_signature(sig, tenant_id, secret, params):
@@ -228,7 +228,7 @@ return False
 ### Debugging Signatures
 
 ```python
-from facl import generate_signature
+from assistant_runtime_sdk import generate_signature
 import json
 
 params = {"tenant_id": "test", "message": "Hello"}
@@ -268,7 +268,7 @@ def generate_signature(
     timestamp: Optional[int] = None,
 ) -> str:
     """
-    Generate HMAC-SHA256 signature for FACL API request.
+    Generate HMAC-SHA256 signature for Assistant Runtime API request.
 
     Args:
         tenant_id: Unique tenant identifier
@@ -294,10 +294,10 @@ def verify_signature(
     max_age_seconds: int = 300,
 ) -> bool:
     """
-    Verify HMAC-SHA256 signature from FACL request.
+    Verify HMAC-SHA256 signature from Assistant Runtime request.
 
     Args:
-        signature_header: The X-FACL-Signature header value
+        signature_header: The X-AR-Signature header value
         tenant_id: Expected tenant identifier
         tenant_secret: HMAC secret
         params: Request parameters to verify
@@ -319,9 +319,9 @@ def get_signature_header(
     for_query_string: bool = False,
 ) -> Dict[str, str]:
     """
-    Generate headers dict with FACL signature.
+    Generate headers dict with Assistant Runtime signature.
 
     Returns:
-        Dict with X-FACL-Signature header
+        Dict with X-AR-Signature header
     """
 ```

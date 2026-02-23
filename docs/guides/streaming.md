@@ -1,10 +1,10 @@
 # Streaming Guide
 
-FACL uses Server-Sent Events (SSE) for real-time streaming of AI responses. This guide covers everything you need to know about working with SSE streams.
+Assistant Runtime uses Server-Sent Events (SSE) for real-time streaming of AI responses. This guide covers everything you need to know about working with SSE streams.
 
 ## Overview
 
-When you call `stream_chat()`, FACL returns responses as a stream of events rather than a single response. This enables:
+When you call `stream_chat()`, Assistant Runtime returns responses as a stream of events rather than a single response. This enables:
 
 - **Real-time display**: Show text as it's generated
 - **Tool execution visibility**: See when tools are being called
@@ -16,9 +16,9 @@ When you call `stream_chat()`, FACL returns responses as a stream of events rath
 ### Simple Chat Stream
 
 ```python
-from facl import FACLClient
+from assistant_runtime_sdk import AssistantRuntimeClient
 
-client = FACLClient(tenant_id="...", tenant_secret="...")
+client = AssistantRuntimeClient(tenant_id="...", tenant_secret="...")
 
 for event in client.stream_chat(
     session_id="session-123",
@@ -33,7 +33,7 @@ for event in client.stream_chat(
 
 ```python
 def handle_stream(client, session_id, message, user_id):
-    """Process all SSE event types from FACL."""
+    """Process all SSE event types from Assistant Runtime."""
 
     full_response = ""
 
@@ -142,7 +142,7 @@ The SDK provides utilities for parsing SSE streams:
 ### SSEEventType Enum
 
 ```python
-from facl import SSEEventType
+from assistant_runtime_sdk import SSEEventType
 
 # Use enum for type checking
 if event["event"] == SSEEventType.STREAM_CHUNK:
@@ -155,7 +155,7 @@ print(list(SSEEventType))
 ### Parse Raw SSE Lines
 
 ```python
-from facl import parse_sse_line, parse_sse_stream
+from assistant_runtime_sdk import parse_sse_line, parse_sse_stream
 
 # Parse single line
 line = 'data: {"content": "Hello"}'
@@ -180,7 +180,7 @@ for event in parse_sse_stream(iter(lines)):
 ### Check Terminal Events
 
 ```python
-from facl.streaming import is_terminal_event
+from assistant_runtime_sdk.streaming import is_terminal_event
 
 # Check if stream should end
 if is_terminal_event(event["event"]):
@@ -191,7 +191,7 @@ if is_terminal_event(event["event"]):
 ### Extract Metrics
 
 ```python
-from facl.streaming import extract_stream_metrics
+from assistant_runtime_sdk.streaming import extract_stream_metrics
 
 if event["event"] == "stream_complete":
     metrics = extract_stream_metrics(event)
@@ -252,9 +252,9 @@ for event in client.stream_chat(
 ## Error Handling in Streams
 
 ```python
-from facl import FACLClient, FACLStreamError, FACLConnectionError
+from assistant_runtime_sdk import AssistantRuntimeClient, ARStreamError, ARConnectionError
 
-client = FACLClient(tenant_id="...", tenant_secret="...")
+client = AssistantRuntimeClient(tenant_id="...", tenant_secret="...")
 
 try:
     for event in client.stream_chat(session_id, message, user_id):
@@ -277,11 +277,11 @@ try:
 
         # Handle normal events...
 
-except FACLConnectionError as e:
+except ARConnectionError as e:
     # Network-level error
     print(f"Connection failed: {e}")
 
-except FACLStreamError as e:
+except ARStreamError as e:
     # SSE parsing error
     print(f"Stream error: {e}")
 ```
@@ -403,14 +403,14 @@ for event in events:
 ### 3. Handle Timeouts Gracefully
 
 ```python
-from facl import FACLClient, FACLTimeoutError
+from assistant_runtime_sdk import AssistantRuntimeClient, ARTimeoutError
 
-client = FACLClient(tenant_id="...", tenant_secret="...", timeout=60.0)
+client = AssistantRuntimeClient(tenant_id="...", tenant_secret="...", timeout=60.0)
 
 try:
     for event in client.stream_chat(...):
         process(event)
-except FACLTimeoutError:
+except ARTimeoutError:
     print("Stream timed out - consider shorter messages or different model")
 ```
 

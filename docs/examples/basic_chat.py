@@ -1,38 +1,38 @@
 #!/usr/bin/env python3
 """
-Basic Chat Example - FACL SDK
+Basic Chat Example - Assistant Runtime SDK
 
-This example demonstrates the simplest way to use the FACL SDK
+This example demonstrates the simplest way to use the Assistant Runtime SDK
 to send a message and receive a streaming response.
 
 Usage:
     python basic_chat.py
 
 Environment Variables:
-    FACL_TENANT_ID: Your FACL tenant ID
-    FACL_TENANT_SECRET: Your FACL tenant secret
-    FACL_URL: FACL server URL (optional, defaults to https://facl.frappe.cloud)
+    AR_TENANT_ID: Your Assistant Runtime tenant ID
+    AR_TENANT_SECRET: Your Assistant Runtime tenant secret
+    AR_URL: Assistant Runtime server URL (optional, defaults to https://ar.example.com)
 """
 
 import os
-from facl import FACLClient
+from assistant_runtime_sdk import AssistantRuntimeClient
 
 
 def main():
     # Get credentials from environment
-    tenant_id = os.environ.get("FACL_TENANT_ID")
-    tenant_secret = os.environ.get("FACL_TENANT_SECRET")
-    facl_url = os.environ.get("FACL_URL", "https://facl.frappe.cloud")
+    tenant_id = os.environ.get("AR_TENANT_ID")
+    tenant_secret = os.environ.get("AR_TENANT_SECRET")
+    ar_url = os.environ.get("AR_URL", "https://ar.example.com")
 
     if not tenant_id or not tenant_secret:
-        print("Error: Set FACL_TENANT_ID and FACL_TENANT_SECRET environment variables")
+        print("Error: Set AR_TENANT_ID and AR_TENANT_SECRET environment variables")
         return
 
     # Create client
-    client = FACLClient(
+    client = AssistantRuntimeClient(
         tenant_id=tenant_id,
         tenant_secret=tenant_secret,
-        facl_url=facl_url,
+        ar_url=ar_url,
     )
 
     # Check available models

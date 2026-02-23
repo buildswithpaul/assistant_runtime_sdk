@@ -1,13 +1,13 @@
 # Async Usage Guide
 
-The FACL SDK provides an asynchronous client (`AsyncFACLClient`) for applications using Python's async/await pattern. This guide covers everything you need to know about async usage.
+The Assistant Runtime SDK provides an asynchronous client (`AsyncAssistantRuntimeClient`) for applications using Python's async/await pattern. This guide covers everything you need to know about async usage.
 
 ## Installation
 
 The async client requires `aiohttp`:
 
 ```bash
-pip install facl[async]
+pip install assistant_runtime_sdk[async]
 ```
 
 ## Basic Usage
@@ -16,13 +16,13 @@ pip install facl[async]
 
 ```python
 import asyncio
-from facl import AsyncFACLClient
+from assistant_runtime_sdk import AsyncAssistantRuntimeClient
 
 async def main():
-    async with AsyncFACLClient(
+    async with AsyncAssistantRuntimeClient(
         tenant_id="your-tenant-id",
         tenant_secret="your-secret",
-        facl_url="https://facl.frappe.cloud"
+        ar_url="https://ar.example.com"
     ) as client:
         # Client is ready to use
         models = await client.list_available_models()
@@ -41,7 +41,7 @@ For advanced use cases, you can manage the session yourself:
 
 ```python
 import aiohttp
-from facl import AsyncFACLClient
+from assistant_runtime_sdk import AsyncAssistantRuntimeClient
 
 async def main():
     # Create your own session with custom settings
@@ -49,7 +49,7 @@ async def main():
     session = aiohttp.ClientSession(connector=connector)
 
     try:
-        client = AsyncFACLClient(
+        client = AsyncAssistantRuntimeClient(
             tenant_id="your-tenant-id",
             tenant_secret="your-secret",
             session=session  # Reuse existing session
@@ -70,10 +70,10 @@ asyncio.run(main())
 
 ```python
 import asyncio
-from facl import AsyncFACLClient
+from assistant_runtime_sdk import AsyncAssistantRuntimeClient
 
 async def stream_chat():
-    async with AsyncFACLClient(
+    async with AsyncAssistantRuntimeClient(
         tenant_id="your-tenant-id",
         tenant_secret="your-secret"
     ) as client:
@@ -144,10 +144,10 @@ async def handle_async_stream(client, session_id, message, user_id):
 
 ```python
 import asyncio
-from facl import AsyncFACLClient
+from assistant_runtime_sdk import AsyncAssistantRuntimeClient
 
 async def fetch_all_data():
-    async with AsyncFACLClient(
+    async with AsyncAssistantRuntimeClient(
         tenant_id="your-tenant-id",
         tenant_secret="your-secret"
     ) as client:
@@ -186,7 +186,7 @@ async def check_multiple_users(client, user_ids):
             print(f"{user_id}: {'Ready' if ready else 'Not ready'}")
 
 async def main():
-    async with AsyncFACLClient(tenant_id="...", tenant_secret="...") as client:
+    async with AsyncAssistantRuntimeClient(tenant_id="...", tenant_secret="...") as client:
         await check_multiple_users(client, [
             "user1@example.com",
             "user2@example.com",
@@ -203,27 +203,27 @@ asyncio.run(main())
 ```python
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
-from facl import AsyncFACLClient
+from assistant_runtime_sdk import AsyncAssistantRuntimeClient
 
 app = FastAPI()
 
 # Create client at startup
 @app.on_event("startup")
 async def startup():
-    app.state.facl_client = AsyncFACLClient(
+    app.state.ar_client = AsyncAssistantRuntimeClient(
         tenant_id="your-tenant-id",
         tenant_secret="your-secret"
     )
-    await app.state.facl_client.__aenter__()
+    await app.state.ar_client.__aenter__()
 
 @app.on_event("shutdown")
 async def shutdown():
-    await app.state.facl_client.__aexit__(None, None, None)
+    await app.state.ar_client.__aexit__(None, None, None)
 
 @app.post("/chat")
 async def chat(session_id: str, message: str, user_id: str):
     async def generate():
-        async for event in app.state.facl_client.stream_chat(
+        async for event in app.state.ar_client.stream_chat(
             session_id=session_id,
             message=message,
             user_id=user_id
@@ -238,30 +238,30 @@ async def chat(session_id: str, message: str, user_id: str):
 
 @app.get("/models")
 async def get_models():
-    return await app.state.facl_client.list_available_models()
+    return await app.state.ar_client.list_available_models()
 ```
 
 ### With aiohttp Web Server
 
 ```python
 from aiohttp import web
-from facl import AsyncFACLClient
+from assistant_runtime_sdk import AsyncAssistantRuntimeClient
 import json
 
 async def create_app():
     app = web.Application()
 
     # Create client
-    app["facl_client"] = AsyncFACLClient(
+    app["ar_client"] = AsyncAssistantRuntimeClient(
         tenant_id="your-tenant-id",
         tenant_secret="your-secret"
     )
 
     async def on_startup(app):
-        await app["facl_client"].__aenter__()
+        await app["ar_client"].__aenter__()
 
     async def on_cleanup(app):
-        await app["facl_client"].__aexit__(None, None, None)
+        await app["ar_client"].__aexit__(None, None, None)
 
     app.on_startup.append(on_startup)
     app.on_cleanup.append(on_cleanup)
@@ -274,7 +274,7 @@ async def create_app():
         )
         await response.prepare(request)
 
-        async for event in app["facl_client"].stream_chat(
+        async for event in app["ar_client"].stream_chat(
             session_id=data["session_id"],
             message=data["message"],
             user_id=data["user_id"]
@@ -296,7 +296,7 @@ if __name__ == "__main__":
 ```python
 # views.py
 from django.http import StreamingHttpResponse
-from facl import AsyncFACLClient
+from assistant_runtime_sdk import AsyncAssistantRuntimeClient
 import asyncio
 import json
 
@@ -306,7 +306,7 @@ async def chat_stream(request):
     user_id = request.POST.get("user_id")
 
     async def event_generator():
-        async with AsyncFACLClient(
+        async with AsyncAssistantRuntimeClient(
             tenant_id="your-tenant-id",
             tenant_secret="your-secret"
         ) as client:
@@ -329,12 +329,12 @@ async def chat_stream(request):
 ### Async Exception Handling
 
 ```python
-from facl import (
-    AsyncFACLClient,
-    FACLConnectionError,
-    FACLTimeoutError,
-    FACLAPIError,
-    FACLRateLimitError
+from assistant_runtime_sdk import (
+    AsyncAssistantRuntimeClient,
+    ARConnectionError,
+    ARTimeoutError,
+    ARAPIError,
+    ARRateLimitError
 )
 
 async def safe_api_call(client, method, *args, **kwargs):
@@ -342,26 +342,26 @@ async def safe_api_call(client, method, *args, **kwargs):
     try:
         return await method(*args, **kwargs)
 
-    except FACLConnectionError as e:
+    except ARConnectionError as e:
         print(f"Connection failed: {e}")
         return None
 
-    except FACLTimeoutError as e:
+    except ARTimeoutError as e:
         print(f"Request timed out: {e}")
         return None
 
-    except FACLRateLimitError as e:
+    except ARRateLimitError as e:
         print(f"Rate limited. Retry after {e.retry_after}s")
         await asyncio.sleep(e.retry_after)
         return await method(*args, **kwargs)  # Retry
 
-    except FACLAPIError as e:
+    except ARAPIError as e:
         print(f"API error ({e.status_code}): {e}")
         return None
 
 # Usage
 async def main():
-    async with AsyncFACLClient(tenant_id="...", tenant_secret="...") as client:
+    async with AsyncAssistantRuntimeClient(tenant_id="...", tenant_secret="...") as client:
         models = await safe_api_call(client, client.list_available_models)
         if models:
             print(f"Found {len(models.get('models', []))} models")
@@ -407,7 +407,7 @@ async def handle_stream_errors(client, session_id, message, user_id):
 
 ```python
 import aiohttp
-from facl import AsyncFACLClient
+from assistant_runtime_sdk import AsyncAssistantRuntimeClient
 
 async def high_throughput_operations():
     # Configure connection pool
@@ -427,7 +427,7 @@ async def high_throughput_operations():
         connector=connector,
         timeout=timeout
     ) as session:
-        client = AsyncFACLClient(
+        client = AsyncAssistantRuntimeClient(
             tenant_id="your-tenant-id",
             tenant_secret="your-secret",
             session=session
@@ -462,14 +462,14 @@ async def rate_limited_operations(client, user_ids, max_concurrent=10):
 
 ```python
 import pytest
-from facl import AsyncFACLClient
+from assistant_runtime_sdk import AsyncAssistantRuntimeClient
 
 @pytest.fixture
 async def client():
-    async with AsyncFACLClient(
+    async with AsyncAssistantRuntimeClient(
         tenant_id="test-tenant",
         tenant_secret="test-secret",
-        facl_url="http://localhost:8000"  # Mock server
+        ar_url="http://localhost:8000"  # Mock server
     ) as client:
         yield client
 
@@ -495,13 +495,13 @@ async def test_stream_chat(client):
 
 ## API Reference
 
-### AsyncFACLClient Constructor
+### AsyncAssistantRuntimeClient Constructor
 
 ```python
-AsyncFACLClient(
+AsyncAssistantRuntimeClient(
     tenant_id: str,              # Required: Tenant ID
     tenant_secret: str,          # Required: HMAC secret
-    facl_url: str = "https://facl.frappe.cloud",  # FACL server URL
+    ar_url: str = "https://ar.example.com",  # Assistant Runtime server URL
     logger: Logger = None,       # Optional logger
     timeout: float = 30.0,       # Request timeout
     session: ClientSession = None  # Optional aiohttp session
@@ -511,7 +511,7 @@ AsyncFACLClient(
 ### Context Manager Methods
 
 ```python
-async def __aenter__(self) -> AsyncFACLClient:
+async def __aenter__(self) -> AsyncAssistantRuntimeClient:
     """Enter context - creates session if needed."""
 
 async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
@@ -532,10 +532,10 @@ async def stream_chat(
     """Stream chat response asynchronously."""
 ```
 
-See the [AsyncFACLClient API Reference](../api/async-client.md) for complete documentation.
+See the [AsyncAssistantRuntimeClient API Reference](../api/async-client.md) for complete documentation.
 
 ## Next Steps
 
 - [Error Handling](error-handling.md) - Complete error handling patterns
-- [API Reference](../api/async-client.md) - Full AsyncFACLClient documentation
+- [API Reference](../api/async-client.md) - Full AsyncAssistantRuntimeClient documentation
 - [Examples](../examples/) - Working code examples

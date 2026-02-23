@@ -1,10 +1,10 @@
-# FACL SDK Documentation
+# Assistant Runtime SDK Documentation
 
-Welcome to the FACL SDK documentation. This SDK provides a Python client for integrating with [Frappe Assistant Cloud (FACL)](https://facl.frappe.cloud) - the AI-powered assistant backend for the Frappe ecosystem.
+Welcome to the Assistant Runtime SDK documentation. This SDK provides a Python client for integrating with [Assistant Runtime](https://ar.example.com) - the AI-powered assistant backend for the Frappe ecosystem.
 
 ## Overview
 
-FACL SDK is a framework-agnostic Python library that enables any Python application to:
+Assistant Runtime SDK is a framework-agnostic Python library that enables any Python application to:
 
 - Stream AI chat responses with real-time SSE events
 - Execute tools via MCP (Model Context Protocol) servers
@@ -15,7 +15,7 @@ FACL SDK is a framework-agnostic Python library that enables any Python applicat
 
 | Feature | Description |
 |---------|-------------|
-| **Sync & Async Clients** | Choose `FACLClient` (requests) or `AsyncFACLClient` (aiohttp) |
+| **Sync & Async Clients** | Choose `AssistantRuntimeClient` (requests) or `AsyncAssistantRuntimeClient` (aiohttp) |
 | **SSE Streaming** | Real-time streaming with tool execution events |
 | **HMAC Authentication** | Secure request signing for all API calls |
 | **Auto Model Selection** | Intelligent routing with provider fallback |
@@ -26,24 +26,24 @@ FACL SDK is a framework-agnostic Python library that enables any Python applicat
 
 ```bash
 # Basic installation (sync client only)
-pip install facl
+pip install assistant_runtime_sdk
 
 # With async support
-pip install facl[async]
+pip install assistant_runtime_sdk[async]
 
 # Development installation
-pip install facl[dev]
+pip install assistant_runtime_sdk[dev]
 ```
 
 ## Quick Example
 
 ```python
-from facl import FACLClient
+from assistant_runtime_sdk import AssistantRuntimeClient
 
-client = FACLClient(
+client = AssistantRuntimeClient(
     tenant_id="your-tenant-id",
     tenant_secret="your-secret",
-    facl_url="https://facl.frappe.cloud"
+    ar_url="https://ar.example.com"
 )
 
 # Stream a chat response
@@ -74,8 +74,8 @@ Step-by-step guides for common tasks:
 
 Complete API documentation:
 
-- [FACLClient](api/client.md) - Synchronous client reference
-- [AsyncFACLClient](api/async-client.md) - Asynchronous client reference
+- [AssistantRuntimeClient](api/client.md) - Synchronous client reference
+- [AsyncAssistantRuntimeClient](api/async-client.md) - Asynchronous client reference
 - [Types](api/types.md) - TypedDict definitions
 - [Exceptions](api/exceptions.md) - Exception hierarchy
 - [Utilities](api/utilities.md) - Auth and streaming utilities
@@ -100,5 +100,5 @@ Copyright (C) 2025 Paul Clinton
 
 ## Support
 
-- GitHub Issues: [Report a bug](https://github.com/anthropics/facl-sdk/issues)
-- Documentation: [https://docs.facl.frappe.cloud](https://docs.facl.frappe.cloud)
+- GitHub Issues: [Report a bug](https://github.com/anthropics/assistant-runtime-sdk/issues)
+- Documentation: [https://docs.ar.example.com](https://docs.ar.example.com)

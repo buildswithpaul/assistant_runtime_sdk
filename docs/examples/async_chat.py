@@ -1,24 +1,24 @@
 #!/usr/bin/env python3
 """
-Async Chat Example - FACL SDK
+Async Chat Example - Assistant Runtime SDK
 
-This example demonstrates using the AsyncFACLClient for asynchronous
+This example demonstrates using the AsyncAssistantRuntimeClient for asynchronous
 chat streaming with concurrent operations.
 
 Usage:
     python async_chat.py
 
 Requirements:
-    pip install facl[async]
+    pip install assistant_runtime_sdk[async]
 
 Environment Variables:
-    FACL_TENANT_ID: Your FACL tenant ID
-    FACL_TENANT_SECRET: Your FACL tenant secret
+    AR_TENANT_ID: Your Assistant Runtime tenant ID
+    AR_TENANT_SECRET: Your Assistant Runtime tenant secret
 """
 
 import os
 import asyncio
-from facl import AsyncFACLClient
+from assistant_runtime_sdk import AsyncAssistantRuntimeClient
 
 
 async def stream_chat(client, session_id: str, message: str, user_id: str):
@@ -144,21 +144,21 @@ async def rate_limited_operations(client, operations: int, max_concurrent: int =
 
 async def main():
     # Get credentials
-    tenant_id = os.environ.get("FACL_TENANT_ID")
-    tenant_secret = os.environ.get("FACL_TENANT_SECRET")
+    tenant_id = os.environ.get("AR_TENANT_ID")
+    tenant_secret = os.environ.get("AR_TENANT_SECRET")
 
     if not tenant_id or not tenant_secret:
-        print("Error: Set FACL_TENANT_ID and FACL_TENANT_SECRET")
+        print("Error: Set AR_TENANT_ID and AR_TENANT_SECRET")
         return
 
     # Use async context manager
-    async with AsyncFACLClient(
+    async with AsyncAssistantRuntimeClient(
         tenant_id=tenant_id,
         tenant_secret=tenant_secret,
     ) as client:
 
         print("=" * 60)
-        print("FACL Async Client Examples")
+        print("AR Async Client Examples")
         print("=" * 60)
 
         # Example 1: Simple async chat

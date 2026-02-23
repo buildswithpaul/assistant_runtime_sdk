@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Streaming Chat Example - FACL SDK
+Streaming Chat Example - Assistant Runtime SDK
 
 This example demonstrates comprehensive handling of all SSE event types
 during a streaming chat session.
@@ -9,13 +9,13 @@ Usage:
     python streaming_chat.py
 
 Environment Variables:
-    FACL_TENANT_ID: Your FACL tenant ID
-    FACL_TENANT_SECRET: Your FACL tenant secret
+    AR_TENANT_ID: Your Assistant Runtime tenant ID
+    AR_TENANT_SECRET: Your Assistant Runtime tenant secret
 """
 
 import os
 import json
-from facl import FACLClient, SSEEventType
+from assistant_runtime_sdk import AssistantRuntimeClient, SSEEventType
 
 
 class ChatHandler:
@@ -160,15 +160,15 @@ class ChatHandler:
 
 def main():
     # Get credentials
-    tenant_id = os.environ.get("FACL_TENANT_ID")
-    tenant_secret = os.environ.get("FACL_TENANT_SECRET")
+    tenant_id = os.environ.get("AR_TENANT_ID")
+    tenant_secret = os.environ.get("AR_TENANT_SECRET")
 
     if not tenant_id or not tenant_secret:
-        print("Error: Set FACL_TENANT_ID and FACL_TENANT_SECRET")
+        print("Error: Set AR_TENANT_ID and AR_TENANT_SECRET")
         return
 
     # Create client
-    client = FACLClient(
+    client = AssistantRuntimeClient(
         tenant_id=tenant_id,
         tenant_secret=tenant_secret,
     )

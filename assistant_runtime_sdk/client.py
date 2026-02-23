@@ -3,14 +3,12 @@
 # AGPL-3.0 License
 
 """
-Synchronous FACL client using the requests library.
+Synchronous Assistant Runtime client using the requests library.
 
-For async support, use AsyncAssistantRuntimeClient from facl.async_client.
+For async support, use AsyncAssistantRuntimeClient from assistant_runtime_sdk.async_client.
 """
 
 import json
-import mimetypes
-import os
 from typing import Generator, List, Optional, Dict, Any
 
 import requests
@@ -21,19 +19,18 @@ from .exceptions import (
     ARAuthenticationError,
     ARTimeoutError,
     ARConnectionError,
-    ARConfigurationError,
 )
 
 
 class AssistantRuntimeClient(BaseAssistantRuntimeClient):
     """
-    Synchronous FACL client using the requests library.
+    Synchronous Assistant Runtime client using the requests library.
 
     All methods are blocking and return results directly.
 
     Example:
-        >>> from facl import AssistantRuntimeClient
-        >>> client = AssistantRuntimeClient("tenant-id", "secret", "https://facl.frappe.cloud")
+        >>> from assistant_runtime_sdk import AssistantRuntimeClient
+        >>> client = AssistantRuntimeClient("tenant-id", "secret", "https://ar.example.com")
         >>> models = client.list_available_models()
         >>> for event in client.stream_chat("session-1", "Hello", user_id="user@example.com"):
         ...     print(event)
@@ -43,34 +40,13 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
     # Internal Request Methods
     # =========================================================================
 
-    @staticmethod
-    def _extract_error_message(response) -> str:
+    def _extract_error_message(self, response) -> Optional[str]:
         """Extract a human-readable error message from a Frappe HTTP error response."""
         try:
             data = response.json()
-            # Frappe wraps error messages in _server_messages as JSON-encoded list of JSON strings
-            server_messages = data.get("_server_messages")
-            if server_messages:
-                messages = json.loads(server_messages)
-                if messages:
-                    msg = json.loads(messages[0])
-                    return msg.get("message", str(msg))
-            # Fallback: exc_type + message or exception text
-            if data.get("exception"):
-                exc = data["exception"]
-                # Extract just the last line (the actual error message)
-                lines = exc.strip().splitlines()
-                if lines:
-                    last = lines[-1]
-                    # Strip exception class prefix like "frappe.exceptions.ValidationError: "
-                    if ": " in last:
-                        return last.split(": ", 1)[1]
-                    return last
-            if data.get("message"):
-                return data["message"]
         except Exception:
-            pass
-        return None
+            return None
+        return self._extract_error_from_data(data)
 
     def _request_get(
         self,
@@ -288,6 +264,7 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
                     "name": "optional-filename.png",  # Optional
                     "file_url": "/files/..."  # Optional, for storage reference
                 }
+            system_prompt_addendum: Optional per-request addition to the system prompt
 
         Yields:
             Parsed SSE events with structure:
@@ -360,16 +337,13 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
 
     def get_tenant_info(self) -> Optional[Dict[str, Any]]:
         """Get tenant information including subscription status."""
-        return self._request_get("get_tenant_info", {"tenant_id": self.tenant_id})
+        endpoint, params = self._prepare_get_tenant_info()
+        return self._request_get(endpoint, params)
 
     def accept_terms(self, terms_version: str, accepted_by: str) -> Dict[str, Any]:
         """Accept or re-accept Terms and Conditions for this tenant."""
-        payload = {
-            "tenant_id": self.tenant_id,
-            "terms_version": terms_version,
-            "accepted_by": accepted_by,
-        }
-        return self._request_post_json("accept_terms", payload)
+        endpoint, payload = self._prepare_accept_terms(terms_version, accepted_by)
+        return self._request_post_json(endpoint, payload)
 
     # =========================================================================
     # Model APIs
@@ -382,20 +356,18 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         Returns:
             Dict with models list, auto_mode info, and default model
         """
-        return self._request_get("streaming.list_available_models", {"tenant_id": self.tenant_id})
+        endpoint, params = self._prepare_list_available_models()
+        return self._request_get(endpoint, params)
 
     def get_available_models(self) -> Optional[Dict[str, Any]]:
-        """
-        Get available AI models (deprecated).
-
-        Use list_available_models() instead.
-        """
-        return self._request_get("get_available_models", {"tenant_id": self.tenant_id})
+        """Get available AI models (deprecated). Use list_available_models() instead."""
+        endpoint, params = self._prepare_get_available_models()
+        return self._request_get(endpoint, params)
 
     def set_preferred_model(self, model_id: str) -> bool:
         """Set the preferred AI model for this tenant."""
-        payload = {"tenant_id": self.tenant_id, "model_id": model_id}
-        result = self._request_post_json("set_preferred_model", payload)
+        endpoint, payload = self._prepare_set_preferred_model(model_id)
+        result = self._request_post_json(endpoint, payload)
         return result.get("success", False) if result else False
 
     # =========================================================================
@@ -404,10 +376,8 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
 
     def list_prompts(self, user_id: str, cursor: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """List available prompt templates from user's configured MCP servers."""
-        params = {"tenant_id": self.tenant_id, "user_id": user_id}
-        if cursor:
-            params["cursor"] = cursor
-        return self._request_get("prompts.list_prompts", params)
+        endpoint, params = self._prepare_list_prompts(user_id, cursor)
+        return self._request_get(endpoint, params)
 
     def get_prompt(
         self,
@@ -416,14 +386,8 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         arguments: Optional[Dict[str, Any]] = None,
     ) -> Optional[Dict[str, Any]]:
         """Get a specific prompt rendered with provided arguments."""
-        payload = {
-            "tenant_id": self.tenant_id,
-            "user_id": user_id,
-            "prompt_name": prompt_name,
-        }
-        if arguments:
-            payload["arguments"] = arguments
-        return self._request_post_json("prompts.get_prompt", payload)
+        endpoint, payload = self._prepare_get_prompt(prompt_name, user_id, arguments)
+        return self._request_post_json(endpoint, payload)
 
     # =========================================================================
     # Suggestion APIs
@@ -456,20 +420,15 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
                 "stats": {"total_conversations": int, "top_doctypes": [str]}
             }
         """
-        params = {"tenant_id": self.tenant_id, "user_id": user_id, "limit": str(limit)}
-        if context:
-            params["context"] = json.dumps(context)
-        return self._request_get("suggestions.get_suggestions", params)
+        endpoint, params = self._prepare_get_suggestions(user_id, context, limit)
+        return self._request_get(endpoint, params)
 
     # =========================================================================
     # Onboarding APIs
     # =========================================================================
-    # These methods route through memory_api_base → assistant_runtime_memory.api
+    # These methods route through memory_api_base -> assistant_runtime_memory.api
 
-    def get_onboarding_status(
-        self,
-        user_id: str,
-    ) -> Optional[Dict[str, Any]]:
+    def get_onboarding_status(self, user_id: str) -> Optional[Dict[str, Any]]:
         """
         Check if a user has completed onboarding.
 
@@ -479,11 +438,8 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         Returns:
             {"onboarding_complete": bool, "has_conversations": bool}
         """
-        params = {"tenant_id": self.tenant_id, "user_id": user_id}
-        return self._request_get(
-            "onboarding.get_onboarding_status", params,
-            api_base=self.memory_api_base,
-        )
+        endpoint, params = self._prepare_get_onboarding_status(user_id)
+        return self._request_get(endpoint, params, api_base=self.memory_api_base)
 
     def complete_onboarding(
         self,
@@ -501,21 +457,13 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         Returns:
             {"success": bool, "memories_extracted": int}
         """
-        payload: Dict[str, Any] = {
-            "tenant_id": self.tenant_id,
-            "user_id": user_id,
-        }
-        if conversation_id:
-            payload["conversation_id"] = conversation_id
-        return self._request_post_json(
-            "onboarding.complete_onboarding", payload,
-            api_base=self.memory_api_base,
-        )
+        endpoint, payload = self._prepare_complete_onboarding(user_id, conversation_id)
+        return self._request_post_json(endpoint, payload, api_base=self.memory_api_base)
 
     # =========================================================================
     # Document APIs (RAG)
     # =========================================================================
-    # These methods route through memory_api_base → assistant_runtime_memory.api
+    # These methods route through memory_api_base -> assistant_runtime_memory.api
 
     def upload_document(
         self,
@@ -540,41 +488,16 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
             {"status": "queued", "document_id": str, "file_name": str,
              "file_size_mb": float, "message": str}
         """
-        if file_path and file_data:
-            raise ARConfigurationError("Provide either file_path or file_data, not both")
-        if not file_path and not file_data:
-            raise ARConfigurationError("Either file_path or file_data is required")
-        if file_data and not file_name:
-            raise ARConfigurationError("file_name is required when using file_data")
-
-        if file_path:
-            with open(file_path, "rb") as f:
-                data = f.read()
-            if not file_name:
-                file_name = os.path.basename(file_path)
-        else:
-            data = file_data
-
-        if not content_type:
-            guessed, _ = mimetypes.guess_type(file_name)
-            content_type = guessed or "application/octet-stream"
-
+        endpoint, params, f_field, f_name, f_data, c_type = self._prepare_upload_document(
+            file_path, file_data, file_name, content_type,
+        )
         return self._request_post_multipart(
-            "documents.upload_document",
-            params={"tenant_id": self.tenant_id},
-            file_field="file",
-            file_name=file_name,
-            file_data=data,
-            content_type=content_type,
-            timeout=120.0,
-            api_base=self.memory_api_base,
+            endpoint, params=params, file_field=f_field,
+            file_name=f_name, file_data=f_data, content_type=c_type,
+            timeout=120.0, api_base=self.memory_api_base,
         )
 
-    def list_documents(
-        self,
-        limit: int = 50,
-        offset: int = 0,
-    ) -> Optional[Dict[str, Any]]:
+    def list_documents(self, limit: int = 50, offset: int = 0) -> Optional[Dict[str, Any]]:
         """
         List all RAG documents for this tenant.
 
@@ -585,15 +508,8 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         Returns:
             {"documents": [...], "pagination": {...}, "storage": {...}}
         """
-        params = {
-            "tenant_id": self.tenant_id,
-            "limit": str(limit),
-            "offset": str(offset),
-        }
-        return self._request_get(
-            "documents.list_documents", params,
-            api_base=self.memory_api_base,
-        )
+        endpoint, params = self._prepare_list_documents(limit, offset)
+        return self._request_get(endpoint, params, api_base=self.memory_api_base)
 
     def get_document(self, document_id: str) -> Optional[Dict[str, Any]]:
         """
@@ -606,17 +522,14 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
             Document details including embedding_status, total_chunks,
             and processing_error (if status is Failed).
         """
-        params = {"tenant_id": self.tenant_id, "document_id": document_id}
-        return self._request_get(
-            "documents.get_document", params,
-            api_base=self.memory_api_base,
-        )
+        endpoint, params = self._prepare_get_document(document_id)
+        return self._request_get(endpoint, params, api_base=self.memory_api_base)
 
     def delete_document(self, document_id: str) -> Optional[Dict[str, Any]]:
         """
         Delete a RAG document and remove its embeddings.
 
-        Performs a soft delete — the document is marked as deleted and its
+        Performs a soft delete -- the document is marked as deleted and its
         vector embeddings are removed from the search index.
 
         Args:
@@ -625,11 +538,8 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         Returns:
             {"status": "deleted", "document_id": str, "file_size_mb": float}
         """
-        payload = {"tenant_id": self.tenant_id, "document_id": document_id}
-        return self._request_post_json(
-            "documents.delete_document", payload,
-            api_base=self.memory_api_base,
-        )
+        endpoint, payload = self._prepare_delete_document(document_id)
+        return self._request_post_json(endpoint, payload, api_base=self.memory_api_base)
 
     def get_storage_info(self) -> Optional[Dict[str, Any]]:
         """
@@ -639,11 +549,8 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
             {"quota_mb": float, "used_mb": float, "available_mb": float,
              "usage_percentage": float, "document_count": int}
         """
-        params = {"tenant_id": self.tenant_id}
-        return self._request_get(
-            "documents.get_storage_info", params,
-            api_base=self.memory_api_base,
-        )
+        endpoint, params = self._prepare_get_storage_info()
+        return self._request_get(endpoint, params, api_base=self.memory_api_base)
 
     # =========================================================================
     # Resource APIs (Skills/Documentation)
@@ -666,21 +573,7 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
             server: Optional - filter to specific MCP server
 
         Returns:
-            Dict with resources list, servers_queried, and any errors:
-            {
-                "resources": [
-                    {
-                        "uri": "server_name:fac://tools/create_document",
-                        "original_uri": "fac://tools/create_document",
-                        "name": "Tool: create_document",
-                        "description": "Usage documentation for create_document",
-                        "mimeType": "text/markdown",
-                        "server": "server_name"
-                    }
-                ],
-                "servers_queried": ["server_name"],
-                "errors": null
-            }
+            Dict with resources list, servers_queried, and any errors
 
         Example:
             >>> resources = client.list_resources("user@example.com")
@@ -690,37 +583,16 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         params = self._prepare_resource_params(user_id, server=server)
         return self._request_get("resources.list_resources", params)
 
-    def read_resource(
-        self,
-        user_id: str,
-        uri: str,
-    ) -> Optional[Dict[str, Any]]:
+    def read_resource(self, user_id: str, uri: str) -> Optional[Dict[str, Any]]:
         """
         Read a specific resource's content from user's MCP server.
 
-        Fetches detailed documentation for a tool or other resource.
-        The URI can include a server prefix for multi-MCP setups.
-
         Args:
             user_id: User identifier (required)
-            uri: Resource URI to read. Can be:
-                - "fac://tools/create_document" (queries based on server param)
-                - "server_name:fac://tools/create_document" (specific server)
+            uri: Resource URI to read
 
         Returns:
-            Dict with resource content:
-            {
-                "uri": "fac://tools/create_document",
-                "content": "# create_document\\n\\n## Description\\n...",
-                "mimeType": "text/markdown",
-                "server": "server_name"
-            }
-
-            Or error response:
-            {
-                "error": "Resource not found",
-                "error_code": "RESOURCE_NOT_FOUND"
-            }
+            Dict with resource content
 
         Example:
             >>> result = client.read_resource("user@example.com", "fac://tools/create_document")
@@ -741,43 +613,25 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         """
         List available tools from user's configured MCP servers.
 
-        Returns tools with their names, descriptions, and input schemas.
-        Useful for building workflow tool directives in the UI.
-
         Args:
             user_id: User identifier (required)
             server: Optional - filter to specific MCP server
 
         Returns:
-            Dict with tools list, servers_queried, and any errors:
-            {
-                "tools": [
-                    {
-                        "name": "server_name:tool_name",
-                        "original_name": "tool_name",
-                        "description": "...",
-                        "inputSchema": {...},
-                        "server": "server_name"
-                    }
-                ],
-                "servers_queried": ["server_name"],
-                "errors": null
-            }
+            Dict with tools list, servers_queried, and any errors
 
         Example:
             >>> tools = client.list_tools("user@example.com")
             >>> for t in tools.get("tools", []):
             ...     print(f"{t['name']}: {t['description']}")
         """
-        params = {"tenant_id": self.tenant_id, "user_id": user_id}
-        if server:
-            params["server"] = server
-        return self._request_get("tools.list_tools", params)
+        endpoint, params = self._prepare_list_tools(user_id, server)
+        return self._request_get(endpoint, params)
 
     # =========================================================================
     # Billing & Subscription APIs
     # =========================================================================
-    # These methods route through billing_api_base → assistant_runtime_payments.api
+    # These methods route through billing_api_base -> assistant_runtime_payments.api
 
     def check_billing_available(self) -> bool:
         """
@@ -814,11 +668,8 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
 
     def get_recommended_gateway(self) -> Optional[Dict[str, Any]]:
         """Get the recommended payment gateway for this tenant."""
-        self._require_billing()
-        return self._request_get(
-            "get_recommended_gateway", {"tenant_id": self.tenant_id},
-            api_base=self.billing_api_base,
-        )
+        endpoint, params = self._prepare_get_recommended_gateway()
+        return self._request_get(endpoint, params, api_base=self.billing_api_base)
 
     def get_available_gateways(self) -> Optional[Dict[str, Any]]:
         """
@@ -826,14 +677,9 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
 
         Returns:
             Dict with gateways list, recommended_gateway, and tenant_country.
-            Each gateway includes name, display_name, currency, description,
-            is_recommended flag, and plans pricing dict.
         """
-        self._require_billing()
-        return self._request_get(
-            "get_available_gateways", {"tenant_id": self.tenant_id},
-            api_base=self.billing_api_base,
-        )
+        endpoint, params = self._prepare_get_available_gateways()
+        return self._request_get(endpoint, params, api_base=self.billing_api_base)
 
     def initiate_checkout(
         self,
@@ -849,35 +695,20 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         Args:
             plan: Plan name (Starter, Pro, Enterprise)
             billing_cycle: "monthly" or "annual" (default: monthly)
-            gateway: "stripe" or "razorpay" (optional - user's choice).
-                     If not provided, auto-selects based on geography/saved preference.
-            billing_name: Customer/company name for billing (required for first checkout)
-            billing_email: Email for billing notifications (required for first checkout)
+            gateway: "stripe" or "razorpay" (optional)
+            billing_name: Customer/company name for billing
+            billing_email: Email for billing notifications
 
         Returns:
             Dict with checkout_url, session_id, and gateway used.
         """
-        self._require_billing()
-        payload = {
-            "tenant_id": self.tenant_id,
-            "plan": plan,
-            "billing_cycle": billing_cycle,
-        }
-        if gateway:
-            payload["gateway"] = gateway
-        if billing_name:
-            payload["billing_name"] = billing_name
-        if billing_email:
-            payload["billing_email"] = billing_email
-        return self._request_post_json("initiate_checkout", payload, api_base=self.billing_api_base)
+        endpoint, payload = self._prepare_initiate_checkout(plan, billing_cycle, gateway, billing_name, billing_email)
+        return self._request_post_json(endpoint, payload, api_base=self.billing_api_base)
 
     def verify_checkout(self, session_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Verify payment completion after checkout."""
-        self._require_billing()
-        payload = {"tenant_id": self.tenant_id}
-        if session_id:
-            payload["session_id"] = session_id
-        return self._request_post_json("verify_checkout", payload, api_base=self.billing_api_base)
+        endpoint, payload = self._prepare_verify_checkout(session_id)
+        return self._request_post_json(endpoint, payload, api_base=self.billing_api_base)
 
     def verify_razorpay_payment(
         self,
@@ -888,9 +719,6 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         """
         Verify Razorpay embedded checkout payment signature.
 
-        Called after the Razorpay Checkout.js widget completes to verify
-        the payment signature and activate the subscription.
-
         Args:
             razorpay_payment_id: Payment ID from Razorpay widget response
             razorpay_subscription_id: Subscription ID from Razorpay widget response
@@ -899,14 +727,8 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         Returns:
             {"success": True, "message": str, "subscription_status": str, "plan": str, "monthly_quota": int}
         """
-        self._require_billing()
-        payload = {
-            "tenant_id": self.tenant_id,
-            "razorpay_payment_id": razorpay_payment_id,
-            "razorpay_subscription_id": razorpay_subscription_id,
-            "razorpay_signature": razorpay_signature,
-        }
-        return self._request_post_json("verify_razorpay_payment", payload, api_base=self.billing_api_base)
+        endpoint, payload = self._prepare_verify_razorpay_payment(razorpay_payment_id, razorpay_subscription_id, razorpay_signature)
+        return self._request_post_json(endpoint, payload, api_base=self.billing_api_base)
 
     def verify_razorpay_credit_payment(
         self,
@@ -925,50 +747,33 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         Returns:
             {"success": True, "balance": int, "tokens_added": int, "message": str}
         """
-        self._require_billing()
-        payload = {
-            "tenant_id": self.tenant_id,
-            "razorpay_payment_id": razorpay_payment_id,
-            "razorpay_order_id": razorpay_order_id,
-            "razorpay_signature": razorpay_signature,
-        }
-        return self._request_post_json("verify_razorpay_credit_payment", payload, api_base=self.billing_api_base)
+        endpoint, payload = self._prepare_verify_razorpay_credit_payment(razorpay_payment_id, razorpay_order_id, razorpay_signature)
+        return self._request_post_json(endpoint, payload, api_base=self.billing_api_base)
 
     def get_usage_dashboard(self) -> Optional[Dict[str, Any]]:
         """Get comprehensive usage and billing data for dashboard."""
-        self._require_billing()
-        return self._request_post_json(
-            "get_usage_dashboard", {"tenant_id": self.tenant_id},
-            api_base=self.billing_api_base,
-        )
+        endpoint, payload = self._prepare_get_usage_dashboard()
+        return self._request_post_json(endpoint, payload, api_base=self.billing_api_base)
 
     def get_usage_history(self, days: int = 30) -> Optional[Dict[str, Any]]:
         """Get historical usage data for charts."""
-        self._require_billing()
-        payload = {"tenant_id": self.tenant_id, "days": days}
-        return self._request_post_json("get_usage_history", payload, api_base=self.billing_api_base)
+        endpoint, payload = self._prepare_get_usage_history(days)
+        return self._request_post_json(endpoint, payload, api_base=self.billing_api_base)
 
     def get_invoices(self, limit: int = 10) -> Optional[Dict[str, Any]]:
         """Get invoice history."""
-        self._require_billing()
-        payload = {"tenant_id": self.tenant_id, "limit": limit}
-        return self._request_post_json("get_invoices", payload, api_base=self.billing_api_base)
+        endpoint, payload = self._prepare_get_invoices(limit)
+        return self._request_post_json(endpoint, payload, api_base=self.billing_api_base)
 
     def get_upcoming_invoice(self) -> Optional[Dict[str, Any]]:
         """Get upcoming invoice preview (Stripe only)."""
-        self._require_billing()
-        return self._request_post_json(
-            "get_upcoming_invoice", {"tenant_id": self.tenant_id},
-            api_base=self.billing_api_base,
-        )
+        endpoint, payload = self._prepare_get_upcoming_invoice()
+        return self._request_post_json(endpoint, payload, api_base=self.billing_api_base)
 
     def get_payment_methods(self) -> Optional[Dict[str, Any]]:
         """Get saved payment methods."""
-        self._require_billing()
-        return self._request_post_json(
-            "get_payment_methods", {"tenant_id": self.tenant_id},
-            api_base=self.billing_api_base,
-        )
+        endpoint, payload = self._prepare_get_payment_methods()
+        return self._request_post_json(endpoint, payload, api_base=self.billing_api_base)
 
     def upgrade_plan(
         self,
@@ -984,249 +789,84 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         The API automatically detects whether this is an upgrade or downgrade
         based on plan hierarchy: Free < Starter < Pro < Enterprise
 
-        **Upgrades** (e.g., Starter → Pro):
-            - Applied immediately with proration
-            - New quota available instantly
-
-        **Downgrades** (e.g., Pro → Starter):
-            - Scheduled for end of billing period
-            - User keeps current plan benefits until effective_date
-            - Response includes `effective_date` field
-
-        **Downgrade to Free**:
-            - Cancels subscription at period end
-            - Switches to Free tier when period ends
-
         Args:
             new_plan: Plan name ("Free", "Starter", "Pro", "Enterprise")
             billing_cycle: "monthly" or "annual" (default: monthly)
-            gateway: "stripe" or "razorpay" (optional - user's choice).
-                     If not provided, uses saved gateway or auto-selects.
-            billing_name: Customer/company name for billing (required for first payment)
-            billing_email: Email for billing notifications (required for first payment)
+            gateway: "stripe" or "razorpay" (optional)
+            billing_name: Customer/company name for billing
+            billing_email: Email for billing notifications
 
         Returns:
-            For upgrades:
-                {"success": True, "message": "Subscription upgraded to Pro", "subscription_id": "..."}
-
-            For downgrades:
-                {"success": True, "message": "Your plan will change to Starter on 2025-02-28...",
-                 "effective_date": "2025-02-28"}
-
-            If checkout required (new subscription):
-                {"checkout_url": "https://...", "session_id": "...", "gateway": "stripe"}
-
-        Example:
-            >>> # Upgrade (immediate)
-            >>> result = client.upgrade_plan("Pro")
-            >>> print(result["message"])
-
-            >>> # Downgrade (scheduled)
-            >>> result = client.upgrade_plan("Starter")
-            >>> if result.get("effective_date"):
-            ...     print(f"Change scheduled for {result['effective_date']}")
+            For upgrades: {"success": True, "message": str, "subscription_id": str}
+            For downgrades: {"success": True, "message": str, "effective_date": str}
+            If checkout needed: {"checkout_url": str, "session_id": str, "gateway": str}
         """
-        self._require_billing()
-        payload = {
-            "tenant_id": self.tenant_id,
-            "new_plan": new_plan,
-            "billing_cycle": billing_cycle,
-        }
-        if gateway:
-            payload["gateway"] = gateway
-        if billing_name:
-            payload["billing_name"] = billing_name
-        if billing_email:
-            payload["billing_email"] = billing_email
-        return self._request_post_json("upgrade_plan", payload, api_base=self.billing_api_base)
+        endpoint, payload = self._prepare_upgrade_plan(new_plan, billing_cycle, gateway, billing_name, billing_email)
+        return self._request_post_json(endpoint, payload, api_base=self.billing_api_base)
 
     def downgrade_to_free(self) -> Optional[Dict[str, Any]]:
         """
         Schedule downgrade to the Free plan at end of billing period.
 
-        This cancels the active subscription at the end of the current billing
-        period and switches to the Free tier. User retains current plan benefits
-        until the effective date.
-
         Returns:
-            Dict with success status and effective date:
-            {
-                "success": True,
-                "message": "Your plan will change to Free on 2025-02-28...",
-                "effective_date": "2025-02-28"
-            }
-
-        Example:
-            >>> result = client.downgrade_to_free()
-            >>> if result["success"]:
-            ...     print(f"Downgrade scheduled for {result['effective_date']}")
+            {"success": True, "message": str, "effective_date": str}
         """
-        self._require_billing()
-        return self._request_post_json(
-            "downgrade_to_free", {"tenant_id": self.tenant_id},
-            api_base=self.billing_api_base,
-        )
+        endpoint, payload = self._prepare_downgrade_to_free()
+        return self._request_post_json(endpoint, payload, api_base=self.billing_api_base)
 
     def cancel_scheduled_change(self) -> Optional[Dict[str, Any]]:
-        """
-        Cancel a pending downgrade that was scheduled for end of billing period.
-
-        Use this to undo a scheduled downgrade before it takes effect.
-        Also clears any scheduled plan changes when reactivating.
-
-        Returns:
-            Dict with success status:
-            {
-                "success": True,
-                "message": "Scheduled plan change cancelled. You will remain on Pro plan."
-            }
-
-            Or if no scheduled change:
-            {
-                "success": False,
-                "message": "No scheduled plan change to cancel"
-            }
-
-        Example:
-            >>> # Check if there's a scheduled change first
-            >>> info = client.get_tenant_info()
-            >>> if info["subscription"].get("scheduled_plan_change"):
-            ...     result = client.cancel_scheduled_change()
-            ...     print(result["message"])
-        """
-        self._require_billing()
-        return self._request_post_json(
-            "cancel_scheduled_change", {"tenant_id": self.tenant_id},
-            api_base=self.billing_api_base,
-        )
+        """Cancel a pending downgrade that was scheduled for end of billing period."""
+        endpoint, payload = self._prepare_cancel_scheduled_change()
+        return self._request_post_json(endpoint, payload, api_base=self.billing_api_base)
 
     def cancel_subscription(self, cancel_immediately: bool = False) -> Optional[Dict[str, Any]]:
         """Cancel subscription."""
-        self._require_billing()
-        payload = {
-            "tenant_id": self.tenant_id,
-            "cancel_immediately": cancel_immediately,
-        }
-        return self._request_post_json("cancel_subscription", payload, api_base=self.billing_api_base)
+        endpoint, payload = self._prepare_cancel_subscription(cancel_immediately)
+        return self._request_post_json(endpoint, payload, api_base=self.billing_api_base)
 
     def reactivate_subscription(self) -> Optional[Dict[str, Any]]:
         """Reactivate a subscription that was set to cancel at period end."""
-        self._require_billing()
-        return self._request_post_json(
-            "reactivate_subscription", {"tenant_id": self.tenant_id},
-            api_base=self.billing_api_base,
-        )
+        endpoint, payload = self._prepare_reactivate_subscription()
+        return self._request_post_json(endpoint, payload, api_base=self.billing_api_base)
 
     def pause_subscription(self) -> Optional[Dict[str, Any]]:
         """Pause subscription (Razorpay only)."""
-        self._require_billing()
-        return self._request_post_json(
-            "pause_subscription", {"tenant_id": self.tenant_id},
-            api_base=self.billing_api_base,
-        )
+        endpoint, payload = self._prepare_pause_subscription()
+        return self._request_post_json(endpoint, payload, api_base=self.billing_api_base)
 
     def resume_subscription(self) -> Optional[Dict[str, Any]]:
         """Resume a paused subscription (Razorpay only)."""
-        self._require_billing()
-        return self._request_post_json(
-            "resume_subscription", {"tenant_id": self.tenant_id},
-            api_base=self.billing_api_base,
-        )
+        endpoint, payload = self._prepare_resume_subscription()
+        return self._request_post_json(endpoint, payload, api_base=self.billing_api_base)
 
     def update_payment_method(self) -> Optional[Dict[str, Any]]:
         """Get URL to update payment method."""
-        self._require_billing()
-        return self._request_post_json(
-            "update_payment_method", {"tenant_id": self.tenant_id},
-            api_base=self.billing_api_base,
-        )
+        endpoint, payload = self._prepare_update_payment_method()
+        return self._request_post_json(endpoint, payload, api_base=self.billing_api_base)
 
     def get_subscription_status(self) -> Optional[Dict[str, Any]]:
         """
         Get current subscription status including any scheduled changes.
 
-        Returns detailed subscription info including:
-        - Current plan and status
-        - Token quota and usage
-        - Billing cycle dates
-        - Scheduled plan changes (if any downgrade is pending)
-
         Returns:
-            Dict with subscription status:
-            {
-                "success": True,
-                "subscription": {
-                    "plan": "Pro",
-                    "status": "Active",
-                    "payment_status": "active",
-                    "quota": 2000000,
-                    "used": 500000,
-                    "remaining": 1500000,
-                    "billing_cycle_start": "2025-02-01",
-                    "billing_cycle_end": "2025-02-28",
-                    "cancel_at_period_end": False,
-                    "payment_gateway": "stripe",
-                    "scheduled_change": {
-                        "new_plan": "Starter",
-                        "effective_date": "2025-02-28"
-                    } or None
-                }
-            }
-
-        Example:
-            >>> status = client.get_subscription_status()
-            >>> if status["subscription"]["scheduled_change"]:
-            ...     print(f"Downgrade to {status['subscription']['scheduled_change']['new_plan']} "
-            ...           f"scheduled for {status['subscription']['scheduled_change']['effective_date']}")
+            Dict with subscription status including plan, quota, usage, dates,
+            and scheduled_change info.
         """
-        self._require_billing()
-        return self._request_get(
-            "get_subscription_status", {"tenant_id": self.tenant_id},
-            api_base=self.billing_api_base,
-        )
+        endpoint, params = self._prepare_get_subscription_status()
+        return self._request_get(endpoint, params, api_base=self.billing_api_base)
 
     def get_billing_history(self, limit: int = 20) -> Optional[Dict[str, Any]]:
         """
         Get payment/billing history for this tenant.
 
-        Returns a list of payment events (charges, failures, subscription changes)
-        and optionally a portal URL for downloading invoices (Stripe only).
-
         Args:
             limit: Maximum number of records to return (default: 20)
 
         Returns:
-            Dict with billing history:
-            {
-                "success": True,
-                "history": [
-                    {
-                        "date": "2025-02-01",
-                        "datetime": "2025-02-01 10:30:00",
-                        "event": "Payment Successful",
-                        "event_type": "invoice.payment_succeeded",
-                        "amount": 19.00,
-                        "currency": "USD",
-                        "status": "success",
-                        "gateway": "stripe"
-                    },
-                    ...
-                ],
-                "portal_url": "https://billing.stripe.com/session/xxx"  # Stripe only
-            }
-
-        Example:
-            >>> history = client.get_billing_history(limit=10)
-            >>> for item in history["history"]:
-            ...     print(f"{item['date']}: {item['event']} - ${item['amount']}")
-            >>> if history.get("portal_url"):
-            ...     print(f"Download invoices: {history['portal_url']}")
+            Dict with billing history list and optional portal_url (Stripe only).
         """
-        self._require_billing()
-        return self._request_get(
-            "get_billing_history", {"tenant_id": self.tenant_id, "limit": limit},
-            api_base=self.billing_api_base,
-        )
+        endpoint, params = self._prepare_get_billing_history(limit)
+        return self._request_get(endpoint, params, api_base=self.billing_api_base)
 
     # =========================================================================
     # Prepaid Credit APIs
@@ -1237,32 +877,10 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         Get prepaid credit balance and recent transaction history.
 
         Returns:
-            Dict with credit info:
-            {
-                "balance": 50000,
-                "transactions": [
-                    {
-                        "name": "AR-CRT-2026-00001",
-                        "type": "Purchase",
-                        "tokens": 50000,
-                        "balance_after": 50000,
-                        "payment_reference": "pi_xxx",
-                        "notes": "Purchased 50,000 tokens via stripe",
-                        "creation": "2026-02-09 12:00:00"
-                    },
-                    ...
-                ]
-            }
-
-        Example:
-            >>> balance = client.get_credit_balance()
-            >>> print(f"Credit balance: {balance['balance']:,} tokens")
+            Dict with ``balance`` (int) and ``transactions`` (list).
         """
-        self._require_billing()
-        return self._request_post_json(
-            "get_credit_balance", {"tenant_id": self.tenant_id},
-            api_base=self.billing_api_base,
-        )
+        endpoint, payload = self._prepare_get_credit_balance()
+        return self._request_post_json(endpoint, payload, api_base=self.billing_api_base)
 
     def purchase_credits(
         self, token_amount: int, gateway: str = None
@@ -1275,41 +893,10 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
             gateway: "stripe" or "razorpay" (optional, auto-selects)
 
         Returns:
-            Gateway-specific checkout data.
-
-            For Stripe:
-            {
-                "gateway": "stripe",
-                "checkout_url": "https://checkout.stripe.com/...",
-                "session_id": "cs_xxx"
-            }
-
-            For Razorpay:
-            {
-                "gateway": "razorpay",
-                "order_id": "order_xxx",
-                "razorpay_key": "rzp_xxx",
-                "amount": 400000,
-                "currency": "INR",
-                "prefill": {"name": "...", "email": "..."},
-                "token_amount": 100000
-            }
-
-        Example:
-            >>> result = client.purchase_credits(100000, gateway="stripe")
-            >>> print(f"Checkout URL: {result['checkout_url']}")
+            Gateway-specific checkout data (checkout URL or order ID).
         """
-        self._require_billing()
-        payload: Dict[str, Any] = {
-            "tenant_id": self.tenant_id,
-            "token_amount": token_amount,
-        }
-        if gateway:
-            payload["gateway"] = gateway
-        return self._request_post_json(
-            "purchase_credits", payload,
-            api_base=self.billing_api_base,
-        )
+        endpoint, payload = self._prepare_purchase_credits(token_amount, gateway)
+        return self._request_post_json(endpoint, payload, api_base=self.billing_api_base)
 
     # =========================================================================
     # Conversation APIs
@@ -1325,24 +912,13 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         to_date: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """List conversations for tenant, optionally filtered by user_id."""
-        params = {
-            "tenant_id": self.tenant_id,
-            "limit": limit,
-            "offset": offset,
-            "include_deleted": include_deleted,
-        }
-        if user_id:
-            params["user_id"] = user_id
-        if from_date:
-            params["from_date"] = from_date
-        if to_date:
-            params["to_date"] = to_date
-        return self._request_get("conversations.list_conversations", params)
+        endpoint, params = self._prepare_list_conversations(user_id, limit, offset, include_deleted, from_date, to_date)
+        return self._request_get(endpoint, params)
 
     def get_conversation(self, conversation_id: str) -> Optional[Dict[str, Any]]:
         """Get detailed information about a specific conversation."""
-        params = {"tenant_id": self.tenant_id, "conversation_id": conversation_id}
-        return self._request_get("conversations.get_conversation", params)
+        endpoint, params = self._prepare_get_conversation(conversation_id)
+        return self._request_get(endpoint, params)
 
     def get_messages(
         self,
@@ -1352,14 +928,8 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         include_deleted: bool = False,
     ) -> Optional[Dict[str, Any]]:
         """Get messages for a specific conversation with pagination."""
-        params = {
-            "tenant_id": self.tenant_id,
-            "conversation_id": conversation_id,
-            "limit": limit,
-            "offset": offset,
-            "include_deleted": include_deleted,
-        }
-        return self._request_get("conversations.get_messages", params)
+        endpoint, params = self._prepare_get_messages(conversation_id, limit, offset, include_deleted)
+        return self._request_get(endpoint, params)
 
     def create_message(
         self,
@@ -1372,19 +942,8 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         context: Optional[Dict[str, Any]] = None,
     ) -> Optional[Dict[str, Any]]:
         """Create a new message in a conversation."""
-        payload = {
-            "tenant_id": self.tenant_id,
-            "conversation_id": conversation_id,
-            "message_id": message_id,
-            "role": role,
-            "content": content,
-            "tokens_used": tokens_used,
-        }
-        if user_id:
-            payload["user_id"] = user_id
-        if context:
-            payload["context"] = context
-        return self._request_post_json("conversations.create_message", payload)
+        endpoint, payload = self._prepare_create_message(conversation_id, message_id, role, content, user_id, tokens_used, context)
+        return self._request_post_json(endpoint, payload)
 
     def update_conversation(
         self,
@@ -1393,30 +952,23 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         user_id: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """Update conversation title or user_id."""
-        payload = {"tenant_id": self.tenant_id, "conversation_id": conversation_id}
-        if title is not None:
-            payload["title"] = title
-        if user_id is not None:
-            payload["user_id"] = user_id
-        return self._request_post_json("conversations.update_conversation", payload)
+        endpoint, payload = self._prepare_update_conversation(conversation_id, title, user_id)
+        return self._request_post_json(endpoint, payload)
 
     def delete_conversation(self, conversation_id: str) -> Optional[Dict[str, Any]]:
         """Soft delete a conversation."""
-        payload = {"tenant_id": self.tenant_id, "conversation_id": conversation_id}
-        return self._request_post_json("conversations.delete_conversation", payload)
+        endpoint, payload = self._prepare_delete_conversation(conversation_id)
+        return self._request_post_json(endpoint, payload)
 
     def delete_message(self, conversation_id: str, message_id: str) -> Optional[Dict[str, Any]]:
         """Soft delete a specific message."""
-        payload = {
-            "tenant_id": self.tenant_id,
-            "conversation_id": conversation_id,
-            "message_id": message_id,
-        }
-        return self._request_post_json("conversations.delete_message", payload)
+        endpoint, payload = self._prepare_delete_message(conversation_id, message_id)
+        return self._request_post_json(endpoint, payload)
 
     def get_sync_stats(self) -> Optional[Dict[str, Any]]:
         """Get synchronization statistics for the tenant."""
-        return self._request_get("conversations.get_sync_stats", {"tenant_id": self.tenant_id})
+        endpoint, params = self._prepare_get_sync_stats()
+        return self._request_get(endpoint, params)
 
     # =========================================================================
     # Streaming Events APIs (Historical)
@@ -1431,17 +983,8 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         offset: int = 0,
     ) -> Optional[Dict[str, Any]]:
         """Retrieve persisted streaming events for audit trail."""
-        params = {
-            "tenant_id": self.tenant_id,
-            "conversation_id": conversation_id,
-            "limit": limit,
-            "offset": offset,
-        }
-        if message_id:
-            params["message_id"] = message_id
-        if event_types:
-            params["event_types"] = ",".join(event_types) if isinstance(event_types, list) else event_types
-        return self._request_get("conversations.get_message_events", params)
+        endpoint, params = self._prepare_get_message_events(conversation_id, message_id, event_types, limit, offset)
+        return self._request_get(endpoint, params)
 
     def get_tool_execution_stats(
         self,
@@ -1450,14 +993,8 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         to_date: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """Get aggregated tool execution statistics."""
-        params = {"tenant_id": self.tenant_id}
-        if conversation_id:
-            params["conversation_id"] = conversation_id
-        if from_date:
-            params["from_date"] = from_date
-        if to_date:
-            params["to_date"] = to_date
-        return self._request_get("conversations.get_tool_execution_stats", params)
+        endpoint, params = self._prepare_get_tool_execution_stats(conversation_id, from_date, to_date)
+        return self._request_get(endpoint, params)
 
     # =========================================================================
     # User & MCP Server APIs
@@ -1470,23 +1007,19 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         custom_instructions: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Register a user with Assistant Runtime."""
-        params = {"tenant_id": self.tenant_id, "user_id": user_id}
-        if display_name:
-            params["display_name"] = display_name
-        if custom_instructions:
-            params["custom_instructions"] = custom_instructions
-        return self._request_post_form("users.register_user", params)
+        endpoint, params = self._prepare_register_user(user_id, display_name, custom_instructions)
+        return self._request_post_form(endpoint, params)
 
     def get_user(self, user_id: str) -> Optional[Dict[str, Any]]:
         """Get user details including MCP server count."""
-        params = {"tenant_id": self.tenant_id, "user_id": user_id}
-        return self._request_get("users.get_user", params)
+        endpoint, params = self._prepare_get_user(user_id)
+        return self._request_get(endpoint, params)
 
     def get_user_auth_status(self, user_id: str) -> Dict[str, Any]:
         """Check user authentication status and MCP server readiness."""
-        params = {"tenant_id": self.tenant_id, "user_id": user_id}
+        endpoint, params = self._prepare_get_user_auth_status(user_id)
         try:
-            return self._request_get("users.get_user_auth_status", params)
+            return self._request_get(endpoint, params)
         except Exception as e:
             return {
                 "user_exists": False,
@@ -1512,41 +1045,18 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         blocked_tools: Optional[list] = None,
     ) -> Dict[str, Any]:
         """Add or update an MCP server for a user."""
-        params = {
-            "tenant_id": self.tenant_id,
-            "user_id": user_id,
-            "server_name": server_name,
-            "endpoint_url": endpoint_url,
-            "transport_type": transport_type,
-            "auth_type": auth_type,
-        }
-
-        if oauth_client_id:
-            params["oauth_client_id"] = oauth_client_id
-        if oauth_client_secret:
-            params["oauth_client_secret"] = oauth_client_secret
-        if access_token:
-            params["access_token"] = access_token
-        if refresh_token:
-            params["refresh_token"] = refresh_token
-        if token_expires_in:
-            params["token_expires_in"] = str(token_expires_in)
-        if api_key:
-            params["api_key"] = api_key
-        if api_key_header:
-            params["api_key_header"] = api_key_header
-        if allowed_tools:
-            params["allowed_tools"] = json.dumps(allowed_tools)
-        if blocked_tools:
-            params["blocked_tools"] = json.dumps(blocked_tools)
-
-        return self._request_post_form("users.add_user_mcp_server", params)
+        endpoint, params = self._prepare_add_user_mcp_server(
+            user_id, server_name, endpoint_url, transport_type, auth_type,
+            oauth_client_id, oauth_client_secret, access_token, refresh_token,
+            token_expires_in, api_key, api_key_header, allowed_tools, blocked_tools,
+        )
+        return self._request_post_form(endpoint, params)
 
     def get_user_mcp_servers(self, user_id: str) -> Dict[str, Any]:
         """Get all MCP servers configured for a user."""
-        params = {"tenant_id": self.tenant_id, "user_id": user_id}
+        endpoint, params = self._prepare_get_user_mcp_servers(user_id)
         try:
-            return self._request_get("users.get_user_mcp_servers", params)
+            return self._request_get(endpoint, params)
         except Exception as e:
             return {"user_id": user_id, "mcp_servers": [], "error": str(e)}
 
@@ -1559,25 +1069,13 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         token_expires_in: int = 3600,
     ) -> Dict[str, Any]:
         """Update OAuth tokens for an MCP server."""
-        params = {
-            "tenant_id": self.tenant_id,
-            "user_id": user_id,
-            "server_name": server_name,
-            "access_token": access_token,
-            "token_expires_in": str(token_expires_in),
-        }
-        if refresh_token:
-            params["refresh_token"] = refresh_token
-        return self._request_post_form("users.update_mcp_server_tokens", params)
+        endpoint, params = self._prepare_update_mcp_server_tokens(user_id, server_name, access_token, refresh_token, token_expires_in)
+        return self._request_post_form(endpoint, params)
 
     def remove_user_mcp_server(self, user_id: str, server_name: str) -> Dict[str, Any]:
         """Remove an MCP server from a user."""
-        params = {
-            "tenant_id": self.tenant_id,
-            "user_id": user_id,
-            "server_name": server_name,
-        }
-        return self._request_delete("users.remove_user_mcp_server", params)
+        endpoint, params = self._prepare_remove_user_mcp_server(user_id, server_name)
+        return self._request_delete(endpoint, params)
 
     def list_users(
         self,
@@ -1598,15 +1096,8 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         Returns:
             Dict with users list and pagination info
         """
-        params = {
-            "tenant_id": self.tenant_id,
-            "limit": str(limit),
-            "offset": str(offset),
-            "include_mcp_count": str(include_mcp_count).lower(),
-        }
-        if status:
-            params["status"] = status
-        return self._request_get("users.list_users", params)
+        endpoint, params = self._prepare_list_users(status, limit, offset, include_mcp_count)
+        return self._request_get(endpoint, params)
 
     def update_user(
         self,
@@ -1625,80 +1116,33 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         Returns:
             Dict with success status and message
         """
-        params = {
-            "tenant_id": self.tenant_id,
-            "user_id": user_id,
-        }
-        if display_name is not None:
-            params["display_name"] = display_name
-        if custom_instructions is not None:
-            params["custom_instructions"] = custom_instructions
-        return self._request_post_form("users.update_user", params)
+        endpoint, params = self._prepare_update_user(user_id, display_name, custom_instructions)
+        return self._request_post_form(endpoint, params)
 
     def deregister_user(self, user_id: str) -> Dict[str, Any]:
-        """
-        Permanently delete a user and all their MCP servers.
-
-        This action is irreversible. Conversations are retained for audit.
-
-        Args:
-            user_id: User identifier
-
-        Returns:
-            Dict with success status and deleted MCP server count
-        """
-        params = {
-            "tenant_id": self.tenant_id,
-            "user_id": user_id,
-        }
-        return self._request_post_form("users.deregister_user", params)
+        """Permanently delete a user and all their MCP servers."""
+        endpoint, params = self._prepare_deregister_user(user_id)
+        return self._request_post_form(endpoint, params)
 
     def get_user_limit_status(self) -> Dict[str, Any]:
-        """
-        Get user count and limit for this tenant.
-
-        Returns:
-            Dict with plan, max_users, active_users, remaining, is_unlimited
-        """
-        params = {"tenant_id": self.tenant_id}
-        return self._request_get("users.get_user_limit_status", params)
+        """Get user count and limit for this tenant."""
+        endpoint, params = self._prepare_get_user_limit_status()
+        return self._request_get(endpoint, params)
 
     def suspend_user(self, user_id: str) -> Dict[str, Any]:
-        """
-        Suspend a user (disable their access).
-
-        Args:
-            user_id: User identifier
-
-        Returns:
-            Dict with success status and message
-        """
-        params = {
-            "tenant_id": self.tenant_id,
-            "user_id": user_id,
-        }
-        return self._request_post_form("users.suspend_user", params)
+        """Suspend a user (disable their access)."""
+        endpoint, params = self._prepare_suspend_user(user_id)
+        return self._request_post_form(endpoint, params)
 
     def revoke_user(self, user_id: str) -> Dict[str, Any]:
-        """
-        Revoke a user (permanently disable, also disables their MCP servers).
-
-        Args:
-            user_id: User identifier
-
-        Returns:
-            Dict with success status and message
-        """
-        params = {
-            "tenant_id": self.tenant_id,
-            "user_id": user_id,
-        }
-        return self._request_post_form("users.revoke_user", params)
+        """Revoke a user (permanently disable, also disables their MCP servers)."""
+        endpoint, params = self._prepare_revoke_user(user_id)
+        return self._request_post_form(endpoint, params)
 
     # =========================================================================
     # Workflow APIs
     # =========================================================================
-    # These methods route through workflows_api_base → assistant_runtime_workflows.api
+    # These methods route through workflows_api_base -> assistant_runtime_workflows.api
 
     def create_workflow(
         self,
@@ -1724,61 +1168,21 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
 
         Returns:
             {"name": str, "workflow_name": str, "status": str, "version": int}
-
-        Example:
-            >>> wf = client.create_workflow(
-            ...     "Daily Report Generator",
-            ...     graph_json='{"version":"1.0","nodes":[...],"edges":[...]}',
-            ...     default_model_id="claude-sonnet-4-5-20250929",
-            ... )
-            >>> print(wf["name"])  # "WF-00001"
         """
-        payload: Dict[str, Any] = {
-            "tenant_id": self.tenant_id,
-            "workflow_name": workflow_name,
-            "description": description,
-            "error_strategy": error_strategy,
-            "timeout_seconds": timeout_seconds,
-        }
-        if graph_json:
-            payload["graph_json"] = graph_json
-        if default_model_id:
-            payload["default_model_id"] = default_model_id
-        if default_user_id:
-            payload["default_user_id"] = default_user_id
-        return self._request_post_json(
-            "workflows.create_workflow", payload,
-            api_base=self.workflows_api_base,
+        endpoint, payload = self._prepare_create_workflow(
+            workflow_name, graph_json, description, default_model_id,
+            default_user_id, error_strategy, timeout_seconds,
         )
+        return self._request_post_json(endpoint, payload, api_base=self.workflows_api_base)
 
     def get_workflow(
         self,
         name: Optional[str] = None,
         workflow_name: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
-        """
-        Get a workflow definition by document name or human-readable name.
-
-        Args:
-            name: Document name (e.g., "WF-00001")
-            workflow_name: Human-readable name (e.g., "Daily Report Generator")
-
-        Returns:
-            Full workflow definition including graph_json, schedule, and stats.
-
-        Example:
-            >>> wf = client.get_workflow(name="WF-00001")
-            >>> print(wf["graph_json"])
-        """
-        params: Dict[str, Any] = {"tenant_id": self.tenant_id}
-        if name:
-            params["name"] = name
-        if workflow_name:
-            params["workflow_name"] = workflow_name
-        return self._request_get(
-            "workflows.get_workflow", params,
-            api_base=self.workflows_api_base,
-        )
+        """Get a workflow definition by document name or human-readable name."""
+        endpoint, params = self._prepare_get_workflow(name, workflow_name)
+        return self._request_get(endpoint, params, api_base=self.workflows_api_base)
 
     def update_workflow(
         self,
@@ -1799,7 +1203,7 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
 
         Args:
             name: Document name (e.g., "WF-00001")
-            graph_json: Updated workflow graph (triggers version increment)
+            graph_json: Updated workflow graph
             workflow_name: New human-readable name
             description: New description
             status: New status ("Draft", "Active", "Paused", "Archived")
@@ -1807,59 +1211,23 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
             default_user_id: New default user
             error_strategy: New error strategy
             timeout_seconds: New timeout
-            max_node_executions: New max executions (loop safety)
+            max_node_executions: New max executions
             max_retries: New max retries
 
         Returns:
             {"name": str, "workflow_name": str, "status": str, "version": int}
-
-        Example:
-            >>> result = client.update_workflow("WF-00001", status="Active")
         """
-        payload: Dict[str, Any] = {
-            "tenant_id": self.tenant_id,
-            "name": name,
-        }
-        if graph_json is not None:
-            payload["graph_json"] = graph_json
-        if workflow_name is not None:
-            payload["workflow_name"] = workflow_name
-        if description is not None:
-            payload["description"] = description
-        if status is not None:
-            payload["status"] = status
-        if default_model_id is not None:
-            payload["default_model_id"] = default_model_id
-        if default_user_id is not None:
-            payload["default_user_id"] = default_user_id
-        if error_strategy is not None:
-            payload["error_strategy"] = error_strategy
-        if timeout_seconds is not None:
-            payload["timeout_seconds"] = timeout_seconds
-        if max_node_executions is not None:
-            payload["max_node_executions"] = max_node_executions
-        if max_retries is not None:
-            payload["max_retries"] = max_retries
-        return self._request_post_json(
-            "workflows.update_workflow", payload,
-            api_base=self.workflows_api_base,
+        endpoint, payload = self._prepare_update_workflow(
+            name, graph_json, workflow_name, description, status,
+            default_model_id, default_user_id, error_strategy,
+            timeout_seconds, max_node_executions, max_retries,
         )
+        return self._request_post_json(endpoint, payload, api_base=self.workflows_api_base)
 
     def delete_workflow(self, name: str) -> Optional[Dict[str, Any]]:
-        """
-        Soft-delete a workflow (sets status to Archived).
-
-        Args:
-            name: Document name (e.g., "WF-00001")
-
-        Returns:
-            {"status": "archived", "name": str}
-        """
-        payload = {"tenant_id": self.tenant_id, "name": name}
-        return self._request_post_json(
-            "workflows.delete_workflow", payload,
-            api_base=self.workflows_api_base,
-        )
+        """Soft-delete a workflow (sets status to Archived)."""
+        endpoint, payload = self._prepare_delete_workflow(name)
+        return self._request_post_json(endpoint, payload, api_base=self.workflows_api_base)
 
     def list_workflows(
         self,
@@ -1877,23 +1245,9 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
 
         Returns:
             {"workflows": [...], "total": int, "page": int, "page_size": int}
-
-        Example:
-            >>> result = client.list_workflows(status="Active")
-            >>> for wf in result["workflows"]:
-            ...     print(f"{wf['name']}: {wf['workflow_name']}")
         """
-        params: Dict[str, Any] = {
-            "tenant_id": self.tenant_id,
-            "page": str(page),
-            "page_size": str(page_size),
-        }
-        if status:
-            params["status"] = status
-        return self._request_get(
-            "workflows.list_workflows", params,
-            api_base=self.workflows_api_base,
-        )
+        endpoint, params = self._prepare_list_workflows(status, page, page_size)
+        return self._request_get(endpoint, params, api_base=self.workflows_api_base)
 
     def execute_workflow(
         self,
@@ -1904,9 +1258,6 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         """
         Manually trigger workflow execution.
 
-        The workflow is enqueued as a background job. Use ``get_workflow_run``
-        to poll for completion.
-
         Args:
             name: AR Workflow document name (e.g., "WF-00001")
             input_data: Input data (JSON string or plain text)
@@ -1914,62 +1265,19 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
 
         Returns:
             {"status": "queued", "workflow": str, "workflow_name": str, "message": str}
-
-        Example:
-            >>> result = client.execute_workflow("WF-00001", input_data='{"query": "Summarize sales"}')
-            >>> print(result["status"])  # "queued"
         """
-        payload: Dict[str, Any] = {
-            "tenant_id": self.tenant_id,
-            "name": name,
-        }
-        if input_data:
-            payload["input_data"] = input_data
-        if user_id:
-            payload["user_id"] = user_id
-        return self._request_post_json(
-            "workflows.execute_workflow", payload,
-            api_base=self.workflows_api_base,
-        )
+        endpoint, payload = self._prepare_execute_workflow(name, input_data, user_id)
+        return self._request_post_json(endpoint, payload, api_base=self.workflows_api_base)
 
     def cancel_workflow_run(self, run_name: str) -> Optional[Dict[str, Any]]:
-        """
-        Cancel a queued or running workflow execution.
-
-        Args:
-            run_name: AR Workflow Run document name
-
-        Returns:
-            {"status": "cancelled", "run_name": str}
-        """
-        payload = {"tenant_id": self.tenant_id, "run_name": run_name}
-        return self._request_post_json(
-            "workflows.cancel_run", payload,
-            api_base=self.workflows_api_base,
-        )
+        """Cancel a queued or running workflow execution."""
+        endpoint, payload = self._prepare_cancel_workflow_run(run_name)
+        return self._request_post_json(endpoint, payload, api_base=self.workflows_api_base)
 
     def get_workflow_run(self, run_name: str) -> Optional[Dict[str, Any]]:
-        """
-        Get execution run details including per-node results.
-
-        Args:
-            run_name: AR Workflow Run document name
-
-        Returns:
-            Run details with nested ``node_runs`` list. Each node run includes
-            node_id, status, duration_ms, tokens_used, and model_id.
-
-        Example:
-            >>> run = client.get_workflow_run("abc123")
-            >>> print(run["status"])  # "Completed"
-            >>> for node in run["node_runs"]:
-            ...     print(f"  {node['node_label']}: {node['status']}")
-        """
-        params = {"tenant_id": self.tenant_id, "run_name": run_name}
-        return self._request_get(
-            "workflows.get_run", params,
-            api_base=self.workflows_api_base,
-        )
+        """Get execution run details including per-node results."""
+        endpoint, params = self._prepare_get_workflow_run(run_name)
+        return self._request_get(endpoint, params, api_base=self.workflows_api_base)
 
     def list_workflow_runs(
         self,
@@ -1989,25 +1297,9 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
 
         Returns:
             {"runs": [...], "total": int, "page": int, "page_size": int}
-
-        Example:
-            >>> result = client.list_workflow_runs(workflow_name="WF-00001", status="Completed")
-            >>> for run in result["runs"]:
-            ...     print(f"{run['run_id']}: {run['status']} ({run['duration_ms']}ms)")
         """
-        params: Dict[str, Any] = {
-            "tenant_id": self.tenant_id,
-            "page": str(page),
-            "page_size": str(page_size),
-        }
-        if workflow_name:
-            params["workflow_name"] = workflow_name
-        if status:
-            params["status"] = status
-        return self._request_get(
-            "workflows.list_runs", params,
-            api_base=self.workflows_api_base,
-        )
+        endpoint, params = self._prepare_list_workflow_runs(workflow_name, status, page, page_size)
+        return self._request_get(endpoint, params, api_base=self.workflows_api_base)
 
     def set_workflow_schedule(
         self,
@@ -2030,28 +1322,9 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         Returns:
             {"name": str, "schedule_enabled": bool, "cron_expression": str,
              "timezone": str, "next_run_at": str}
-
-        Example:
-            >>> result = client.set_workflow_schedule(
-            ...     "WF-00001",
-            ...     cron_expression="0 9 * * 1-5",  # Weekdays at 9 AM
-            ...     timezone="America/New_York",
-            ... )
-            >>> print(f"Next run: {result['next_run_at']}")
         """
-        payload: Dict[str, Any] = {
-            "tenant_id": self.tenant_id,
-            "name": name,
-            "cron_expression": cron_expression,
-            "timezone": timezone,
-            "enabled": enabled,
-        }
-        if default_input is not None:
-            payload["default_input"] = default_input
-        return self._request_post_json(
-            "workflows.set_schedule", payload,
-            api_base=self.workflows_api_base,
-        )
+        endpoint, payload = self._prepare_set_workflow_schedule(name, cron_expression, timezone, enabled, default_input)
+        return self._request_post_json(endpoint, payload, api_base=self.workflows_api_base)
 
     def validate_workflow_graph(self, graph_json: str) -> Optional[Dict[str, Any]]:
         """
@@ -2061,21 +1334,11 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
             graph_json: Graph JSON string to validate
 
         Returns:
-            If valid: {"valid": True, "stats": {"total_nodes": int, "agent_count": int, ...}}
+            If valid: {"valid": True, "stats": {...}}
             If invalid: {"valid": False, "error": str}
-
-        Example:
-            >>> result = client.validate_workflow_graph(graph_json_str)
-            >>> if result["valid"]:
-            ...     print(f"Graph has {result['stats']['agent_count']} agent nodes")
-            >>> else:
-            ...     print(f"Invalid: {result['error']}")
         """
-        payload = {"tenant_id": self.tenant_id, "graph_json": graph_json}
-        return self._request_post_json(
-            "workflows.validate_graph", payload,
-            api_base=self.workflows_api_base,
-        )
+        endpoint, payload = self._prepare_validate_workflow_graph(graph_json)
+        return self._request_post_json(endpoint, payload, api_base=self.workflows_api_base)
 
     def test_workflow_node(
         self,
@@ -2087,9 +1350,6 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         """
         Execute a single node in isolation for testing.
 
-        Creates a temporary workflow with input -> node -> output,
-        executes it, and returns the result.
-
         Args:
             node_json: Single node definition as JSON string
             input_text: Test input text (default: "Test input")
@@ -2098,32 +1358,9 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
 
         Returns:
             {"status": str, "node_result": {...}, "duration_ms": int, "tokens_used": int}
-
-        Example:
-            >>> import json
-            >>> node = json.dumps({
-            ...     "id": "summarizer",
-            ...     "type": "agent",
-            ...     "label": "Summarizer",
-            ...     "config": {"system_prompt": "Summarize the input text concisely."}
-            ... })
-            >>> result = client.test_workflow_node(node, input_text="Long text here...")
-            >>> print(result["node_result"]["output_text"])
         """
-        payload: Dict[str, Any] = {
-            "tenant_id": self.tenant_id,
-            "node_json": node_json,
-            "input_text": input_text,
-        }
-        if default_model_id:
-            payload["default_model_id"] = default_model_id
-        if default_user_id:
-            payload["default_user_id"] = default_user_id
-        return self._request_post_json(
-            "workflows.test_node", payload,
-            timeout=120.0,
-            api_base=self.workflows_api_base,
-        )
+        endpoint, payload = self._prepare_test_workflow_node(node_json, input_text, default_model_id, default_user_id)
+        return self._request_post_json(endpoint, payload, timeout=120.0, api_base=self.workflows_api_base)
 
     def resolve_workflow_tools(
         self,
@@ -2133,47 +1370,15 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         """
         Preview how tool directives resolve against a user's MCP tools.
 
-        Checks each tool directive against the user's available MCP tools
-        and returns resolution status. Used by the workflow builder to show
-        availability indicators on tool directives.
-
         Args:
             user_id: User whose MCP tools to check against
-            tool_directives: List of directive dicts with at least
-                ``tool_name`` and ``capability``
+            tool_directives: List of directive dicts
 
         Returns:
-            {
-                "resolved": [
-                    {
-                        "capability": "web_search",
-                        "tool_name": "web_search",
-                        "status": "resolved" | "missing",
-                        "prefixed_name": "brave:web_search" | null,
-                        "server_name": "brave" | null,
-                        "inputSchema": {...} | null
-                    }
-                ],
-                "all_tools_available": true | false,
-                "missing_tools": ["tool_name_x"]
-            }
-
-        Example:
-            >>> result = client.resolve_workflow_tools(
-            ...     "user@example.com",
-            ...     [{"capability": "web_search", "tool_name": "web_search"}]
-            ... )
-            >>> print(result["all_tools_available"])
+            {"resolved": [...], "all_tools_available": bool, "missing_tools": [...]}
         """
-        payload: Dict[str, Any] = {
-            "tenant_id": self.tenant_id,
-            "user_id": user_id,
-            "tool_directives": json.dumps(tool_directives),
-        }
-        return self._request_post_json(
-            "workflows.resolve_workflow_tools", payload,
-            api_base=self.workflows_api_base,
-        )
+        endpoint, payload = self._prepare_resolve_workflow_tools(user_id, tool_directives)
+        return self._request_post_json(endpoint, payload, api_base=self.workflows_api_base)
 
     def run_workflow_node(
         self,
@@ -2185,52 +1390,17 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         """
         Run a single node from a saved workflow with manual input.
 
-        Extracts the target node from the workflow's graph, wraps it in a
-        temporary mini-workflow, and executes it. The node inherits the
-        parent workflow's model, user, and global variables.
-
         Args:
             name: Workflow document name or workflow_name
-            node_id: Node ID within the graph (e.g., "invoice_collector")
+            node_id: Node ID within the graph
             input_text: Input text to feed the node
             user_id: Override the workflow's default_user_id
 
         Returns:
-            {
-                "status": "Completed",
-                "node_id": "invoice_collector",
-                "node_label": "Invoice Collector",
-                "node_result": {
-                    "status": "Completed",
-                    "output_text": "...",
-                    "tokens_used": 1800,
-                    "duration_ms": 7200,
-                    "error_message": null
-                },
-                "duration_ms": 7500,
-                "tokens_used": 1800
-            }
-
-        Example:
-            >>> result = client.run_workflow_node(
-            ...     "WF-00001", "invoice_collector",
-            ...     input_text="Check overdue invoices"
-            ... )
-            >>> print(result["node_result"]["output_text"])
+            {"status": str, "node_id": str, "node_result": {...}, "duration_ms": int, "tokens_used": int}
         """
-        payload: Dict[str, Any] = {
-            "tenant_id": self.tenant_id,
-            "name": name,
-            "node_id": node_id,
-            "input_text": input_text,
-        }
-        if user_id is not None:
-            payload["user_id"] = user_id
-        return self._request_post_json(
-            "workflows.run_workflow_node", payload,
-            api_base=self.workflows_api_base,
-            timeout=120.0,
-        )
+        endpoint, payload = self._prepare_run_workflow_node(name, node_id, input_text, user_id)
+        return self._request_post_json(endpoint, payload, api_base=self.workflows_api_base, timeout=120.0)
 
     # --- Workflow Templates ---
 
@@ -2242,35 +1412,9 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         save_as_template: bool = False,
         is_public: bool = False,
     ) -> Optional[Dict[str, Any]]:
-        """
-        Export a workflow as a portable template JSON.
-
-        Strips tenant-specific data, extracts variables, detects required tools.
-        Optionally saves as a registered template owned by the tenant.
-
-        Args:
-            name: AR Workflow document name
-            template_name: Override template name (defaults to workflow_name)
-            category: Template category
-            save_as_template: If True, also creates an AR Workflow Template record
-            is_public: If True, the saved template is visible to all tenants
-
-        Returns:
-            {"template": {...}, "template_record": str (if saved)}
-        """
-        payload: Dict[str, Any] = {
-            "tenant_id": self.tenant_id,
-            "name": name,
-            "category": category,
-            "save_as_template": save_as_template,
-            "is_public": is_public,
-        }
-        if template_name:
-            payload["template_name"] = template_name
-        return self._request_post_json(
-            "workflows.export_workflow", payload,
-            api_base=self.workflows_api_base,
-        )
+        """Export a workflow as a portable template JSON."""
+        endpoint, payload = self._prepare_export_workflow(name, template_name, category, save_as_template, is_public)
+        return self._request_post_json(endpoint, payload, api_base=self.workflows_api_base)
 
     def list_templates(
         self,
@@ -2280,38 +1424,9 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         page: int = 0,
         page_size: int = 20,
     ) -> Optional[Dict[str, Any]]:
-        """
-        List published workflow templates.
-
-        When ``user_id`` is provided, templates requiring MCP capabilities
-        the user lacks are excluded (matched against the user's MCP server
-        ``capabilities`` tags).
-
-        Args:
-            category: Filter by category (optional)
-            search: Text search on name, description, tags (optional)
-            user_id: User identifier for capability-based filtering (optional)
-            page: Page number (0-indexed)
-            page_size: Items per page (max 100)
-
-        Returns:
-            {"templates": [...], "total": int, "page": int, "page_size": int}
-        """
-        params: Dict[str, Any] = {
-            "tenant_id": self.tenant_id,
-            "page": page,
-            "page_size": page_size,
-        }
-        if category:
-            params["category"] = category
-        if search:
-            params["search"] = search
-        if user_id:
-            params["user_id"] = user_id
-        return self._request_get(
-            "workflows.list_templates", params,
-            api_base=self.workflows_api_base,
-        )
+        """List published workflow templates."""
+        endpoint, params = self._prepare_list_templates(category, search, user_id, page, page_size)
+        return self._request_get(endpoint, params, api_base=self.workflows_api_base)
 
     def get_template(
         self,
@@ -2319,33 +1434,9 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         name: Optional[str] = None,
         user_id: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
-        """
-        Get full template details including graph_json and variables_schema.
-
-        When ``user_id`` is provided, the response includes
-        ``user_has_capabilities`` (bool) and ``missing_capabilities`` (list)
-        indicating whether the user's MCP servers satisfy the template's
-        ``tool_hints``.
-
-        Args:
-            template_name: Template name (or)
-            name: Document name
-            user_id: User identifier for capability checking (optional)
-
-        Returns:
-            Full template details dict
-        """
-        params: Dict[str, Any] = {"tenant_id": self.tenant_id}
-        if name:
-            params["name"] = name
-        elif template_name:
-            params["template_name"] = template_name
-        if user_id:
-            params["user_id"] = user_id
-        return self._request_get(
-            "workflows.get_template", params,
-            api_base=self.workflows_api_base,
-        )
+        """Get full template details including graph_json and variables_schema."""
+        endpoint, params = self._prepare_get_template(template_name, name, user_id)
+        return self._request_get(endpoint, params, api_base=self.workflows_api_base)
 
     def import_template(
         self,
@@ -2357,43 +1448,12 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         default_user_id: Optional[str] = None,
         default_model_id: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
-        """
-        Import a template as a new workflow.
-
-        Accepts either a registered template (by name) or inline template JSON.
-
-        Args:
-            user_id: User who will own the workflow
-            template_name: Registered template name (or)
-            template_json: Inline template JSON
-            workflow_name: Custom workflow name (defaults to template name)
-            variables: JSON string of variable overrides
-            default_user_id: User whose MCP tools will be used
-            default_model_id: Override LLM model
-
-        Returns:
-            {"workflow": {...}, "warnings": [...], "variables_applied": {...}}
-        """
-        payload: Dict[str, Any] = {
-            "tenant_id": self.tenant_id,
-            "user_id": user_id,
-        }
-        if template_name:
-            payload["template_name"] = template_name
-        if template_json:
-            payload["template_json"] = template_json
-        if workflow_name:
-            payload["workflow_name"] = workflow_name
-        if variables:
-            payload["variables"] = variables
-        if default_user_id:
-            payload["default_user_id"] = default_user_id
-        if default_model_id:
-            payload["default_model_id"] = default_model_id
-        return self._request_post_json(
-            "workflows.import_template", payload,
-            api_base=self.workflows_api_base,
+        """Import a template as a new workflow."""
+        endpoint, payload = self._prepare_import_template(
+            user_id, template_name, template_json, workflow_name,
+            variables, default_user_id, default_model_id,
         )
+        return self._request_post_json(endpoint, payload, api_base=self.workflows_api_base)
 
     def update_template(
         self,
@@ -2411,68 +1471,18 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         timeout_seconds: Optional[int] = None,
         tags: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
-        """
-        Update a tenant's own template.
-
-        Cannot modify official templates. Only the owning tenant can update.
-
-        Args:
-            name: AR Workflow Template document name
-            (all other fields are optional updates)
-
-        Returns:
-            {"name": str, "template_name": str, "is_public": bool, "is_published": bool}
-        """
-        payload: Dict[str, Any] = {
-            "tenant_id": self.tenant_id,
-            "name": name,
-        }
-        if template_name is not None:
-            payload["template_name"] = template_name
-        if description is not None:
-            payload["description"] = description
-        if category is not None:
-            payload["category"] = category
-        if is_public is not None:
-            payload["is_public"] = is_public
-        if is_published is not None:
-            payload["is_published"] = is_published
-        if graph_json is not None:
-            payload["graph_json"] = graph_json
-        if variables_schema is not None:
-            payload["variables_schema"] = variables_schema
-        if default_variables is not None:
-            payload["default_variables"] = default_variables
-        if default_model_id is not None:
-            payload["default_model_id"] = default_model_id
-        if error_strategy is not None:
-            payload["error_strategy"] = error_strategy
-        if timeout_seconds is not None:
-            payload["timeout_seconds"] = timeout_seconds
-        if tags is not None:
-            payload["tags"] = tags
-        return self._request_post_json(
-            "workflows.update_template", payload,
-            api_base=self.workflows_api_base,
+        """Update a tenant's own template."""
+        endpoint, payload = self._prepare_update_template(
+            name, template_name, description, category, is_public,
+            is_published, graph_json, variables_schema, default_variables,
+            default_model_id, error_strategy, timeout_seconds, tags,
         )
+        return self._request_post_json(endpoint, payload, api_base=self.workflows_api_base)
 
     def delete_template(self, name: str) -> Optional[Dict[str, Any]]:
-        """
-        Delete a tenant's own template.
-
-        Cannot delete official templates. Only the owning tenant can delete.
-
-        Args:
-            name: AR Workflow Template document name
-
-        Returns:
-            {"status": "deleted", "name": str}
-        """
-        return self._request_post_json(
-            "workflows.delete_template",
-            {"tenant_id": self.tenant_id, "name": name},
-            api_base=self.workflows_api_base,
-        )
+        """Delete a tenant's own template."""
+        endpoint, payload = self._prepare_delete_template(name)
+        return self._request_post_json(endpoint, payload, api_base=self.workflows_api_base)
 
 
 # =============================================================================

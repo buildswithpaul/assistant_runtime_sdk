@@ -1,6 +1,6 @@
 # Type Definitions Reference
 
-Complete reference for TypedDict definitions used by the FACL SDK.
+Complete reference for TypedDict definitions used by the Assistant Runtime SDK.
 
 ## Overview
 
@@ -11,7 +11,7 @@ The SDK uses Python's `TypedDict` for type hints, providing:
 - Self-documenting API responses
 
 ```python
-from facl import (
+from assistant_runtime_sdk import (
     ModelInfo,
     StreamEvent,
     ConversationInfo,
@@ -440,13 +440,13 @@ class PromptsResponse(TypedDict):
 ### Type Checking
 
 ```python
-from facl import FACLClient, ModelInfo
+from assistant_runtime_sdk import AssistantRuntimeClient, ModelInfo
 
 def process_model(model: ModelInfo) -> str:
     """Type-safe model processing."""
     return f"{model['display_name']} ({model['provider']})"
 
-client = FACLClient(tenant_id="...", tenant_secret="...")
+client = AssistantRuntimeClient(tenant_id="...", tenant_secret="...")
 response = client.list_available_models()
 
 if response:
@@ -461,7 +461,7 @@ if response:
 pip install mypy
 
 # Run type checking
-mypy my_facl_app.py
+mypy my_ar_app.py
 ```
 
 ### IDE Support
@@ -476,6 +476,6 @@ model["invalid_key"]   # ✗ Warning from IDE
 
 ## See Also
 
-- [FACLClient Reference](client.md)
+- [AssistantRuntimeClient Reference](client.md)
 - [Streaming Guide](../guides/streaming.md)
 - [Python TypedDict Documentation](https://docs.python.org/3/library/typing.html#typing.TypedDict)
