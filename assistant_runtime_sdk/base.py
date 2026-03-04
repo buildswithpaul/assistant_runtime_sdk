@@ -530,6 +530,45 @@ class BaseAssistantRuntimeClient:
         return "documents.get_storage_info", {"tenant_id": self.tenant_id}
 
     # =========================================================================
+    # Prepare Methods — Memories
+    # =========================================================================
+
+    def _prepare_list_memories(
+        self, user_id: Optional[str] = None,
+        memory_type: Optional[str] = None,
+        limit: int = 50, offset: int = 0
+    ) -> tuple:
+        params: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "limit": str(limit),
+            "offset": str(offset),
+        }
+        if user_id:
+            params["user_id"] = user_id
+        if memory_type:
+            params["memory_type"] = memory_type
+        return "memories.list_memories", params
+
+    def _prepare_delete_memory(self, user_id: str, memory_id: str) -> tuple:
+        return "memories.delete_memory", {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+            "memory_id": memory_id,
+        }
+
+    def _prepare_delete_all_memories(self, user_id: str) -> tuple:
+        return "memories.delete_all_memories", {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+        }
+
+    def _prepare_get_memory_stats(self, user_id: Optional[str] = None) -> tuple:
+        params: Dict[str, Any] = {"tenant_id": self.tenant_id}
+        if user_id:
+            params["user_id"] = user_id
+        return "memories.get_memory_stats", params
+
+    # =========================================================================
     # Prepare Methods — Tools
     # =========================================================================
 

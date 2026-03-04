@@ -553,6 +553,73 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         return self._request_get(endpoint, params, api_base=self.memory_api_base)
 
     # =========================================================================
+    # Memory APIs (User Memory Viewer)
+    # =========================================================================
+    # These methods route through memory_api_base -> assistant_runtime_memory.api
+
+    def list_memories(
+        self,
+        user_id: Optional[str] = None,
+        memory_type: Optional[str] = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        List stored memories for this tenant.
+
+        Args:
+            user_id: Optional user filter.
+            memory_type: Optional type filter (preference, summary, fact).
+            limit: Page size (default 50).
+            offset: Pagination offset (default 0).
+
+        Returns:
+            {"memories": [...], "pagination": {...}}
+        """
+        endpoint, params = self._prepare_list_memories(user_id, memory_type, limit, offset)
+        return self._request_get(endpoint, params, api_base=self.memory_api_base)
+
+    def delete_memory(self, user_id: str, memory_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Delete a single memory.
+
+        Args:
+            user_id: User who owns the memory.
+            memory_id: The memory identifier to delete.
+
+        Returns:
+            {"status": "deleted", "memory_id": str}
+        """
+        endpoint, payload = self._prepare_delete_memory(user_id, memory_id)
+        return self._request_post_json(endpoint, payload, api_base=self.memory_api_base)
+
+    def delete_all_memories(self, user_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Delete all memories for a user.
+
+        Args:
+            user_id: User whose memories to delete.
+
+        Returns:
+            {"status": "deleted", "count": int}
+        """
+        endpoint, payload = self._prepare_delete_all_memories(user_id)
+        return self._request_post_json(endpoint, payload, api_base=self.memory_api_base)
+
+    def get_memory_stats(self, user_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        """
+        Get memory statistics.
+
+        Args:
+            user_id: Optional user filter.
+
+        Returns:
+            {"total": int, "by_type": {...}, "total_accesses": int}
+        """
+        endpoint, params = self._prepare_get_memory_stats(user_id)
+        return self._request_get(endpoint, params, api_base=self.memory_api_base)
+
+    # =========================================================================
     # Resource APIs (Skills/Documentation)
     # =========================================================================
 

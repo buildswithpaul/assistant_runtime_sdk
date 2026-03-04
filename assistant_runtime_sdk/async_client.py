@@ -484,6 +484,36 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         return await self._request_get(endpoint, params, api_base=self.memory_api_base)
 
     # =========================================================================
+    # Memory APIs (User Memory Viewer)
+    # =========================================================================
+
+    async def list_memories(
+        self,
+        user_id: Optional[str] = None,
+        memory_type: Optional[str] = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> Optional[Dict[str, Any]]:
+        """Async version of AssistantRuntimeClient.list_memories."""
+        endpoint, params = self._prepare_list_memories(user_id, memory_type, limit, offset)
+        return await self._request_get(endpoint, params, api_base=self.memory_api_base)
+
+    async def delete_memory(self, user_id: str, memory_id: str) -> Optional[Dict[str, Any]]:
+        """Async version of AssistantRuntimeClient.delete_memory."""
+        endpoint, payload = self._prepare_delete_memory(user_id, memory_id)
+        return await self._request_post_json(endpoint, payload, api_base=self.memory_api_base)
+
+    async def delete_all_memories(self, user_id: str) -> Optional[Dict[str, Any]]:
+        """Async version of AssistantRuntimeClient.delete_all_memories."""
+        endpoint, payload = self._prepare_delete_all_memories(user_id)
+        return await self._request_post_json(endpoint, payload, api_base=self.memory_api_base)
+
+    async def get_memory_stats(self, user_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        """Async version of AssistantRuntimeClient.get_memory_stats."""
+        endpoint, params = self._prepare_get_memory_stats(user_id)
+        return await self._request_get(endpoint, params, api_base=self.memory_api_base)
+
+    # =========================================================================
     # Resource APIs (Skills/Documentation)
     # =========================================================================
 
