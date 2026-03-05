@@ -830,9 +830,16 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         user_id: str,
         display_name: Optional[str] = None,
         custom_instructions: Optional[str] = None,
+        locale: Optional[str] = None,
+        timezone: Optional[str] = None,
+        user_role: Optional[str] = None,
+        email: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Async version of AssistantRuntimeClient.register_user."""
-        endpoint, params = self._prepare_register_user(user_id, display_name, custom_instructions)
+        endpoint, params = self._prepare_register_user(
+            user_id, display_name, custom_instructions,
+            locale=locale, timezone=timezone, user_role=user_role, email=email,
+        )
         return await self._request_post_form(endpoint, params)
 
     async def get_user(self, user_id: str) -> Optional[Dict[str, Any]]:
@@ -918,9 +925,16 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         user_id: str,
         display_name: Optional[str] = None,
         custom_instructions: Optional[str] = None,
+        locale: Optional[str] = None,
+        timezone: Optional[str] = None,
+        user_role: Optional[str] = None,
+        email: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Async version of AssistantRuntimeClient.update_user."""
-        endpoint, params = self._prepare_update_user(user_id, display_name, custom_instructions)
+        endpoint, params = self._prepare_update_user(
+            user_id, display_name, custom_instructions,
+            locale=locale, timezone=timezone, user_role=user_role, email=email,
+        )
         return await self._request_post_form(endpoint, params)
 
     async def deregister_user(self, user_id: str) -> Dict[str, Any]:

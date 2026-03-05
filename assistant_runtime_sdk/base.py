@@ -860,12 +860,24 @@ class BaseAssistantRuntimeClient:
     def _prepare_register_user(
         self, user_id: str, display_name: Optional[str] = None,
         custom_instructions: Optional[str] = None,
+        locale: Optional[str] = None,
+        timezone: Optional[str] = None,
+        user_role: Optional[str] = None,
+        email: Optional[str] = None,
     ) -> tuple:
         params: Dict[str, Any] = {"tenant_id": self.tenant_id, "user_id": user_id}
         if display_name:
             params["display_name"] = display_name
         if custom_instructions:
             params["custom_instructions"] = custom_instructions
+        if locale:
+            params["locale"] = locale
+        if timezone:
+            params["timezone"] = timezone
+        if user_role:
+            params["user_role"] = user_role
+        if email:
+            params["email"] = email
         return "users.register_user", params
 
     def _prepare_get_user(self, user_id: str) -> tuple:
@@ -963,6 +975,10 @@ class BaseAssistantRuntimeClient:
     def _prepare_update_user(
         self, user_id: str, display_name: Optional[str] = None,
         custom_instructions: Optional[str] = None,
+        locale: Optional[str] = None,
+        timezone: Optional[str] = None,
+        user_role: Optional[str] = None,
+        email: Optional[str] = None,
     ) -> tuple:
         params: Dict[str, Any] = {
             "tenant_id": self.tenant_id,
@@ -972,6 +988,14 @@ class BaseAssistantRuntimeClient:
             params["display_name"] = display_name
         if custom_instructions is not None:
             params["custom_instructions"] = custom_instructions
+        if locale is not None:
+            params["locale"] = locale
+        if timezone is not None:
+            params["timezone"] = timezone
+        if user_role is not None:
+            params["user_role"] = user_role
+        if email is not None:
+            params["email"] = email
         return "users.update_user", params
 
     def _prepare_deregister_user(self, user_id: str) -> tuple:

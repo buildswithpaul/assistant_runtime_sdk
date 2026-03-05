@@ -1072,9 +1072,16 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         user_id: str,
         display_name: Optional[str] = None,
         custom_instructions: Optional[str] = None,
+        locale: Optional[str] = None,
+        timezone: Optional[str] = None,
+        user_role: Optional[str] = None,
+        email: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Register a user with Assistant Runtime."""
-        endpoint, params = self._prepare_register_user(user_id, display_name, custom_instructions)
+        endpoint, params = self._prepare_register_user(
+            user_id, display_name, custom_instructions,
+            locale=locale, timezone=timezone, user_role=user_role, email=email,
+        )
         return self._request_post_form(endpoint, params)
 
     def get_user(self, user_id: str) -> Optional[Dict[str, Any]]:
@@ -1171,19 +1178,30 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         user_id: str,
         display_name: Optional[str] = None,
         custom_instructions: Optional[str] = None,
+        locale: Optional[str] = None,
+        timezone: Optional[str] = None,
+        user_role: Optional[str] = None,
+        email: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
-        Update user display name and/or custom instructions.
+        Update user profile fields.
 
         Args:
             user_id: User identifier
             display_name: New display name (optional)
             custom_instructions: New custom instructions (optional)
+            locale: User's locale/language preference (optional)
+            timezone: User's timezone (optional)
+            user_role: User's role (optional)
+            email: User's email (optional)
 
         Returns:
             Dict with success status and message
         """
-        endpoint, params = self._prepare_update_user(user_id, display_name, custom_instructions)
+        endpoint, params = self._prepare_update_user(
+            user_id, display_name, custom_instructions,
+            locale=locale, timezone=timezone, user_role=user_role, email=email,
+        )
         return self._request_post_form(endpoint, params)
 
     def deregister_user(self, user_id: str) -> Dict[str, Any]:
