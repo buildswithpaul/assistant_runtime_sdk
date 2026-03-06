@@ -620,6 +620,50 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         return self._request_get(endpoint, params, api_base=self.memory_api_base)
 
     # =========================================================================
+    # Shared Knowledge APIs
+    # These methods route through memory_api_base -> assistant_runtime_memory.api
+    # =========================================================================
+
+    def get_shared_knowledge(self) -> Optional[Dict[str, Any]]:
+        """
+        Get shared knowledge document for the tenant.
+
+        Returns:
+            {"content": str, "embedding_status": str, "total_chunks": int, ...}
+        """
+        endpoint, params = self._prepare_get_shared_knowledge()
+        return self._request_get(endpoint, params, api_base=self.memory_api_base)
+
+    def update_shared_knowledge(self, content: str) -> Optional[Dict[str, Any]]:
+        """
+        Update shared knowledge content. Triggers re-embedding via RAG pipeline.
+
+        Args:
+            content: New markdown content.
+
+        Returns:
+            {"status": "updated", "embedding_status": str}
+        """
+        endpoint, payload = self._prepare_update_shared_knowledge(content)
+        return self._request_post_json(endpoint, payload, api_base=self.memory_api_base)
+
+    def share_memory_to_knowledge(self, user_id: str, memory_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Share a personal memory to the shared knowledge document.
+
+        Appends the memory content with attribution, then re-embeds.
+
+        Args:
+            user_id: User sharing the memory.
+            memory_id: AR Memory ID to share.
+
+        Returns:
+            {"status": "shared", "embedding_status": str}
+        """
+        endpoint, payload = self._prepare_share_memory_to_knowledge(user_id, memory_id)
+        return self._request_post_json(endpoint, payload, api_base=self.memory_api_base)
+
+    # =========================================================================
     # Resource APIs (Skills/Documentation)
     # =========================================================================
 

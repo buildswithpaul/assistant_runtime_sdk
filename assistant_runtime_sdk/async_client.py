@@ -514,6 +514,25 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         return await self._request_get(endpoint, params, api_base=self.memory_api_base)
 
     # =========================================================================
+    # Shared Knowledge APIs
+    # =========================================================================
+
+    async def get_shared_knowledge(self) -> Optional[Dict[str, Any]]:
+        """Async version of AssistantRuntimeClient.get_shared_knowledge."""
+        endpoint, params = self._prepare_get_shared_knowledge()
+        return await self._request_get(endpoint, params, api_base=self.memory_api_base)
+
+    async def update_shared_knowledge(self, content: str) -> Optional[Dict[str, Any]]:
+        """Async version of AssistantRuntimeClient.update_shared_knowledge."""
+        endpoint, payload = self._prepare_update_shared_knowledge(content)
+        return await self._request_post_json(endpoint, payload, api_base=self.memory_api_base)
+
+    async def share_memory_to_knowledge(self, user_id: str, memory_id: str) -> Optional[Dict[str, Any]]:
+        """Async version of AssistantRuntimeClient.share_memory_to_knowledge."""
+        endpoint, payload = self._prepare_share_memory_to_knowledge(user_id, memory_id)
+        return await self._request_post_json(endpoint, payload, api_base=self.memory_api_base)
+
+    # =========================================================================
     # Resource APIs (Skills/Documentation)
     # =========================================================================
 

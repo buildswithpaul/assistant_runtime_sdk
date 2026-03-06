@@ -569,6 +569,28 @@ class BaseAssistantRuntimeClient:
         return "memories.get_memory_stats", params
 
     # =========================================================================
+    # Prepare Methods — Shared Knowledge
+    # =========================================================================
+
+    def _prepare_get_shared_knowledge(self) -> tuple:
+        return "shared_knowledge.get_shared_knowledge", {
+            "tenant_id": self.tenant_id,
+        }
+
+    def _prepare_update_shared_knowledge(self, content: str) -> tuple:
+        return "shared_knowledge.update_shared_knowledge", {
+            "tenant_id": self.tenant_id,
+            "content": content,
+        }
+
+    def _prepare_share_memory_to_knowledge(self, user_id: str, memory_id: str) -> tuple:
+        return "shared_knowledge.share_memory", {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+            "memory_id": memory_id,
+        }
+
+    # =========================================================================
     # Prepare Methods — Tools
     # =========================================================================
 
