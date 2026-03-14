@@ -478,6 +478,9 @@ class DocumentInfo(TypedDict):
     total_chunks: int
     created_at: Optional[str]
     processed_at: Optional[str]
+    visibility: str
+    uploaded_by: str
+    is_owner: bool
 
 
 class DocumentDetailInfo(TypedDict):
@@ -492,6 +495,9 @@ class DocumentDetailInfo(TypedDict):
     created_at: Optional[str]
     processed_at: Optional[str]
     processing_error: Optional[str]
+    visibility: str
+    uploaded_by: str
+    shared_with: Optional[List[dict]]
 
 
 class DocumentUploadResponse(TypedDict):
@@ -501,7 +507,17 @@ class DocumentUploadResponse(TypedDict):
     document_id: str
     file_name: str
     file_size_mb: float
+    visibility: str
     message: str
+
+
+class DocumentAccessUpdateResponse(TypedDict):
+    """Response from update_document_access."""
+
+    status: str
+    document_id: str
+    visibility: str
+    shared_with: List[str]
 
 
 class DocumentDeleteResponse(TypedDict):

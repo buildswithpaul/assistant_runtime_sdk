@@ -149,6 +149,7 @@ from .types import (
     DocumentDetailInfo,
     DocumentUploadResponse,
     DocumentDeleteResponse,
+    DocumentAccessUpdateResponse,
     StorageInfo,
     DocumentsListResponse,
 )
@@ -227,6 +228,7 @@ __all__ = [
     "DocumentDetailInfo",
     "DocumentUploadResponse",
     "DocumentDeleteResponse",
+    "DocumentAccessUpdateResponse",
     "StorageInfo",
     "DocumentsListResponse",
 ]

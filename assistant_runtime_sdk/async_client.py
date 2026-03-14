@@ -452,10 +452,14 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         file_data: Optional[bytes] = None,
         file_name: Optional[str] = None,
         content_type: Optional[str] = None,
+        user_id: Optional[str] = None,
+        visibility: Optional[str] = None,
+        shared_with: Optional[List[str]] = None,
     ) -> Optional[Dict[str, Any]]:
         """Async version of AssistantRuntimeClient.upload_document."""
         endpoint, params, f_field, f_name, f_data, c_type = self._prepare_upload_document(
             file_path, file_data, file_name, content_type,
+            user_id=user_id, visibility=visibility, shared_with=shared_with,
         )
         return await self._request_post_multipart(
             endpoint, params=params, file_field=f_field,
@@ -463,9 +467,11 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
             timeout=120.0, api_base=self.memory_api_base,
         )
 
-    async def list_documents(self, limit: int = 50, offset: int = 0) -> Optional[Dict[str, Any]]:
+    async def list_documents(
+        self, limit: int = 50, offset: int = 0, user_id: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
         """Async version of AssistantRuntimeClient.list_documents."""
-        endpoint, params = self._prepare_list_documents(limit, offset)
+        endpoint, params = self._prepare_list_documents(limit, offset, user_id=user_id)
         return await self._request_get(endpoint, params, api_base=self.memory_api_base)
 
     async def get_document(self, document_id: str) -> Optional[Dict[str, Any]]:
@@ -473,9 +479,26 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         endpoint, params = self._prepare_get_document(document_id)
         return await self._request_get(endpoint, params, api_base=self.memory_api_base)
 
-    async def delete_document(self, document_id: str) -> Optional[Dict[str, Any]]:
+    async def delete_document(
+        self, document_id: str, user_id: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
         """Async version of AssistantRuntimeClient.delete_document."""
-        endpoint, payload = self._prepare_delete_document(document_id)
+        endpoint, payload = self._prepare_delete_document(document_id, user_id=user_id)
+        return await self._request_post_json(endpoint, payload, api_base=self.memory_api_base)
+
+    async def update_document_access(
+        self,
+        document_id: str,
+        user_id: str,
+        visibility: Optional[str] = None,
+        add_users: Optional[List[str]] = None,
+        remove_users: Optional[List[str]] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Async version of AssistantRuntimeClient.update_document_access."""
+        endpoint, payload = self._prepare_update_document_access(
+            document_id, user_id,
+            visibility=visibility, add_users=add_users, remove_users=remove_users,
+        )
         return await self._request_post_json(endpoint, payload, api_base=self.memory_api_base)
 
     async def get_storage_info(self) -> Optional[Dict[str, Any]]:

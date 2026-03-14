@@ -474,6 +474,9 @@ class BaseAssistantRuntimeClient:
         file_data: Optional[bytes] = None,
         file_name: Optional[str] = None,
         content_type: Optional[str] = None,
+        user_id: Optional[str] = None,
+        visibility: Optional[str] = None,
+        shared_with: Optional[List[str]] = None,
     ) -> tuple:
         """Returns (endpoint, params, file_field, file_name, file_data, content_type)."""
         import mimetypes as _mt
@@ -485,6 +488,15 @@ class BaseAssistantRuntimeClient:
             raise ARConfigurationError("Either file_path or file_data is required")
         if file_data and not file_name:
             raise ARConfigurationError("file_name is required when using file_data")
+
+        if visibility and visibility not in ("public", "private", "shared"):
+            raise ARConfigurationError(
+                f"Invalid visibility: {visibility}. Must be public, private, or shared."
+            )
+        if visibility == "shared" and not shared_with:
+            raise ARConfigurationError(
+                "shared_with is required when visibility is 'shared'"
+            )
 
         if file_path:
             with open(file_path, "rb") as f:
@@ -498,21 +510,34 @@ class BaseAssistantRuntimeClient:
             guessed, _ = _mt.guess_type(file_name)
             content_type = guessed or "application/octet-stream"
 
+        params: Dict[str, Any] = {"tenant_id": self.tenant_id}
+        if user_id:
+            params["user_id"] = user_id
+        if visibility:
+            params["visibility"] = visibility
+        if shared_with:
+            params["shared_with"] = json.dumps(shared_with)
+
         return (
             "documents.upload_document",
-            {"tenant_id": self.tenant_id},
+            params,
             "file",
             file_name,
             data,
             content_type,
         )
 
-    def _prepare_list_documents(self, limit: int = 50, offset: int = 0) -> tuple:
-        return "documents.list_documents", {
+    def _prepare_list_documents(
+        self, limit: int = 50, offset: int = 0, user_id: Optional[str] = None
+    ) -> tuple:
+        params: Dict[str, Any] = {
             "tenant_id": self.tenant_id,
             "limit": str(limit),
             "offset": str(offset),
         }
+        if user_id:
+            params["user_id"] = user_id
+        return "documents.list_documents", params
 
     def _prepare_get_document(self, document_id: str) -> tuple:
         return "documents.get_document", {
@@ -520,14 +545,41 @@ class BaseAssistantRuntimeClient:
             "document_id": document_id,
         }
 
-    def _prepare_delete_document(self, document_id: str) -> tuple:
-        return "documents.delete_document", {
+    def _prepare_delete_document(
+        self, document_id: str, user_id: Optional[str] = None
+    ) -> tuple:
+        payload: Dict[str, Any] = {
             "tenant_id": self.tenant_id,
             "document_id": document_id,
         }
+        if user_id:
+            payload["user_id"] = user_id
+        return "documents.delete_document", payload
 
     def _prepare_get_storage_info(self) -> tuple:
         return "documents.get_storage_info", {"tenant_id": self.tenant_id}
+
+    def _prepare_update_document_access(
+        self,
+        document_id: str,
+        user_id: str,
+        visibility: Optional[str] = None,
+        add_users: Optional[List[str]] = None,
+        remove_users: Optional[List[str]] = None,
+    ) -> tuple:
+        """Returns (endpoint, payload) for updating document visibility/sharing."""
+        payload: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "document_id": document_id,
+            "user_id": user_id,
+        }
+        if visibility:
+            payload["visibility"] = visibility
+        if add_users:
+            payload["add_users"] = json.dumps(add_users)
+        if remove_users:
+            payload["remove_users"] = json.dumps(remove_users)
+        return "documents.update_document_access", payload
 
     # =========================================================================
     # Prepare Methods — Memories
