@@ -349,15 +349,18 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
     # Model APIs
     # =========================================================================
 
-    def list_available_models(self) -> Optional[Dict[str, Any]]:
+    def list_available_models(self, timeout: Optional[float] = None) -> Optional[Dict[str, Any]]:
         """
         List available AI models for this tenant's subscription tier.
+
+        Args:
+            timeout: Optional request timeout in seconds (overrides client default)
 
         Returns:
             Dict with models list, auto_mode info, and default model
         """
         endpoint, params = self._prepare_list_available_models()
-        return self._request_get(endpoint, params)
+        return self._request_get(endpoint, params, timeout=timeout)
 
     def get_available_models(self) -> Optional[Dict[str, Any]]:
         """Get available AI models (deprecated). Use list_available_models() instead."""
@@ -374,10 +377,10 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
     # Prompt APIs
     # =========================================================================
 
-    def list_prompts(self, user_id: str, cursor: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    def list_prompts(self, user_id: str, cursor: Optional[str] = None, timeout: Optional[float] = None) -> Optional[Dict[str, Any]]:
         """List available prompt templates from user's configured MCP servers."""
         endpoint, params = self._prepare_list_prompts(user_id, cursor)
-        return self._request_get(endpoint, params)
+        return self._request_get(endpoint, params, timeout=timeout)
 
     def get_prompt(
         self,
@@ -398,6 +401,7 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         user_id: str,
         context: Optional[Dict[str, Any]] = None,
         limit: int = 8,
+        timeout: Optional[float] = None,
     ) -> Optional[Dict[str, Any]]:
         """
         Get personalized prompt suggestions based on user conversation history.
@@ -409,6 +413,7 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
             user_id: User identifier (required)
             context: Optional page context {"type": "Form", "doctype": "Sales Invoice"}
             limit: Max suggestions to return (default 8, max 20)
+            timeout: Optional request timeout in seconds (overrides client default)
 
         Returns:
             Dict with suggestions, history flag, and stats:
@@ -421,7 +426,7 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
             }
         """
         endpoint, params = self._prepare_get_suggestions(user_id, context, limit)
-        return self._request_get(endpoint, params)
+        return self._request_get(endpoint, params, timeout=timeout)
 
     # =========================================================================
     # Onboarding APIs

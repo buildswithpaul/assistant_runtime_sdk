@@ -375,10 +375,10 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
     # Model APIs
     # =========================================================================
 
-    async def list_available_models(self) -> Optional[Dict[str, Any]]:
+    async def list_available_models(self, timeout: Optional[float] = None) -> Optional[Dict[str, Any]]:
         """Async version of AssistantRuntimeClient.list_available_models."""
         endpoint, params = self._prepare_list_available_models()
-        return await self._request_get(endpoint, params)
+        return await self._request_get(endpoint, params, timeout=timeout)
 
     async def get_available_models(self) -> Optional[Dict[str, Any]]:
         """Async version of AssistantRuntimeClient.get_available_models."""
@@ -395,10 +395,10 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
     # Prompt APIs
     # =========================================================================
 
-    async def list_prompts(self, user_id: str, cursor: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    async def list_prompts(self, user_id: str, cursor: Optional[str] = None, timeout: Optional[float] = None) -> Optional[Dict[str, Any]]:
         """Async version of AssistantRuntimeClient.list_prompts."""
         endpoint, params = self._prepare_list_prompts(user_id, cursor)
-        return await self._request_get(endpoint, params)
+        return await self._request_get(endpoint, params, timeout=timeout)
 
     async def get_prompt(
         self,
@@ -419,10 +419,11 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         user_id: str,
         context: Optional[Dict[str, Any]] = None,
         limit: int = 8,
+        timeout: Optional[float] = None,
     ) -> Optional[Dict[str, Any]]:
         """Async version of AssistantRuntimeClient.get_suggestions."""
         endpoint, params = self._prepare_get_suggestions(user_id, context, limit)
-        return await self._request_get(endpoint, params)
+        return await self._request_get(endpoint, params, timeout=timeout)
 
     # =========================================================================
     # Onboarding APIs
