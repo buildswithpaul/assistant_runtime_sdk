@@ -81,6 +81,53 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
             self._log_error(f"GET {endpoint} error: {e}")
             raise ARAPIError(str(e)) from e
 
+    def _request_get_raw(
+        self,
+        endpoint: str,
+        params: Dict[str, Any],
+        timeout: Optional[float] = None,
+        api_base: Optional[str] = None,
+    ) -> tuple:
+        """Make authenticated GET request expecting raw binary response.
+
+        Returns:
+            (content_bytes, content_type, filename) tuple
+        """
+        url = f"{api_base}.{endpoint}" if api_base else self._build_endpoint_url(endpoint)
+        headers = self._get_headers(params, for_query_string=True)
+        timeout = timeout or self.timeout
+
+        try:
+            response = requests.get(url, params=params, headers=headers, timeout=timeout)
+            response.raise_for_status()
+
+            content_type = response.headers.get("Content-Type", "application/octet-stream")
+            # Extract filename from Content-Disposition header if available
+            filename = ""
+            cd = response.headers.get("Content-Disposition", "")
+            if "filename=" in cd:
+                parts = cd.split("filename=")
+                if len(parts) > 1:
+                    filename = parts[1].strip().strip('"')
+
+            return response.content, content_type, filename
+        except requests.exceptions.Timeout as e:
+            self._log_error(f"GET raw {endpoint} timeout: {e}")
+            raise ARTimeoutError(f"Request to {endpoint} timed out") from e
+        except requests.exceptions.ConnectionError as e:
+            self._log_error(f"GET raw {endpoint} connection error: {e}")
+            raise ARConnectionError(f"Failed to connect to {endpoint}") from e
+        except requests.exceptions.HTTPError as e:
+            self._log_error(f"GET raw {endpoint} HTTP error: {e}")
+            status_code = e.response.status_code if e.response is not None else None
+            msg = self._extract_error_message(e.response) if e.response is not None else None
+            if status_code == 401:
+                raise ARAuthenticationError(msg or "Authentication failed") from e
+            raise ARAPIError(msg or str(e), status_code=status_code) from e
+        except requests.exceptions.RequestException as e:
+            self._log_error(f"GET raw {endpoint} error: {e}")
+            raise ARAPIError(str(e)) from e
+
     def _request_post_json(
         self,
         endpoint: str,
@@ -545,6 +592,25 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         """
         endpoint, params = self._prepare_get_document(document_id)
         return self._request_get(endpoint, params, api_base=self.memory_api_base)
+
+    def get_document_content(
+        self, document_id: str, user_id: Optional[str] = None
+    ) -> tuple:
+        """
+        Download raw file content for a RAG document.
+
+        Enforces visibility rules on the AR backend. Returns the file bytes
+        along with content type and filename for serving to the browser.
+
+        Args:
+            document_id: The document identifier.
+            user_id: Requesting user for visibility checks.
+
+        Returns:
+            (file_bytes, content_type, filename) tuple
+        """
+        endpoint, params = self._prepare_get_document_content(document_id, user_id=user_id)
+        return self._request_get_raw(endpoint, params, api_base=self.memory_api_base)
 
     def delete_document(
         self, document_id: str, user_id: Optional[str] = None

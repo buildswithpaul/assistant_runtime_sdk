@@ -545,6 +545,19 @@ class BaseAssistantRuntimeClient:
             "document_id": document_id,
         }
 
+    def _prepare_get_document_content(
+        self, document_id: str, user_id: Optional[str] = None, download: bool = False
+    ) -> tuple:
+        params: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "document_id": document_id,
+        }
+        if user_id:
+            params["user_id"] = user_id
+        if download:
+            params["download"] = "1"
+        return "documents.get_document_content", params
+
     def _prepare_delete_document(
         self, document_id: str, user_id: Optional[str] = None
     ) -> tuple:

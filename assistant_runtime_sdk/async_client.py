@@ -157,6 +157,49 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
             self._log_error(f"GET {endpoint} error: {e}")
             raise ARAPIError(str(e)) from e
 
+    async def _request_get_raw(
+        self,
+        endpoint: str,
+        params: Dict[str, Any],
+        timeout: Optional[float] = None,
+        api_base: Optional[str] = None,
+    ) -> tuple:
+        """Make authenticated async GET request expecting raw binary response.
+
+        Returns:
+            (content_bytes, content_type, filename) tuple
+        """
+        session = self._ensure_session()
+        url = f"{api_base}.{endpoint}" if api_base else self._build_endpoint_url(endpoint)
+        headers = self._get_headers(params, for_query_string=True)
+
+        try:
+            timeout_obj = aiohttp.ClientTimeout(total=timeout or self.timeout)
+            async with session.get(url, params=params, headers=headers, timeout=timeout_obj) as response:
+                await self._handle_error_response(response, endpoint, "GET raw")
+                content = await response.read()
+
+                content_type = response.headers.get("Content-Type", "application/octet-stream")
+                filename = ""
+                cd = response.headers.get("Content-Disposition", "")
+                if "filename=" in cd:
+                    parts = cd.split("filename=")
+                    if len(parts) > 1:
+                        filename = parts[1].strip().strip('"')
+
+                return content, content_type, filename
+        except (ARAuthenticationError, ARAPIError):
+            raise
+        except aiohttp.ServerTimeoutError as e:
+            self._log_error(f"GET raw {endpoint} timeout: {e}")
+            raise ARTimeoutError(f"Request to {endpoint} timed out") from e
+        except aiohttp.ClientConnectorError as e:
+            self._log_error(f"GET raw {endpoint} connection error: {e}")
+            raise ARConnectionError(f"Failed to connect to {endpoint}") from e
+        except aiohttp.ClientError as e:
+            self._log_error(f"GET raw {endpoint} error: {e}")
+            raise ARAPIError(str(e)) from e
+
     async def _request_post_json(
         self,
         endpoint: str,
@@ -479,6 +522,13 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         """Async version of AssistantRuntimeClient.get_document."""
         endpoint, params = self._prepare_get_document(document_id)
         return await self._request_get(endpoint, params, api_base=self.memory_api_base)
+
+    async def get_document_content(
+        self, document_id: str, user_id: Optional[str] = None
+    ) -> tuple:
+        """Async version of AssistantRuntimeClient.get_document_content."""
+        endpoint, params = self._prepare_get_document_content(document_id, user_id=user_id)
+        return await self._request_get_raw(endpoint, params, api_base=self.memory_api_base)
 
     async def delete_document(
         self, document_id: str, user_id: Optional[str] = None
