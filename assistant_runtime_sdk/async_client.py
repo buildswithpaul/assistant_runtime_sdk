@@ -718,6 +718,11 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         endpoint, payload = self._prepare_verify_razorpay_credit_payment(razorpay_payment_id, razorpay_order_id, razorpay_signature)
         return await self._request_post_json(endpoint, payload, api_base=self.billing_api_base)
 
+    async def get_token_analytics(self, days: int = 30) -> Optional[Dict[str, Any]]:
+        """Async version of AssistantRuntimeClient.get_token_analytics."""
+        endpoint, payload = self._prepare_get_token_analytics(days)
+        return await self._request_post_json(endpoint, payload)
+
     async def get_usage_dashboard(self) -> Optional[Dict[str, Any]]:
         """Async version of AssistantRuntimeClient.get_usage_dashboard."""
         endpoint, payload = self._prepare_get_usage_dashboard()

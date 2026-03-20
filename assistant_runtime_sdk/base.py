@@ -728,6 +728,9 @@ class BaseAssistantRuntimeClient:
             "razorpay_signature": razorpay_signature,
         }
 
+    def _prepare_get_token_analytics(self, days: int = 30) -> tuple:
+        return "usage.get_token_analytics", {"tenant_id": self.tenant_id, "days": days}
+
     def _prepare_get_usage_dashboard(self) -> tuple:
         self._require_billing()
         return "get_usage_dashboard", {"tenant_id": self.tenant_id}

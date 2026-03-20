@@ -982,6 +982,20 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         endpoint, payload = self._prepare_verify_razorpay_credit_payment(razorpay_payment_id, razorpay_order_id, razorpay_signature)
         return self._request_post_json(endpoint, payload, api_base=self.billing_api_base)
 
+    def get_token_analytics(self, days: int = 30) -> Optional[Dict[str, Any]]:
+        """Get per-user/model/source token usage analytics for dashboard.
+
+        Queries AR Token Usage (AR core) for aggregated breakdowns.
+
+        Args:
+            days: Number of days to query (7, 30, or 90)
+
+        Returns:
+            Analytics data with summary, daily, by_user, by_model, by_source
+        """
+        endpoint, payload = self._prepare_get_token_analytics(days)
+        return self._request_post_json(endpoint, payload)
+
     def get_usage_dashboard(self) -> Optional[Dict[str, Any]]:
         """Get comprehensive usage and billing data for dashboard."""
         endpoint, payload = self._prepare_get_usage_dashboard()
