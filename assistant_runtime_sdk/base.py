@@ -1463,3 +1463,32 @@ class BaseAssistantRuntimeClient:
             "tenant_id": self.tenant_id,
             "name": name,
         }
+
+    # --- Heartbeat & Notifications ---
+
+    def _prepare_heartbeat(
+        self,
+        faco_version: Optional[str] = None,
+        frappe_version: Optional[str] = None,
+        erpnext_version: Optional[str] = None,
+        python_version: Optional[str] = None,
+    ) -> tuple:
+        payload: Dict[str, Any] = {"tenant_id": self.tenant_id}
+        if faco_version:
+            payload["faco_version"] = faco_version
+        if frappe_version:
+            payload["frappe_version"] = frappe_version
+        if erpnext_version is not None:
+            payload["erpnext_version"] = erpnext_version
+        if python_version:
+            payload["python_version"] = python_version
+        return "heartbeat.heartbeat", payload
+
+    def _prepare_dismiss_notification(
+        self, notification_id: str, user_id: str,
+    ) -> tuple:
+        return "heartbeat.dismiss_notification", {
+            "tenant_id": self.tenant_id,
+            "notification_id": notification_id,
+            "user_id": user_id,
+        }

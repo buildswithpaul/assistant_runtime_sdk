@@ -1342,3 +1342,29 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         """Async download a template as portable ar_workflow_template_v1 JSON."""
         endpoint, params = self._prepare_download_template(name)
         return await self._request_get(endpoint, params, api_base=self.workflows_api_base, timeout=timeout)
+
+    # --- Heartbeat & Notifications ---
+
+    async def heartbeat(
+        self,
+        faco_version: Optional[str] = None,
+        frappe_version: Optional[str] = None,
+        erpnext_version: Optional[str] = None,
+        python_version: Optional[str] = None,
+        timeout: Optional[float] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Async send version/health info and receive pending notifications."""
+        endpoint, payload = self._prepare_heartbeat(
+            faco_version, frappe_version, erpnext_version, python_version
+        )
+        return await self._request_post_json(endpoint, payload, timeout=timeout)
+
+    async def dismiss_notification(
+        self,
+        notification_id: str,
+        user_id: str,
+        timeout: Optional[float] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Async record that a user has dismissed a notification."""
+        endpoint, payload = self._prepare_dismiss_notification(notification_id, user_id)
+        return await self._request_post_json(endpoint, payload, timeout=timeout)
