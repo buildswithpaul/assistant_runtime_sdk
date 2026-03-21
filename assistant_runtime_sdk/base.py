@@ -1324,7 +1324,9 @@ class BaseAssistantRuntimeClient:
 
     def _prepare_list_templates(
         self, category: Optional[str] = None, search: Optional[str] = None,
-        user_id: Optional[str] = None, page: int = 0, page_size: int = 20,
+        user_id: Optional[str] = None, sort_by: Optional[str] = None,
+        featured_only: bool = False, min_rating: Optional[float] = None,
+        page: int = 0, page_size: int = 20,
     ) -> tuple:
         params: Dict[str, Any] = {
             "tenant_id": self.tenant_id,
@@ -1337,6 +1339,12 @@ class BaseAssistantRuntimeClient:
             params["search"] = search
         if user_id:
             params["user_id"] = user_id
+        if sort_by:
+            params["sort_by"] = sort_by
+        if featured_only:
+            params["featured_only"] = "1"
+        if min_rating is not None:
+            params["min_rating"] = min_rating
         return "workflows.list_templates", params
 
     def _prepare_get_template(
@@ -1422,6 +1430,36 @@ class BaseAssistantRuntimeClient:
 
     def _prepare_delete_template(self, name: str) -> tuple:
         return "workflows.delete_template", {
+            "tenant_id": self.tenant_id,
+            "name": name,
+        }
+
+    def _prepare_upload_template(
+        self, user_id: str, is_public: bool = False, is_published: bool = True,
+    ) -> tuple:
+        return "workflows.upload_template", {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+            "is_public": "1" if is_public else "0",
+            "is_published": "1" if is_published else "0",
+        }
+
+    def _prepare_rate_template(
+        self, name: str, user_id: str, rating: int,
+        review: Optional[str] = None,
+    ) -> tuple:
+        payload: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "name": name,
+            "user_id": user_id,
+            "rating": rating,
+        }
+        if review:
+            payload["review"] = review
+        return "workflows.rate_template", payload
+
+    def _prepare_download_template(self, name: str) -> tuple:
+        return "workflows.download_template", {
             "tenant_id": self.tenant_id,
             "name": name,
         }

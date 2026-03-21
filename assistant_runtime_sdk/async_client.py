@@ -8,6 +8,7 @@ Asynchronous Assistant Runtime client using aiohttp.
 Requires the 'async' extra: pip install assistant_runtime_sdk[async]
 """
 
+import os
 from typing import AsyncGenerator, List, Optional, Dict, Any
 
 try:
@@ -1220,12 +1221,18 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         category: Optional[str] = None,
         search: Optional[str] = None,
         user_id: Optional[str] = None,
+        sort_by: Optional[str] = None,
+        featured_only: bool = False,
+        min_rating: Optional[float] = None,
         page: int = 0,
         page_size: int = 20,
+        timeout: Optional[float] = None,
     ) -> Optional[Dict[str, Any]]:
-        """Async version of AssistantRuntimeClient.list_templates."""
-        endpoint, params = self._prepare_list_templates(category, search, user_id, page, page_size)
-        return await self._request_get(endpoint, params, api_base=self.workflows_api_base)
+        """Async version of AssistantRuntimeClient.list_templates with marketplace sorting."""
+        endpoint, params = self._prepare_list_templates(
+            category, search, user_id, sort_by, featured_only, min_rating, page, page_size
+        )
+        return await self._request_get(endpoint, params, api_base=self.workflows_api_base, timeout=timeout)
 
     async def get_template(
         self,
@@ -1282,3 +1289,56 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         """Async version of AssistantRuntimeClient.delete_template."""
         endpoint, payload = self._prepare_delete_template(name)
         return await self._request_post_json(endpoint, payload, api_base=self.workflows_api_base)
+
+    async def upload_template(
+        self,
+        file_path: str,
+        user_id: str,
+        is_public: bool = False,
+        is_published: bool = True,
+        timeout: Optional[float] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Async upload a .json template file to create an AR Workflow Template."""
+        endpoint, payload = self._prepare_upload_template(user_id, is_public, is_published)
+        url = f"{self.workflows_api_base}.{endpoint}"
+        headers = self._get_headers(payload, for_query_string=False)
+        timeout_val = timeout or self.timeout
+
+        data = aiohttp.FormData()
+        for k, v in payload.items():
+            data.add_field(k, str(v))
+        with open(file_path, "rb") as f:
+            data.add_field(
+                "file", f.read(),
+                filename=os.path.basename(file_path),
+                content_type="application/json",
+            )
+
+        async with self.session.post(
+            url, data=data, headers=headers,
+            timeout=aiohttp.ClientTimeout(total=timeout_val),
+        ) as resp:
+            resp.raise_for_status()
+            result = await resp.json()
+            return result.get("message", result)
+
+    async def rate_template(
+        self,
+        name: str,
+        user_id: str,
+        rating: int,
+        review: Optional[str] = None,
+        timeout: Optional[float] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Async rate a template (1-5 stars)."""
+        endpoint, payload = self._prepare_rate_template(name, user_id, rating, review)
+        return await self._request_post_json(endpoint, payload, api_base=self.workflows_api_base, timeout=timeout)
+
+    async def download_template(
+        self,
+        name: str,
+        timeout: Optional[float] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Async download a template as portable ar_workflow_template_v1 JSON."""
+        endpoint, params = self._prepare_download_template(name)
+        return await self._request_get(endpoint, params, api_base=self.workflows_api_base, timeout=timeout)

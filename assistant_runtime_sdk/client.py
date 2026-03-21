@@ -9,6 +9,7 @@ For async support, use AsyncAssistantRuntimeClient from assistant_runtime_sdk.as
 """
 
 import json
+import os
 from typing import Generator, List, Optional, Dict, Any
 
 import requests
@@ -1685,12 +1686,18 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         category: Optional[str] = None,
         search: Optional[str] = None,
         user_id: Optional[str] = None,
+        sort_by: Optional[str] = None,
+        featured_only: bool = False,
+        min_rating: Optional[float] = None,
         page: int = 0,
         page_size: int = 20,
+        timeout: Optional[float] = None,
     ) -> Optional[Dict[str, Any]]:
-        """List published workflow templates."""
-        endpoint, params = self._prepare_list_templates(category, search, user_id, page, page_size)
-        return self._request_get(endpoint, params, api_base=self.workflows_api_base)
+        """List published workflow templates with marketplace sorting/filtering."""
+        endpoint, params = self._prepare_list_templates(
+            category, search, user_id, sort_by, featured_only, min_rating, page, page_size
+        )
+        return self._request_get(endpoint, params, api_base=self.workflows_api_base, timeout=timeout)
 
     def get_template(
         self,
@@ -1747,6 +1754,60 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         """Delete a tenant's own template."""
         endpoint, payload = self._prepare_delete_template(name)
         return self._request_post_json(endpoint, payload, api_base=self.workflows_api_base)
+
+    def upload_template(
+        self,
+        file_path: str,
+        user_id: str,
+        is_public: bool = False,
+        is_published: bool = True,
+        timeout: Optional[float] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Upload a .json template file to create an AR Workflow Template."""
+        endpoint, payload = self._prepare_upload_template(user_id, is_public, is_published)
+        url = f"{self.workflows_api_base}.{endpoint}"
+        headers = self._get_headers(payload, for_query_string=False)
+        # Remove Content-Type — requests sets it automatically for multipart
+        timeout = timeout or self.timeout
+
+        try:
+            with open(file_path, "rb") as f:
+                response = requests.post(
+                    url,
+                    data=payload,
+                    files={"file": (os.path.basename(file_path), f, "application/json")},
+                    headers=headers,
+                    timeout=timeout,
+                )
+            response.raise_for_status()
+            return response.json().get("message", response.json())
+        except requests.exceptions.HTTPError as e:
+            status_code = e.response.status_code if e.response is not None else None
+            msg = self._extract_error_message(e.response) if e.response is not None else None
+            raise ARAPIError(msg or str(e), status_code=status_code) from e
+        except requests.exceptions.RequestException as e:
+            raise ARAPIError(str(e)) from e
+
+    def rate_template(
+        self,
+        name: str,
+        user_id: str,
+        rating: int,
+        review: Optional[str] = None,
+        timeout: Optional[float] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Rate a template (1-5 stars)."""
+        endpoint, payload = self._prepare_rate_template(name, user_id, rating, review)
+        return self._request_post_json(endpoint, payload, api_base=self.workflows_api_base, timeout=timeout)
+
+    def download_template(
+        self,
+        name: str,
+        timeout: Optional[float] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Download a template as portable ar_workflow_template_v1 JSON."""
+        endpoint, params = self._prepare_download_template(name)
+        return self._request_get(endpoint, params, api_base=self.workflows_api_base, timeout=timeout)
 
 
 # =============================================================================
