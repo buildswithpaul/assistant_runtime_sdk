@@ -384,6 +384,9 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
                     if not parsed:
                         continue
 
+                    if parsed["type"] == "heartbeat":
+                        yield {"event": "heartbeat", "data": {}}
+                        continue
                     if parsed["type"] == "event_name":
                         current_event = parsed["value"]
                     elif parsed["type"] == "data":

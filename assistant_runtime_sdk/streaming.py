@@ -65,13 +65,17 @@ def parse_sse_line(line: str) -> Optional[Dict[str, Any]]:
         >>> parse_sse_line("data: {\"content\": \"Hello\"}")
         {'type': 'data', 'value': {'content': 'Hello'}}
         >>> parse_sse_line(": heartbeat")
-        None
+        {'type': 'heartbeat', 'value': 'heartbeat'}
     """
     line = line.strip()
 
-    # Skip empty lines and comments (heartbeats)
-    if not line or line.startswith(":"):
+    # Skip empty lines
+    if not line:
         return None
+
+    # Surface heartbeat comments so callers can use them as keepalive signals
+    if line.startswith(":"):
+        return {"type": "heartbeat", "value": line[1:].strip()}
 
     if line.startswith("event:"):
         return {"type": "event_name", "value": line[6:].strip()}
@@ -124,7 +128,9 @@ def parse_sse_stream(lines: Iterator[str]) -> Iterator[Dict[str, Any]]:
         if not parsed:
             continue
 
-        if parsed["type"] == "event_name":
+        if parsed["type"] == "heartbeat":
+            yield {"event": "heartbeat", "data": {}}
+        elif parsed["type"] == "event_name":
             current_event = parsed["value"]
         elif parsed["type"] == "data":
             yield {"event": current_event or "message", "data": parsed["value"]}
