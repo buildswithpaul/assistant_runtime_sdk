@@ -591,6 +591,16 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         endpoint, params = self._prepare_get_memory_stats(user_id)
         return await self._request_get(endpoint, params, api_base=self.memory_api_base)
 
+    async def get_memory_summary(
+        self,
+        user_id: str,
+        force: bool = False,
+        timeout: Optional[float] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Async get AI-generated narrative summary of user's memories."""
+        endpoint, params = self._prepare_get_memory_summary(user_id, force)
+        return await self._request_get(endpoint, params, timeout=timeout, api_base=self.memory_api_base)
+
     # =========================================================================
     # Shared Knowledge APIs
     # =========================================================================
@@ -759,10 +769,23 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         gateway: Optional[str] = None,
         billing_name: Optional[str] = None,
         billing_email: Optional[str] = None,
+        promo_code: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """Async version of AssistantRuntimeClient.upgrade_plan."""
-        endpoint, payload = self._prepare_upgrade_plan(new_plan, billing_cycle, gateway, billing_name, billing_email)
+        endpoint, payload = self._prepare_upgrade_plan(
+            new_plan, billing_cycle, gateway, billing_name, billing_email, promo_code,
+        )
         return await self._request_post_json(endpoint, payload, api_base=self.billing_api_base)
+
+    async def validate_promo_code(
+        self,
+        promo_code: str,
+        plan: Optional[str] = None,
+        timeout: Optional[float] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Async validate a promo code for this tenant."""
+        endpoint, payload = self._prepare_validate_promo_code(promo_code, plan)
+        return await self._request_post_json(endpoint, payload, api_base=self.billing_api_base, timeout=timeout)
 
     async def downgrade_to_free(self) -> Optional[Dict[str, Any]]:
         """Async version of AssistantRuntimeClient.downgrade_to_free."""
@@ -1351,6 +1374,7 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
     async def heartbeat(
         self,
         faco_version: Optional[str] = None,
+        fac_version: Optional[str] = None,
         frappe_version: Optional[str] = None,
         erpnext_version: Optional[str] = None,
         python_version: Optional[str] = None,
@@ -1358,7 +1382,7 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
     ) -> Optional[Dict[str, Any]]:
         """Async send version/health info and receive pending notifications."""
         endpoint, payload = self._prepare_heartbeat(
-            faco_version, frappe_version, erpnext_version, python_version
+            faco_version, fac_version, frappe_version, erpnext_version, python_version
         )
         return await self._request_post_json(endpoint, payload, timeout=timeout)
 

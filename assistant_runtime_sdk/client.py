@@ -744,6 +744,26 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         endpoint, params = self._prepare_get_memory_stats(user_id)
         return self._request_get(endpoint, params, api_base=self.memory_api_base)
 
+    def get_memory_summary(
+        self,
+        user_id: str,
+        force: bool = False,
+        timeout: Optional[float] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Get AI-generated narrative summary of user's memories.
+
+        Args:
+            user_id: User whose memory summary to generate.
+            force: Bypass cache and regenerate.
+            timeout: Optional request timeout in seconds.
+
+        Returns:
+            {"summary": str | None, "cached": bool, "reason": str | None}
+        """
+        endpoint, params = self._prepare_get_memory_summary(user_id, force)
+        return self._request_get(endpoint, params, timeout=timeout, api_base=self.memory_api_base)
+
     # =========================================================================
     # Shared Knowledge APIs
     # These methods route through memory_api_base -> assistant_runtime_memory.api
@@ -1032,6 +1052,7 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         gateway: Optional[str] = None,
         billing_name: Optional[str] = None,
         billing_email: Optional[str] = None,
+        promo_code: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """
         Change subscription plan (upgrade or downgrade).
@@ -1045,14 +1066,37 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
             gateway: "stripe" or "razorpay" (optional)
             billing_name: Customer/company name for billing
             billing_email: Email for billing notifications
+            promo_code: Promotional/referral code (optional)
 
         Returns:
             For upgrades: {"success": True, "message": str, "subscription_id": str}
             For downgrades: {"success": True, "message": str, "effective_date": str}
             If checkout needed: {"checkout_url": str, "session_id": str, "gateway": str}
         """
-        endpoint, payload = self._prepare_upgrade_plan(new_plan, billing_cycle, gateway, billing_name, billing_email)
+        endpoint, payload = self._prepare_upgrade_plan(
+            new_plan, billing_cycle, gateway, billing_name, billing_email, promo_code,
+        )
         return self._request_post_json(endpoint, payload, api_base=self.billing_api_base)
+
+    def validate_promo_code(
+        self,
+        promo_code: str,
+        plan: Optional[str] = None,
+        timeout: Optional[float] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Validate a promotional or referral code for this tenant.
+
+        Args:
+            promo_code: The promo/referral code to validate
+            plan: Optional plan name to check code applicability against
+
+        Returns:
+            {"valid": True, "discount_type": str, "discount_value": float, ...}
+            or {"valid": False, "error": str}
+        """
+        endpoint, payload = self._prepare_validate_promo_code(promo_code, plan)
+        return self._request_post_json(endpoint, payload, api_base=self.billing_api_base, timeout=timeout)
 
     def downgrade_to_free(self) -> Optional[Dict[str, Any]]:
         """
@@ -1817,6 +1861,7 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
     def heartbeat(
         self,
         faco_version: Optional[str] = None,
+        fac_version: Optional[str] = None,
         frappe_version: Optional[str] = None,
         erpnext_version: Optional[str] = None,
         python_version: Optional[str] = None,
@@ -1824,7 +1869,7 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
     ) -> Optional[Dict[str, Any]]:
         """Send version/health info and receive pending notifications."""
         endpoint, payload = self._prepare_heartbeat(
-            faco_version, frappe_version, erpnext_version, python_version
+            faco_version, fac_version, frappe_version, erpnext_version, python_version
         )
         return self._request_post_json(endpoint, payload, timeout=timeout)
 
@@ -1873,6 +1918,7 @@ def register_tenant(
     terms_accepted: bool = True,
     terms_version: Optional[str] = None,
     accepted_by: Optional[str] = None,
+    referral_code: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Register this installation as a tenant with Assistant Runtime.
@@ -1899,6 +1945,9 @@ def register_tenant(
 
     if fac_mcp_endpoint:
         payload["fac_endpoint"] = fac_mcp_endpoint
+
+    if referral_code:
+        payload["referral_code"] = referral_code
 
     try:
         response = requests.post(

@@ -633,6 +633,12 @@ class BaseAssistantRuntimeClient:
             params["user_id"] = user_id
         return "memories.get_memory_stats", params
 
+    def _prepare_get_memory_summary(self, user_id: str, force: bool = False) -> tuple:
+        params: Dict[str, Any] = {"tenant_id": self.tenant_id, "user_id": user_id}
+        if force:
+            params["force"] = "1"
+        return "memories.get_memory_summary", params
+
     # =========================================================================
     # Prepare Methods — Shared Knowledge
     # =========================================================================
@@ -755,6 +761,7 @@ class BaseAssistantRuntimeClient:
         self, new_plan: str, billing_cycle: str = "monthly",
         gateway: Optional[str] = None, billing_name: Optional[str] = None,
         billing_email: Optional[str] = None,
+        promo_code: Optional[str] = None,
     ) -> tuple:
         self._require_billing()
         payload: Dict[str, Any] = {
@@ -768,7 +775,21 @@ class BaseAssistantRuntimeClient:
             payload["billing_name"] = billing_name
         if billing_email:
             payload["billing_email"] = billing_email
+        if promo_code:
+            payload["promo_code"] = promo_code
         return "upgrade_plan", payload
+
+    def _prepare_validate_promo_code(
+        self, promo_code: str, plan: Optional[str] = None,
+    ) -> tuple:
+        self._require_billing()
+        payload: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "promo_code": promo_code,
+        }
+        if plan:
+            payload["plan"] = plan
+        return "promotions.validate_promo_code", payload
 
     def _prepare_downgrade_to_free(self) -> tuple:
         self._require_billing()
@@ -1469,6 +1490,7 @@ class BaseAssistantRuntimeClient:
     def _prepare_heartbeat(
         self,
         faco_version: Optional[str] = None,
+        fac_version: Optional[str] = None,
         frappe_version: Optional[str] = None,
         erpnext_version: Optional[str] = None,
         python_version: Optional[str] = None,
@@ -1476,6 +1498,8 @@ class BaseAssistantRuntimeClient:
         payload: Dict[str, Any] = {"tenant_id": self.tenant_id}
         if faco_version:
             payload["faco_version"] = faco_version
+        if fac_version:
+            payload["fac_version"] = fac_version
         if frappe_version:
             payload["frappe_version"] = frappe_version
         if erpnext_version is not None:
