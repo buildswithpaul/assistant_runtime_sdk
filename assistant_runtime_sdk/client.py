@@ -292,6 +292,7 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         model_id: Optional[str] = None,
         attachments: Optional[List[Dict[str, Any]]] = None,
         system_prompt_addendum: Optional[str] = None,
+        client_type: Optional[str] = None,
     ) -> Generator[Dict[str, Any], None, None]:
         """
         Stream chat response from Assistant Runtime.
@@ -338,7 +339,7 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
             ... ):
             ...     print(event)
         """
-        payload = self._prepare_stream_payload(session_id, message, user_id, context, model_id, attachments, system_prompt_addendum)
+        payload = self._prepare_stream_payload(session_id, message, user_id, context, model_id, attachments, system_prompt_addendum, client_type=client_type)
         url = self._build_endpoint_url("streaming.stream_chat")
         headers = self._get_stream_headers(payload, for_json_body=True)
 
@@ -1450,6 +1451,25 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         """Revoke a user (permanently disable, also disables their MCP servers)."""
         endpoint, params = self._prepare_revoke_user(user_id)
         return self._request_post_form(endpoint, params)
+
+    def set_user_credit_limit(self, user_id: str, monthly_credit_limit: float = 0) -> Dict[str, Any]:
+        """Set a per-user monthly credit limit. 0 = no limit (shared pool)."""
+        endpoint = "users.set_user_credit_limit"
+        params = {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+            "monthly_credit_limit": str(monthly_credit_limit),
+        }
+        return self._request_post_form(endpoint, params)
+
+    def get_my_credit_status(self, user_id: str) -> Dict[str, Any]:
+        """Get credit usage status for a specific user."""
+        endpoint = "users.get_my_credit_status"
+        params = {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+        }
+        return self._request_get(endpoint, params)
 
     # =========================================================================
     # Workflow APIs

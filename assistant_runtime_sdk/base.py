@@ -260,6 +260,7 @@ class BaseAssistantRuntimeClient:
         model_id: Optional[str] = None,
         attachments: Optional[List[Dict[str, Any]]] = None,
         system_prompt_addendum: Optional[str] = None,
+        client_type: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Prepare JSON payload for stream_chat POST request.
@@ -279,6 +280,7 @@ class BaseAssistantRuntimeClient:
                     "file_url": "/files/..."  # Optional, for storage reference
                 }
             system_prompt_addendum: Optional per-request addition to the system prompt
+            client_type: Optional client type for tool filtering (widget/spa/mobile/api)
 
         Returns:
             Payload dict ready for JSON body
@@ -308,6 +310,9 @@ class BaseAssistantRuntimeClient:
 
         if system_prompt_addendum:
             payload["system_prompt_addendum"] = system_prompt_addendum
+
+        if client_type:
+            payload["client_type"] = client_type
 
         return payload
 
@@ -975,6 +980,7 @@ class BaseAssistantRuntimeClient:
         timezone: Optional[str] = None,
         user_role: Optional[str] = None,
         email: Optional[str] = None,
+        registered_by: Optional[str] = None,
     ) -> tuple:
         params: Dict[str, Any] = {"tenant_id": self.tenant_id, "user_id": user_id}
         if display_name:
@@ -989,6 +995,8 @@ class BaseAssistantRuntimeClient:
             params["user_role"] = user_role
         if email:
             params["email"] = email
+        if registered_by:
+            params["registered_by"] = registered_by
         return "users.register_user", params
 
     def _prepare_get_user(self, user_id: str) -> tuple:

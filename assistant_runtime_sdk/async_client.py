@@ -355,10 +355,11 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         model_id: Optional[str] = None,
         attachments: Optional[List[Dict[str, Any]]] = None,
         system_prompt_addendum: Optional[str] = None,
+        client_type: Optional[str] = None,
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """Async version of AssistantRuntimeClient.stream_chat."""
         session = self._ensure_session()
-        payload = self._prepare_stream_payload(session_id, message, user_id, context, model_id, attachments, system_prompt_addendum)
+        payload = self._prepare_stream_payload(session_id, message, user_id, context, model_id, attachments, system_prompt_addendum, client_type=client_type)
         url = self._build_endpoint_url("streaming.stream_chat")
         headers = self._get_stream_headers(payload, for_json_body=True)
 
@@ -1081,6 +1082,25 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         """Async version of AssistantRuntimeClient.revoke_user."""
         endpoint, params = self._prepare_revoke_user(user_id)
         return await self._request_post_form(endpoint, params)
+
+    async def set_user_credit_limit(self, user_id: str, monthly_credit_limit: float = 0) -> Dict[str, Any]:
+        """Async version: Set per-user monthly credit limit."""
+        endpoint = "users.set_user_credit_limit"
+        params = {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+            "monthly_credit_limit": str(monthly_credit_limit),
+        }
+        return await self._request_post_form(endpoint, params)
+
+    async def get_my_credit_status(self, user_id: str) -> Dict[str, Any]:
+        """Async version: Get credit usage status for a specific user."""
+        endpoint = "users.get_my_credit_status"
+        params = {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+        }
+        return await self._request_get(endpoint, params)
 
     # =========================================================================
     # Workflow APIs
