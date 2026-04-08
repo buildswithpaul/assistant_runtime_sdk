@@ -739,8 +739,25 @@ class BaseAssistantRuntimeClient:
             "razorpay_signature": razorpay_signature,
         }
 
-    def _prepare_get_token_analytics(self, days: int = 30) -> tuple:
-        return "usage.get_token_analytics", {"tenant_id": self.tenant_id, "days": days}
+    def _prepare_get_token_analytics(self, days: int = 30, user_id: str = None) -> tuple:
+        params = {"tenant_id": self.tenant_id, "days": days}
+        if user_id:
+            params["user_id"] = user_id
+        return "usage.get_token_analytics", params
+
+    def _prepare_get_conversation_analytics(
+        self, user_id: str = None, days: int = 30, limit: int = 50, offset: int = 0,
+    ) -> tuple:
+        params = {"tenant_id": self.tenant_id, "days": days, "limit": limit, "offset": offset}
+        if user_id:
+            params["user_id"] = user_id
+        return "usage.get_conversation_analytics", params
+
+    def _prepare_get_message_credits(self, conversation_id: str, user_id: str = None) -> tuple:
+        params = {"tenant_id": self.tenant_id, "conversation_id": conversation_id}
+        if user_id:
+            params["user_id"] = user_id
+        return "usage.get_message_credits", params
 
     def _prepare_get_usage_dashboard(self) -> tuple:
         self._require_billing()

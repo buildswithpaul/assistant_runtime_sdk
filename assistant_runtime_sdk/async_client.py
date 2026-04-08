@@ -733,9 +733,21 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         endpoint, payload = self._prepare_verify_razorpay_credit_payment(razorpay_payment_id, razorpay_order_id, razorpay_signature)
         return await self._request_post_json(endpoint, payload, api_base=self.billing_api_base)
 
-    async def get_token_analytics(self, days: int = 30) -> Optional[Dict[str, Any]]:
+    async def get_token_analytics(self, days: int = 30, user_id: str = None) -> Optional[Dict[str, Any]]:
         """Async version of AssistantRuntimeClient.get_token_analytics."""
-        endpoint, payload = self._prepare_get_token_analytics(days)
+        endpoint, payload = self._prepare_get_token_analytics(days, user_id)
+        return await self._request_post_json(endpoint, payload)
+
+    async def get_conversation_analytics(
+        self, user_id: str = None, days: int = 30, limit: int = 50, offset: int = 0,
+    ) -> Optional[Dict[str, Any]]:
+        """Async version of AssistantRuntimeClient.get_conversation_analytics."""
+        endpoint, payload = self._prepare_get_conversation_analytics(user_id, days, limit, offset)
+        return await self._request_post_json(endpoint, payload)
+
+    async def get_message_credits(self, conversation_id: str, user_id: str = None) -> Optional[Dict[str, Any]]:
+        """Async version of AssistantRuntimeClient.get_message_credits."""
+        endpoint, payload = self._prepare_get_message_credits(conversation_id, user_id)
         return await self._request_post_json(endpoint, payload)
 
     async def get_usage_dashboard(self) -> Optional[Dict[str, Any]]:

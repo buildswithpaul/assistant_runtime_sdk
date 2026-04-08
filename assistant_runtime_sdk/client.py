@@ -1007,18 +1007,50 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         endpoint, payload = self._prepare_verify_razorpay_credit_payment(razorpay_payment_id, razorpay_order_id, razorpay_signature)
         return self._request_post_json(endpoint, payload, api_base=self.billing_api_base)
 
-    def get_token_analytics(self, days: int = 30) -> Optional[Dict[str, Any]]:
+    def get_token_analytics(self, days: int = 30, user_id: str = None) -> Optional[Dict[str, Any]]:
         """Get per-user/model/source token usage analytics for dashboard.
 
         Queries AR Token Usage (AR core) for aggregated breakdowns.
+        When user_id is provided, results are scoped to that user only.
 
         Args:
             days: Number of days to query (7, 30, or 90)
+            user_id: Optional user filter for scoping results
 
         Returns:
             Analytics data with summary, daily, by_user, by_model, by_source
         """
-        endpoint, payload = self._prepare_get_token_analytics(days)
+        endpoint, payload = self._prepare_get_token_analytics(days, user_id)
+        return self._request_post_json(endpoint, payload)
+
+    def get_conversation_analytics(
+        self, user_id: str = None, days: int = 30, limit: int = 50, offset: int = 0,
+    ) -> Optional[Dict[str, Any]]:
+        """Get per-conversation credit breakdown for analytics drill-down.
+
+        Args:
+            user_id: Optional user filter for privacy enforcement
+            days: Number of days to query (7, 30, or 90)
+            limit: Page size (default: 50)
+            offset: Pagination offset (default: 0)
+
+        Returns:
+            Conversations with credits, summary totals, pagination
+        """
+        endpoint, payload = self._prepare_get_conversation_analytics(user_id, days, limit, offset)
+        return self._request_post_json(endpoint, payload)
+
+    def get_message_credits(self, conversation_id: str, user_id: str = None) -> Optional[Dict[str, Any]]:
+        """Get per-message credit breakdown for a single conversation.
+
+        Args:
+            conversation_id: The conversation to drill into
+            user_id: Optional user filter for privacy enforcement
+
+        Returns:
+            Messages with credits, model info, and content previews
+        """
+        endpoint, payload = self._prepare_get_message_credits(conversation_id, user_id)
         return self._request_post_json(endpoint, payload)
 
     def get_usage_dashboard(self) -> Optional[Dict[str, Any]]:
