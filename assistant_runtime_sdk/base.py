@@ -254,20 +254,21 @@ class BaseAssistantRuntimeClient:
     def _prepare_stream_payload(
         self,
         session_id: str,
-        message: str,
+        message: Optional[str],
         user_id: str,
         context: Optional[Dict[str, Any]] = None,
         model_id: Optional[str] = None,
         attachments: Optional[List[Dict[str, Any]]] = None,
         system_prompt_addendum: Optional[str] = None,
         client_type: Optional[str] = None,
+        interrupt_response: Optional[List[Dict[str, str]]] = None,
     ) -> Dict[str, Any]:
         """
         Prepare JSON payload for stream_chat POST request.
 
         Args:
             session_id: Conversation session identifier
-            message: User's message
+            message: User's message (optional when interrupt_response is provided)
             user_id: User identifier (required)
             context: Optional page context (sent as native dict, not JSON string)
             model_id: Optional model ID
@@ -281,6 +282,8 @@ class BaseAssistantRuntimeClient:
                 }
             system_prompt_addendum: Optional per-request addition to the system prompt
             client_type: Optional client type for tool filtering (widget/spa/mobile/api)
+            interrupt_response: Optional HITL resume responses. Each item:
+                {"interruptId": str, "response": "approve"|"rejected"|"trust"|"session"}
 
         Returns:
             Payload dict ready for JSON body
@@ -294,9 +297,11 @@ class BaseAssistantRuntimeClient:
         payload: Dict[str, Any] = {
             "tenant_id": self.tenant_id,
             "session_id": session_id,
-            "message": message,
             "user_id": user_id,
         }
+
+        if message:
+            payload["message"] = message
 
         if context:
             # Context is sent as a native dict in JSON body, not a JSON string
@@ -313,6 +318,9 @@ class BaseAssistantRuntimeClient:
 
         if client_type:
             payload["client_type"] = client_type
+
+        if interrupt_response:
+            payload["interrupt_response"] = interrupt_response
 
         return payload
 

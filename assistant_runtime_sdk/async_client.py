@@ -349,17 +349,22 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
     async def stream_chat(
         self,
         session_id: str,
-        message: str,
+        message: Optional[str],
         user_id: str,
         context: Optional[Dict[str, Any]] = None,
         model_id: Optional[str] = None,
         attachments: Optional[List[Dict[str, Any]]] = None,
         system_prompt_addendum: Optional[str] = None,
         client_type: Optional[str] = None,
+        interrupt_response: Optional[List[Dict[str, str]]] = None,
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """Async version of AssistantRuntimeClient.stream_chat."""
         session = self._ensure_session()
-        payload = self._prepare_stream_payload(session_id, message, user_id, context, model_id, attachments, system_prompt_addendum, client_type=client_type)
+        payload = self._prepare_stream_payload(
+            session_id, message, user_id, context, model_id, attachments,
+            system_prompt_addendum, client_type=client_type,
+            interrupt_response=interrupt_response,
+        )
         url = self._build_endpoint_url("streaming.stream_chat")
         headers = self._get_stream_headers(payload, for_json_body=True)
 

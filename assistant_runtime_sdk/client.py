@@ -286,22 +286,24 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
     def stream_chat(
         self,
         session_id: str,
-        message: str,
+        message: Optional[str],
         user_id: str,
         context: Optional[Dict[str, Any]] = None,
         model_id: Optional[str] = None,
         attachments: Optional[List[Dict[str, Any]]] = None,
         system_prompt_addendum: Optional[str] = None,
         client_type: Optional[str] = None,
+        interrupt_response: Optional[List[Dict[str, str]]] = None,
     ) -> Generator[Dict[str, Any], None, None]:
         """
         Stream chat response from Assistant Runtime.
 
         Connects to Assistant Runtime's SSE endpoint and yields parsed events.
+        Also handles HITL resume when interrupt_response is provided.
 
         Args:
             session_id: Conversation session identifier
-            message: User's message to send
+            message: User's message to send (optional when interrupt_response is provided)
             user_id: User identifier (required)
             context: Optional page context (doctype, document info, etc.)
             model_id: Optional model ID to use (use "auto" for auto-selection)
@@ -314,6 +316,8 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
                     "file_url": "/files/..."  # Optional, for storage reference
                 }
             system_prompt_addendum: Optional per-request addition to the system prompt
+            interrupt_response: Optional HITL resume responses. Each item:
+                {"interruptId": str, "response": "approve"|"rejected"|"trust"|"session"}
 
         Yields:
             Parsed SSE events with structure:
@@ -327,19 +331,18 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
             ...     if event["event"] == "stream_chunk":
             ...         print(event["data"].get("content", ""), end="")
 
-            # With image attachment
-            >>> import base64
-            >>> with open("image.png", "rb") as f:
-            ...     image_data = base64.b64encode(f.read()).decode()
+            # Resume from HITL interrupt
             >>> for event in client.stream_chat(
-            ...     "session-1",
-            ...     "What's in this image?",
-            ...     "user@example.com",
-            ...     attachments=[{"type": "image", "format": "png", "data": image_data}]
+            ...     "session-1", None, "user@example.com",
+            ...     interrupt_response=[{"interruptId": "abc", "response": "approve"}]
             ... ):
             ...     print(event)
         """
-        payload = self._prepare_stream_payload(session_id, message, user_id, context, model_id, attachments, system_prompt_addendum, client_type=client_type)
+        payload = self._prepare_stream_payload(
+            session_id, message, user_id, context, model_id, attachments,
+            system_prompt_addendum, client_type=client_type,
+            interrupt_response=interrupt_response,
+        )
         url = self._build_endpoint_url("streaming.stream_chat")
         headers = self._get_stream_headers(payload, for_json_body=True)
 
