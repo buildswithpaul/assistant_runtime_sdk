@@ -262,6 +262,7 @@ class BaseAssistantRuntimeClient:
         system_prompt_addendum: Optional[str] = None,
         client_type: Optional[str] = None,
         interrupt_response: Optional[List[Dict[str, str]]] = None,
+        message_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Prepare JSON payload for stream_chat POST request.
@@ -284,6 +285,8 @@ class BaseAssistantRuntimeClient:
             client_type: Optional client type for tool filtering (widget/spa/mobile/api)
             interrupt_response: Optional HITL resume responses. Each item:
                 {"interruptId": str, "response": "approve"|"rejected"|"trust"|"session"}
+            message_id: Optional message ID to reuse on HITL resume (ensures all
+                events across multiple resume cycles link to the same message)
 
         Returns:
             Payload dict ready for JSON body
@@ -321,6 +324,9 @@ class BaseAssistantRuntimeClient:
 
         if interrupt_response:
             payload["interrupt_response"] = interrupt_response
+
+        if message_id:
+            payload["message_id"] = message_id
 
         return payload
 

@@ -294,6 +294,7 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         system_prompt_addendum: Optional[str] = None,
         client_type: Optional[str] = None,
         interrupt_response: Optional[List[Dict[str, str]]] = None,
+        message_id: Optional[str] = None,
     ) -> Generator[Dict[str, Any], None, None]:
         """
         Stream chat response from Assistant Runtime.
@@ -318,6 +319,7 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
             system_prompt_addendum: Optional per-request addition to the system prompt
             interrupt_response: Optional HITL resume responses. Each item:
                 {"interruptId": str, "response": "approve"|"rejected"|"trust"|"session"}
+            message_id: Optional message ID to reuse on HITL resume
 
         Yields:
             Parsed SSE events with structure:
@@ -342,6 +344,7 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
             session_id, message, user_id, context, model_id, attachments,
             system_prompt_addendum, client_type=client_type,
             interrupt_response=interrupt_response,
+            message_id=message_id,
         )
         url = self._build_endpoint_url("streaming.stream_chat")
         headers = self._get_stream_headers(payload, for_json_body=True)

@@ -357,6 +357,7 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         system_prompt_addendum: Optional[str] = None,
         client_type: Optional[str] = None,
         interrupt_response: Optional[List[Dict[str, str]]] = None,
+        message_id: Optional[str] = None,
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """Async version of AssistantRuntimeClient.stream_chat."""
         session = self._ensure_session()
@@ -364,6 +365,7 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
             session_id, message, user_id, context, model_id, attachments,
             system_prompt_addendum, client_type=client_type,
             interrupt_response=interrupt_response,
+            message_id=message_id,
         )
         url = self._build_endpoint_url("streaming.stream_chat")
         headers = self._get_stream_headers(payload, for_json_body=True)
