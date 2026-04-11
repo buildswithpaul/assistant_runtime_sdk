@@ -925,9 +925,9 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         endpoint, payload = self._prepare_update_conversation(conversation_id, title, user_id)
         return await self._request_post_json(endpoint, payload)
 
-    async def delete_conversation(self, conversation_id: str) -> Optional[Dict[str, Any]]:
-        """Async version of AssistantRuntimeClient.delete_conversation."""
-        endpoint, payload = self._prepare_delete_conversation(conversation_id)
+    async def delete_conversation(self, conversation_id: str, hard_delete: bool = False) -> Optional[Dict[str, Any]]:
+        """Delete a conversation. Use hard_delete=True for permanent GDPR erasure."""
+        endpoint, payload = self._prepare_delete_conversation(conversation_id, hard_delete)
         return await self._request_post_json(endpoint, payload)
 
     async def delete_message(self, conversation_id: str, message_id: str) -> Optional[Dict[str, Any]]:
@@ -1407,6 +1407,43 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         """Async download a template as portable ar_workflow_template_v1 JSON."""
         endpoint, params = self._prepare_download_template(name)
         return await self._request_get(endpoint, params, api_base=self.workflows_api_base, timeout=timeout)
+
+    # --- GDPR / Privacy ---
+
+    async def export_user_data(self, user_id: str) -> Optional[Dict[str, Any]]:
+        """Export all user data as structured JSON (GDPR Article 20)."""
+        endpoint, payload = self._prepare_export_user_data(user_id)
+        return await self._request_post_json(endpoint, payload)
+
+    async def erase_user_data(self, user_id: str) -> Optional[Dict[str, Any]]:
+        """Permanently delete all user data (GDPR Article 17)."""
+        endpoint, payload = self._prepare_erase_user_data(user_id)
+        return await self._request_post_json(endpoint, payload)
+
+    async def rectify_user_data(self, user_id: str, updates: dict) -> Optional[Dict[str, Any]]:
+        """Update user's personal data (GDPR Article 16)."""
+        endpoint, payload = self._prepare_rectify_user_data(user_id, updates)
+        return await self._request_post_json(endpoint, payload)
+
+    async def restrict_user_processing(self, user_id: str, restrict: bool = True) -> Optional[Dict[str, Any]]:
+        """Restrict or unrestrict data processing for a user (GDPR Article 18)."""
+        endpoint, payload = self._prepare_restrict_user_processing(user_id, restrict)
+        return await self._request_post_json(endpoint, payload)
+
+    async def update_user_consent(self, user_id: str, consent_type: str, granted: bool = True) -> Optional[Dict[str, Any]]:
+        """Update user consent for a specific processing activity."""
+        endpoint, payload = self._prepare_update_user_consent(user_id, consent_type, granted)
+        return await self._request_post_json(endpoint, payload)
+
+    async def get_tenant_privacy_config(self) -> Optional[Dict[str, Any]]:
+        """Get tenant's privacy policy configuration."""
+        endpoint, payload = self._prepare_get_tenant_privacy_config()
+        return await self._request_post_json(endpoint, payload)
+
+    async def update_tenant_privacy_config(self, config: dict) -> Optional[Dict[str, Any]]:
+        """Update tenant's privacy policy configuration."""
+        endpoint, payload = self._prepare_update_tenant_privacy_config(config)
+        return await self._request_post_json(endpoint, payload)
 
     # --- Heartbeat & Notifications ---
 

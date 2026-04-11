@@ -955,11 +955,14 @@ class BaseAssistantRuntimeClient:
             payload["user_id"] = user_id
         return "conversations.update_conversation", payload
 
-    def _prepare_delete_conversation(self, conversation_id: str) -> tuple:
-        return "conversations.delete_conversation", {
+    def _prepare_delete_conversation(self, conversation_id: str, hard_delete: bool = False) -> tuple:
+        payload = {
             "tenant_id": self.tenant_id,
             "conversation_id": conversation_id,
         }
+        if hard_delete:
+            payload["hard_delete"] = True
+        return "conversations.delete_conversation", payload
 
     def _prepare_delete_message(self, conversation_id: str, message_id: str) -> tuple:
         return "conversations.delete_message", {
@@ -1487,6 +1490,57 @@ class BaseAssistantRuntimeClient:
         if tags is not None:
             payload["tags"] = tags
         return "workflows.update_template", payload
+
+    # =========================================================================
+    # Prepare Methods — GDPR / Privacy
+    # =========================================================================
+
+    def _prepare_export_user_data(self, user_id: str) -> tuple:
+        return "gdpr.export_user_data", {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+        }
+
+    def _prepare_erase_user_data(self, user_id: str) -> tuple:
+        return "gdpr.erase_user_data", {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+        }
+
+    def _prepare_rectify_user_data(self, user_id: str, updates: dict) -> tuple:
+        import json
+        return "gdpr.rectify_user_data", {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+            "updates": json.dumps(updates) if isinstance(updates, dict) else updates,
+        }
+
+    def _prepare_restrict_user_processing(self, user_id: str, restrict: bool = True) -> tuple:
+        return "gdpr.restrict_user_processing", {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+            "restrict": restrict,
+        }
+
+    def _prepare_update_user_consent(self, user_id: str, consent_type: str, granted: bool = True) -> tuple:
+        return "gdpr.update_user_consent", {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+            "consent_type": consent_type,
+            "granted": granted,
+        }
+
+    def _prepare_get_tenant_privacy_config(self) -> tuple:
+        return "gdpr.get_tenant_privacy_config", {
+            "tenant_id": self.tenant_id,
+        }
+
+    def _prepare_update_tenant_privacy_config(self, config: dict) -> tuple:
+        import json
+        return "gdpr.update_tenant_privacy_config", {
+            "tenant_id": self.tenant_id,
+            "config": json.dumps(config) if isinstance(config, dict) else config,
+        }
 
     def _prepare_delete_template(self, name: str) -> tuple:
         return "workflows.delete_template", {
