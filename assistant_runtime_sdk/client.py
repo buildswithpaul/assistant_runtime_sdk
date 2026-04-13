@@ -1360,11 +1360,13 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         timezone: Optional[str] = None,
         user_role: Optional[str] = None,
         email: Optional[str] = None,
+        registered_by: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Register a user with Assistant Runtime."""
         endpoint, params = self._prepare_register_user(
             user_id, display_name, custom_instructions,
             locale=locale, timezone=timezone, user_role=user_role, email=email,
+            registered_by=registered_by,
         )
         return self._request_post_form(endpoint, params)
 
