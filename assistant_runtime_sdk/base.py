@@ -646,6 +646,14 @@ class BaseAssistantRuntimeClient:
             "user_id": user_id,
         }
 
+    def _prepare_update_memory(self, user_id: str, memory_id: str, content: str) -> tuple:
+        return "memories.update_memory", {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+            "memory_id": memory_id,
+            "content": content,
+        }
+
     def _prepare_get_memory_stats(self, user_id: Optional[str] = None) -> tuple:
         params: Dict[str, Any] = {"tenant_id": self.tenant_id}
         if user_id:
@@ -1132,6 +1140,9 @@ class BaseAssistantRuntimeClient:
         timezone: Optional[str] = None,
         user_role: Optional[str] = None,
         email: Optional[str] = None,
+        job_title: Optional[str] = None,
+        department: Optional[str] = None,
+        about: Optional[str] = None,
     ) -> tuple:
         params: Dict[str, Any] = {
             "tenant_id": self.tenant_id,
@@ -1149,6 +1160,12 @@ class BaseAssistantRuntimeClient:
             params["user_role"] = user_role
         if email is not None:
             params["email"] = email
+        if job_title is not None:
+            params["job_title"] = job_title
+        if department is not None:
+            params["department"] = department
+        if about is not None:
+            params["about"] = about
         return "users.update_user", params
 
     def _prepare_deregister_user(self, user_id: str) -> tuple:

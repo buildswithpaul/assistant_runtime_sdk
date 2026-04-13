@@ -738,6 +738,24 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         endpoint, payload = self._prepare_delete_all_memories(user_id)
         return self._request_post_json(endpoint, payload, api_base=self.memory_api_base)
 
+    def update_memory(self, user_id: str, memory_id: str, content: str) -> Optional[Dict[str, Any]]:
+        """
+        Update a memory's content.
+
+        Preserves the memory_id. Re-embeds the new content and updates
+        both Redis and the MariaDB audit record.
+
+        Args:
+            user_id: User who owns the memory.
+            memory_id: The memory identifier to update.
+            content: New memory text.
+
+        Returns:
+            {"status": "updated", "memory_id": str}
+        """
+        endpoint, payload = self._prepare_update_memory(user_id, memory_id, content)
+        return self._request_post_json(endpoint, payload, api_base=self.memory_api_base)
+
     def get_memory_stats(self, user_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """
         Get memory statistics.
@@ -1448,6 +1466,9 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         timezone: Optional[str] = None,
         user_role: Optional[str] = None,
         email: Optional[str] = None,
+        job_title: Optional[str] = None,
+        department: Optional[str] = None,
+        about: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Update user profile fields.
@@ -1460,6 +1481,9 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
             timezone: User's timezone (optional)
             user_role: User's role (optional)
             email: User's email (optional)
+            job_title: User's job title (optional)
+            department: User's department or team (optional)
+            about: Brief self-description, max 500 chars (optional)
 
         Returns:
             Dict with success status and message
@@ -1467,6 +1491,7 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         endpoint, params = self._prepare_update_user(
             user_id, display_name, custom_instructions,
             locale=locale, timezone=timezone, user_role=user_role, email=email,
+            job_title=job_title, department=department, about=about,
         )
         return self._request_post_form(endpoint, params)
 

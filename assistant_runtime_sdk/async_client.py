@@ -594,6 +594,11 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         endpoint, payload = self._prepare_delete_all_memories(user_id)
         return await self._request_post_json(endpoint, payload, api_base=self.memory_api_base)
 
+    async def update_memory(self, user_id: str, memory_id: str, content: str) -> Optional[Dict[str, Any]]:
+        """Async version of AssistantRuntimeClient.update_memory."""
+        endpoint, payload = self._prepare_update_memory(user_id, memory_id, content)
+        return await self._request_post_json(endpoint, payload, api_base=self.memory_api_base)
+
     async def get_memory_stats(self, user_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Async version of AssistantRuntimeClient.get_memory_stats."""
         endpoint, params = self._prepare_get_memory_stats(user_id)
@@ -1074,11 +1079,15 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         timezone: Optional[str] = None,
         user_role: Optional[str] = None,
         email: Optional[str] = None,
+        job_title: Optional[str] = None,
+        department: Optional[str] = None,
+        about: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Async version of AssistantRuntimeClient.update_user."""
         endpoint, params = self._prepare_update_user(
             user_id, display_name, custom_instructions,
             locale=locale, timezone=timezone, user_role=user_role, email=email,
+            job_title=job_title, department=department, about=about,
         )
         return await self._request_post_form(endpoint, params)
 
