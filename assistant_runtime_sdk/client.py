@@ -2033,6 +2033,34 @@ def get_terms(ar_url: str) -> Optional[Dict[str, Any]]:
         return None
 
 
+def validate_referral_code(ar_url: str, referral_code: str) -> Dict[str, Any]:
+    """
+    Validate a partner referral code against the AR server.
+
+    Guest-allowed endpoint — no tenant credentials required (used during signup).
+
+    Args:
+        ar_url: Assistant Runtime server URL
+        referral_code: The referral code to validate
+
+    Returns:
+        {"valid": True, "partner_name": str, "referral_code": str} on success,
+        {"valid": False, "error": str} on failure.
+    """
+    url = f"{ar_url.rstrip('/')}/api/method/assistant_runtime.api.validate_referral_code"
+    try:
+        response = requests.post(
+            url,
+            json={"referral_code": referral_code},
+            headers={"Content-Type": "application/json"},
+            timeout=30,
+        )
+        response.raise_for_status()
+        return response.json().get("message", response.json())
+    except requests.exceptions.RequestException as e:
+        return {"valid": False, "error": str(e)}
+
+
 def register_tenant(
     ar_url: str,
     site_url: str,
