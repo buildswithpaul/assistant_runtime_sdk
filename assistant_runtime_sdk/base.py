@@ -711,6 +711,16 @@ class BaseAssistantRuntimeClient:
         self._require_billing()
         return "get_available_gateways", {"tenant_id": self.tenant_id}
 
+    def _prepare_preview_plan_pricing(
+        self, plan: str, billing_cycle: str = "monthly",
+    ) -> tuple:
+        self._require_billing()
+        return "preview_plan_pricing", {
+            "tenant_id": self.tenant_id,
+            "plan": plan,
+            "billing_cycle": billing_cycle,
+        }
+
     def _prepare_initiate_checkout(
         self, plan: str, billing_cycle: str = "monthly",
         gateway: Optional[str] = None, billing_name: Optional[str] = None,

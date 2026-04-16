@@ -962,6 +962,21 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         endpoint, params = self._prepare_get_available_gateways()
         return self._request_get(endpoint, params, api_base=self.billing_api_base)
 
+    def preview_plan_pricing(
+        self, plan: str, billing_cycle: str = "monthly",
+    ) -> Optional[Dict[str, Any]]:
+        """Return the tax-inclusive pricing breakdown for a plan.
+
+        Use this to show the user "subtotal + GST = total due today"
+        before opening the Razorpay widget. No DB writes, no Razorpay
+        calls — just runs the tax pipeline for the current tenant.
+
+        Returns:
+            {base, tax, total, currency, tax_rate_percent, components}.
+        """
+        endpoint, params = self._prepare_preview_plan_pricing(plan, billing_cycle)
+        return self._request_get(endpoint, params, api_base=self.billing_api_base)
+
     def initiate_checkout(
         self,
         plan: str,
