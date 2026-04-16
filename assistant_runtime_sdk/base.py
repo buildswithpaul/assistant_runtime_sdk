@@ -721,6 +721,13 @@ class BaseAssistantRuntimeClient:
             "billing_cycle": billing_cycle,
         }
 
+    def _prepare_download_invoice_pdf(self, ar_invoice_name: str) -> tuple:
+        self._require_billing()
+        return "download_invoice_pdf", {
+            "tenant_id": self.tenant_id,
+            "ar_invoice_name": ar_invoice_name,
+        }
+
     def _prepare_initiate_checkout(
         self, plan: str, billing_cycle: str = "monthly",
         gateway: Optional[str] = None, billing_name: Optional[str] = None,

@@ -715,6 +715,13 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         endpoint, params = self._prepare_preview_plan_pricing(plan, billing_cycle)
         return await self._request_get(endpoint, params, api_base=self.billing_api_base)
 
+    async def download_invoice_pdf(self, ar_invoice_name: str) -> tuple:
+        """Async version of AssistantRuntimeClient.download_invoice_pdf."""
+        endpoint, params = self._prepare_download_invoice_pdf(ar_invoice_name)
+        return await self._request_get_raw(
+            endpoint, params, api_base=self.billing_api_base,
+        )
+
     async def initiate_checkout(
         self,
         plan: str,

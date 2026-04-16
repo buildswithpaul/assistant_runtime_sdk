@@ -977,6 +977,22 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         endpoint, params = self._prepare_preview_plan_pricing(plan, billing_cycle)
         return self._request_get(endpoint, params, api_base=self.billing_api_base)
 
+    def download_invoice_pdf(self, ar_invoice_name: str) -> tuple:
+        """Download the GST invoice PDF for an AR Invoice.
+
+        Returns the raw bytes so callers can stream to a file / HTTP
+        response / bucket without buffering through JSON.
+
+        Returns:
+            (content_bytes, content_type, filename) tuple. Backend
+            sets `filename = "{ar_invoice_name}.pdf"` and streams
+            `application/pdf`.
+        """
+        endpoint, params = self._prepare_download_invoice_pdf(ar_invoice_name)
+        return self._request_get_raw(
+            endpoint, params, api_base=self.billing_api_base,
+        )
+
     def initiate_checkout(
         self,
         plan: str,
