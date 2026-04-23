@@ -1776,6 +1776,30 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         endpoint, payload = self._prepare_execute_workflow(name, input_data, user_id)
         return self._request_post_json(endpoint, payload, api_base=self.workflows_api_base)
 
+    def execute_workflow_from_event(
+        self,
+        workflow_name: str,
+        input_data: Dict[str, Any],
+        user_id: str,
+        trigger_id: str,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Trigger workflow execution from a FACO-side doc event.
+
+        Args:
+            workflow_name: AR Workflow.workflow_name (human identifier)
+            input_data: Structured payload {trigger, doc, changed_fields}
+            user_id: User on the customer bench who saved the doc
+            trigger_id: FACO AR Workflow Trigger name (for traceability)
+
+        Returns:
+            {"status": "queued", "run_name": str, "run_id": str, ...}
+        """
+        endpoint, payload = self._prepare_execute_workflow_from_event(
+            workflow_name, input_data, user_id, trigger_id,
+        )
+        return self._request_post_json(endpoint, payload, api_base=self.workflows_api_base)
+
     def cancel_workflow_run(self, run_name: str) -> Optional[Dict[str, Any]]:
         """Cancel a queued or running workflow execution."""
         endpoint, payload = self._prepare_cancel_workflow_run(run_name)

@@ -379,7 +379,7 @@ async def handle_stream_errors(client, session_id, message, user_id):
                 error_msg = event["data"].get("error")
 
                 if error_code == "QUOTA_EXCEEDED":
-                    raise Exception("Token quota exceeded")
+                    raise Exception("Credit quota exceeded")
                 elif error_code == "MODEL_UNAVAILABLE":
                     raise Exception("Model not available")
                 else:

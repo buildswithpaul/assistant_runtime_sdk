@@ -1351,6 +1351,21 @@ class BaseAssistantRuntimeClient:
             payload["user_id"] = user_id
         return "workflows.execute_workflow", payload
 
+    def _prepare_execute_workflow_from_event(
+        self,
+        workflow_name: str,
+        input_data: Dict[str, Any],
+        user_id: str,
+        trigger_id: str,
+    ) -> tuple:
+        return "workflows.execute_from_event", {
+            "tenant_id": self.tenant_id,
+            "workflow_name": workflow_name,
+            "input_data": input_data,
+            "user_id": user_id,
+            "trigger_id": trigger_id,
+        }
+
     def _prepare_cancel_workflow_run(self, run_name: str) -> tuple:
         return "workflows.cancel_run", {
             "tenant_id": self.tenant_id,

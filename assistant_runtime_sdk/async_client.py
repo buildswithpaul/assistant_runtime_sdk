@@ -1267,6 +1267,19 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         endpoint, payload = self._prepare_execute_workflow(name, input_data, user_id)
         return await self._request_post_json(endpoint, payload, api_base=self.workflows_api_base)
 
+    async def execute_workflow_from_event(
+        self,
+        workflow_name: str,
+        input_data: Dict[str, Any],
+        user_id: str,
+        trigger_id: str,
+    ) -> Optional[Dict[str, Any]]:
+        """Async version of AssistantRuntimeClient.execute_workflow_from_event."""
+        endpoint, payload = self._prepare_execute_workflow_from_event(
+            workflow_name, input_data, user_id, trigger_id,
+        )
+        return await self._request_post_json(endpoint, payload, api_base=self.workflows_api_base)
+
     async def cancel_workflow_run(self, run_name: str) -> Optional[Dict[str, Any]]:
         """Async version of AssistantRuntimeClient.cancel_workflow_run."""
         endpoint, payload = self._prepare_cancel_workflow_run(run_name)

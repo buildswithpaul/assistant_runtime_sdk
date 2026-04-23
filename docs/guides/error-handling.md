@@ -282,7 +282,7 @@ def stream_with_error_handling(client, session_id, message, user_id):
                 error_msg = data.get("error", "Unknown error")
 
                 if error_code == "QUOTA_EXCEEDED":
-                    raise Exception("Your token quota has been exceeded")
+                    raise Exception("Your credit quota has been exceeded")
                 elif error_code == "MODEL_UNAVAILABLE":
                     raise Exception("The requested model is not available")
                 elif error_code == "INVALID_REQUEST":
@@ -380,7 +380,7 @@ asyncio.run(main())
 
 | Code | Meaning | Action |
 |------|---------|--------|
-| `QUOTA_EXCEEDED` | Token quota used up | Upgrade plan or wait for reset |
+| `QUOTA_EXCEEDED` | Credit quota used up (no prepaid balance) | Upgrade plan, buy credits, or wait for reset |
 | `MODEL_UNAVAILABLE` | Model not accessible | Use different model or auto |
 | `INVALID_REQUEST` | Bad request params | Fix request parameters |
 | `TOOL_ERROR` | Tool execution failed | Check tool configuration |

@@ -319,17 +319,19 @@ Usage dashboard data.
 
 ```python
 class UsageDashboard(TypedDict):
-    plan: str               # "free", "standard", "professional"
-    status: str             # "active", "past_due", "cancelled"
-    payment_status: str     # "paid", "pending", "failed"
-    quota: int              # Total token quota
-    used: int               # Tokens used this period
-    remaining: int          # Tokens remaining
-    usage_percentage: float # Percentage used (0-100)
+    plan: str                    # Plan name (e.g. "Free", "Team")
+    status: str                  # "Active", "PastDue", "Cancelled"
+    payment_status: str          # "active", "past_due", "unpaid", "cancelled"
+    credit_quota: int            # Monthly credit quota (-1 = unlimited)
+    credits_used: float          # Credits consumed this period
+    remaining: float             # Credits remaining (-1 = unlimited)
+    usage_percentage: float      # Percentage used (0-100)
+    credit_balance: float        # Prepaid credit balance
     billing_cycle_start: str
     next_billing_date: Optional[str]
-    currency: str           # "USD", "EUR", etc.
-    warnings: dict          # Warning flags
+    currency: str                # "USD", "INR", etc.
+    billing_unit: str            # Always "credits"
+    warnings: dict               # Warning flags
 ```
 
 **Warnings dict:**

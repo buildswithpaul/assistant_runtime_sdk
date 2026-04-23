@@ -262,7 +262,7 @@ try:
             # Handle application-level error
             error_code = event["data"].get("error_code")
             if error_code == "QUOTA_EXCEEDED":
-                print("Token quota exceeded")
+                print("Credit quota exceeded")
             elif error_code == "MODEL_UNAVAILABLE":
                 print("Model not available")
             else:
