@@ -700,6 +700,26 @@ class BaseAssistantRuntimeClient:
         return "tools.list_tools", params
 
     # =========================================================================
+    # Prepare Methods — Tool Preferences (per-user approval settings)
+    # =========================================================================
+
+    def _prepare_list_tool_preferences(self, user_id: str) -> tuple:
+        return "tool_preferences.list_tool_preferences", {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+        }
+
+    def _prepare_set_tool_preference(
+        self, user_id: str, tool_name: str, preference: str,
+    ) -> tuple:
+        return "tool_preferences.set_tool_preference", {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+            "tool_name": tool_name,
+            "preference": preference,
+        }
+
+    # =========================================================================
     # Prepare Methods — Billing
     # =========================================================================
 
@@ -727,6 +747,18 @@ class BaseAssistantRuntimeClient:
             "tenant_id": self.tenant_id,
             "ar_invoice_name": ar_invoice_name,
         }
+
+    def _prepare_add_user_seat(self) -> tuple:
+        self._require_billing()
+        return "add_user_seat", {"tenant_id": self.tenant_id}
+
+    def _prepare_remove_user_seat(self) -> tuple:
+        self._require_billing()
+        return "remove_user_seat", {"tenant_id": self.tenant_id}
+
+    def _prepare_preview_seat_charge(self) -> tuple:
+        self._require_billing()
+        return "preview_seat_charge", {"tenant_id": self.tenant_id}
 
     def _prepare_initiate_checkout(
         self, plan: str, billing_cycle: str = "monthly",
@@ -905,6 +937,15 @@ class BaseAssistantRuntimeClient:
         if gateway:
             payload["gateway"] = gateway
         return "purchase_credits", payload
+
+    def _prepare_get_billing_details(self) -> tuple:
+        self._require_billing()
+        return "billing_details.get_billing_details", {"tenant": self.tenant_id}
+
+    def _prepare_save_billing_details(self, billing_fields: Dict[str, Any]) -> tuple:
+        self._require_billing()
+        payload: Dict[str, Any] = {"tenant": self.tenant_id, **billing_fields}
+        return "billing_details.save_billing_details", payload
 
     # =========================================================================
     # Prepare Methods — Conversations

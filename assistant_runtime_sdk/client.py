@@ -910,6 +910,43 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         return self._request_get(endpoint, params)
 
     # =========================================================================
+    # Tool Preference APIs (per-user approval settings)
+    # =========================================================================
+
+    def list_tool_preferences(self, user_id: str) -> Optional[Dict[str, Any]]:
+        """
+        List persistent tool approval preferences for a user.
+
+        Args:
+            user_id: User identifier
+
+        Returns:
+            {"preferences": {tool_name: "always_allow" | "block", ...}}
+        """
+        endpoint, params = self._prepare_list_tool_preferences(user_id)
+        return self._request_get(endpoint, params)
+
+    def set_tool_preference(
+        self,
+        user_id: str,
+        tool_name: str,
+        preference: str,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Set a user's approval preference for one tool.
+
+        Args:
+            user_id: User identifier
+            tool_name: MCP tool name (e.g. "create_document")
+            preference: One of "ask", "always_allow", "block"
+
+        Returns:
+            {"success": True, "tool_name": ..., "preference": ...}
+        """
+        endpoint, payload = self._prepare_set_tool_preference(user_id, tool_name, preference)
+        return self._request_post_json(endpoint, payload)
+
+    # =========================================================================
     # Billing & Subscription APIs
     # =========================================================================
     # These methods route through billing_api_base -> assistant_runtime_payments.api
@@ -977,6 +1014,21 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         endpoint, params = self._prepare_preview_plan_pricing(plan, billing_cycle)
         return self._request_get(endpoint, params, api_base=self.billing_api_base)
 
+    def add_user_seat(self) -> Optional[Dict[str, Any]]:
+        """Add one seat to the per-user subscription and charge prorated amount."""
+        endpoint, params = self._prepare_add_user_seat()
+        return self._request_get(endpoint, params, api_base=self.billing_api_base)
+
+    def remove_user_seat(self) -> Optional[Dict[str, Any]]:
+        """Remove one seat. No refund; next renewal reflects lower count."""
+        endpoint, params = self._prepare_remove_user_seat()
+        return self._request_get(endpoint, params, api_base=self.billing_api_base)
+
+    def preview_seat_charge(self) -> Optional[Dict[str, Any]]:
+        """Preview the prorated cost of adding one seat."""
+        endpoint, params = self._prepare_preview_seat_charge()
+        return self._request_get(endpoint, params, api_base=self.billing_api_base)
+
     def download_invoice_pdf(self, ar_invoice_name: str) -> tuple:
         """Download the GST invoice PDF for an AR Invoice.
 
@@ -1037,7 +1089,7 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
             razorpay_signature: Signature from Razorpay widget response
 
         Returns:
-            {"success": True, "message": str, "subscription_status": str, "plan": str, "monthly_quota": int}
+            {"success": True, "message": str, "subscription_status": str, "plan": str, "credit_quota": int}
         """
         endpoint, payload = self._prepare_verify_razorpay_payment(razorpay_payment_id, razorpay_subscription_id, razorpay_signature)
         return self._request_post_json(endpoint, payload, api_base=self.billing_api_base)
@@ -1249,6 +1301,33 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         """
         endpoint, params = self._prepare_get_billing_history(limit)
         return self._request_get(endpoint, params, api_base=self.billing_api_base)
+
+    def get_billing_details(self) -> Optional[Dict[str, Any]]:
+        """
+        Get the tenant's billing identity (email, phone, GSTIN, address).
+
+        Returns:
+            Dict with billing_email, billing_phone, gstin, billing_address_line1,
+            billing_address_line2, billing_city, billing_state, billing_pincode,
+            billing_country. Empty strings for fields not yet configured.
+        """
+        endpoint, params = self._prepare_get_billing_details()
+        return self._request_get(endpoint, params, api_base=self.billing_api_base)
+
+    def save_billing_details(self, **billing_fields: Any) -> Optional[Dict[str, Any]]:
+        """
+        Upsert the tenant's billing identity on the ERPNext Customer + Address.
+
+        Required: billing_email, billing_country.
+        Optional: gstin, billing_state, billing_city, billing_pincode,
+        billing_address_line1, billing_address_line2, billing_phone.
+
+        Returns:
+            Dict with the saved values (server-canonicalised: country name,
+            normalised GSTIN, derived gst_category, etc.).
+        """
+        endpoint, payload = self._prepare_save_billing_details(billing_fields)
+        return self._request_post_json(endpoint, payload, api_base=self.billing_api_base)
 
     # =========================================================================
     # Prepaid Credit APIs

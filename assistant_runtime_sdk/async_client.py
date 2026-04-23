@@ -665,6 +665,25 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         return await self._request_get(endpoint, params)
 
     # =========================================================================
+    # Tool Preference APIs (per-user approval settings)
+    # =========================================================================
+
+    async def list_tool_preferences(self, user_id: str) -> Optional[Dict[str, Any]]:
+        """Async version of AssistantRuntimeClient.list_tool_preferences."""
+        endpoint, params = self._prepare_list_tool_preferences(user_id)
+        return await self._request_get(endpoint, params)
+
+    async def set_tool_preference(
+        self,
+        user_id: str,
+        tool_name: str,
+        preference: str,
+    ) -> Optional[Dict[str, Any]]:
+        """Async version of AssistantRuntimeClient.set_tool_preference."""
+        endpoint, payload = self._prepare_set_tool_preference(user_id, tool_name, preference)
+        return await self._request_post_json(endpoint, payload)
+
+    # =========================================================================
     # Billing & Subscription APIs
     # =========================================================================
 
@@ -713,6 +732,21 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
     ) -> Optional[Dict[str, Any]]:
         """Async version of AssistantRuntimeClient.preview_plan_pricing."""
         endpoint, params = self._prepare_preview_plan_pricing(plan, billing_cycle)
+        return await self._request_get(endpoint, params, api_base=self.billing_api_base)
+
+    async def add_user_seat(self) -> Optional[Dict[str, Any]]:
+        """Async version of AssistantRuntimeClient.add_user_seat."""
+        endpoint, params = self._prepare_add_user_seat()
+        return await self._request_get(endpoint, params, api_base=self.billing_api_base)
+
+    async def remove_user_seat(self) -> Optional[Dict[str, Any]]:
+        """Async version of AssistantRuntimeClient.remove_user_seat."""
+        endpoint, params = self._prepare_remove_user_seat()
+        return await self._request_get(endpoint, params, api_base=self.billing_api_base)
+
+    async def preview_seat_charge(self) -> Optional[Dict[str, Any]]:
+        """Async version of AssistantRuntimeClient.preview_seat_charge."""
+        endpoint, params = self._prepare_preview_seat_charge()
         return await self._request_get(endpoint, params, api_base=self.billing_api_base)
 
     async def download_invoice_pdf(self, ar_invoice_name: str) -> tuple:
@@ -870,6 +904,16 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         """Async version of AssistantRuntimeClient.get_billing_history."""
         endpoint, params = self._prepare_get_billing_history(limit)
         return await self._request_get(endpoint, params, api_base=self.billing_api_base)
+
+    async def get_billing_details(self) -> Optional[Dict[str, Any]]:
+        """Async version of AssistantRuntimeClient.get_billing_details."""
+        endpoint, params = self._prepare_get_billing_details()
+        return await self._request_get(endpoint, params, api_base=self.billing_api_base)
+
+    async def save_billing_details(self, **billing_fields: Any) -> Optional[Dict[str, Any]]:
+        """Async version of AssistantRuntimeClient.save_billing_details."""
+        endpoint, payload = self._prepare_save_billing_details(billing_fields)
+        return await self._request_post_json(endpoint, payload, api_base=self.billing_api_base)
 
     # =========================================================================
     # Prepaid Credit APIs
