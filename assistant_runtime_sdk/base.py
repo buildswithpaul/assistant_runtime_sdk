@@ -940,11 +940,11 @@ class BaseAssistantRuntimeClient:
 
     def _prepare_get_billing_details(self) -> tuple:
         self._require_billing()
-        return "billing_details.get_billing_details", {"tenant": self.tenant_id}
+        return "billing_details.get_billing_details", {"tenant_id": self.tenant_id}
 
     def _prepare_save_billing_details(self, billing_fields: Dict[str, Any]) -> tuple:
         self._require_billing()
-        payload: Dict[str, Any] = {"tenant": self.tenant_id, **billing_fields}
+        payload: Dict[str, Any] = {"tenant_id": self.tenant_id, **billing_fields}
         return "billing_details.save_billing_details", payload
 
     # =========================================================================
