@@ -112,8 +112,11 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         if response.status < 400:
             return
 
-        # Read error body for better messages
+        # Read error body for better messages. The full payload is
+        # forwarded to ARAPIError.response_data so callers can read
+        # any extra keys AR set (e.g. tenant_owner_user_id).
         msg = None
+        data: Optional[Dict[str, Any]] = None
         try:
             data = await response.json()
             msg = self._extract_error_from_data(data)
@@ -126,6 +129,7 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         raise ARAPIError(
             msg or f"{method} {endpoint} failed with status {response.status}",
             status_code=response.status,
+            response_data=data,
         )
 
     async def _request_get(
@@ -843,10 +847,12 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         billing_name: Optional[str] = None,
         billing_email: Optional[str] = None,
         promo_code: Optional[str] = None,
+        payment_method: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """Async version of AssistantRuntimeClient.upgrade_plan."""
         endpoint, payload = self._prepare_upgrade_plan(
             new_plan, billing_cycle, gateway, billing_name, billing_email, promo_code,
+            payment_method=payment_method,
         )
         return await self._request_post_json(endpoint, payload, api_base=self.billing_api_base)
 

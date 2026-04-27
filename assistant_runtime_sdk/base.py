@@ -855,6 +855,7 @@ class BaseAssistantRuntimeClient:
         gateway: Optional[str] = None, billing_name: Optional[str] = None,
         billing_email: Optional[str] = None,
         promo_code: Optional[str] = None,
+        payment_method: Optional[str] = None,
     ) -> tuple:
         self._require_billing()
         payload: Dict[str, Any] = {
@@ -870,6 +871,8 @@ class BaseAssistantRuntimeClient:
             payload["billing_email"] = billing_email
         if promo_code:
             payload["promo_code"] = promo_code
+        if payment_method:
+            payload["payment_method"] = payment_method
         return "upgrade_plan", payload
 
     def _prepare_validate_promo_code(
