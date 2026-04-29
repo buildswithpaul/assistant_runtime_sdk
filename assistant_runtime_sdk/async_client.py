@@ -1064,14 +1064,16 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         return await self._request_get(endpoint, params)
 
     async def get_user_auth_status(self, user_id: str) -> Dict[str, Any]:
-        """Async version of AssistantRuntimeClient.get_user_auth_status."""
+        """Async version of AssistantRuntimeClient.get_user_auth_status.
+
+        See sync client docstring for the ``_ar_unreachable`` contract.
+        """
         endpoint, params = self._prepare_get_user_auth_status(user_id)
         try:
             return await self._request_get(endpoint, params)
         except Exception as e:
             return {
-                "user_exists": False,
-                "ready_for_streaming": False,
+                "_ar_unreachable": True,
                 "error": str(e),
             }
 

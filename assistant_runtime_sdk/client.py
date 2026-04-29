@@ -401,15 +401,44 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
                         yield {"event": current_event or "unknown", "data": parsed["value"]}
                         current_event = None
 
-        except requests.exceptions.Timeout:
+        except requests.exceptions.Timeout as e:
             yield {
                 "event": "stream_error",
-                "data": {"error": "Connection timeout", "error_code": "TIMEOUT"},
+                "data": {
+                    "error": "The assistant took too long to respond. Please try again.",
+                    "error_code": "TIMEOUT",
+                    "_detail": str(e),
+                },
+            }
+        except requests.exceptions.ChunkedEncodingError as e:
+            # Connection dropped mid-stream — typically a proxy idle timeout,
+            # worker restart, or OOM kill on the server side. ChunkedEncodingError
+            # is a subclass of ConnectionError, so it must be caught first.
+            yield {
+                "event": "stream_error",
+                "data": {
+                    "error": "Connection to the assistant was interrupted. Please try again.",
+                    "error_code": "CONNECTION_INTERRUPTED",
+                    "_detail": str(e),
+                },
+            }
+        except requests.exceptions.ConnectionError as e:
+            yield {
+                "event": "stream_error",
+                "data": {
+                    "error": "Couldn't reach the assistant service. Please check your connection and try again.",
+                    "error_code": "CONNECTION_ERROR",
+                    "_detail": str(e),
+                },
             }
         except requests.exceptions.RequestException as e:
             yield {
                 "event": "stream_error",
-                "data": {"error": str(e), "error_code": "REQUEST_ERROR"},
+                "data": {
+                    "error": "Something went wrong with your request. Please try again.",
+                    "error_code": "REQUEST_ERROR",
+                    "_detail": str(e),
+                },
             }
 
     # =========================================================================
@@ -1513,14 +1542,24 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         return self._request_get(endpoint, params)
 
     def get_user_auth_status(self, user_id: str) -> Dict[str, Any]:
-        """Check user authentication status and MCP server readiness."""
+        """Check user authentication status and MCP server readiness.
+
+        On success, returns AR's authoritative response — including the case
+        where AR says the user genuinely doesn't exist (``user_exists: False``).
+
+        On transport failure (network, timeout, 5xx), returns a marker
+        response with ``_ar_unreachable: True`` so callers can distinguish
+        "AR is briefly down" from "AR says this user is unregistered". The
+        previous implementation silently returned ``user_exists: False`` for
+        both cases, which caused FACO to wrongly kick logged-in users to the
+        connect-account screen on transient AR hiccups.
+        """
         endpoint, params = self._prepare_get_user_auth_status(user_id)
         try:
             return self._request_get(endpoint, params)
         except Exception as e:
             return {
-                "user_exists": False,
-                "ready_for_streaming": False,
+                "_ar_unreachable": True,
                 "error": str(e),
             }
 
