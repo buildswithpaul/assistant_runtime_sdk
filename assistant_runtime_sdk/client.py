@@ -1166,6 +1166,27 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         endpoint, payload = self._prepare_verify_razorpay_credit_payment(razorpay_payment_id, razorpay_order_id, razorpay_signature)
         return self._request_post_json(endpoint, payload, api_base=self.billing_api_base)
 
+    def verify_seat_payment(
+        self,
+        razorpay_payment_id: str,
+        razorpay_order_id: str,
+        razorpay_signature: str,
+    ) -> Optional[Dict[str, Any]]:
+        """Verify a Razorpay seat-purchase payment from the embedded widget.
+
+        Args:
+            razorpay_payment_id: Payment ID from Razorpay widget response.
+            razorpay_order_id: Order ID from Razorpay widget response.
+            razorpay_signature: Signature from Razorpay widget response.
+
+        Returns:
+            ``{"success": True, "user_count": int, "invoice": str|None, "message": str}``
+        """
+        endpoint, payload = self._prepare_verify_seat_payment(
+            razorpay_payment_id, razorpay_order_id, razorpay_signature
+        )
+        return self._request_post_json(endpoint, payload, api_base=self.billing_api_base)
+
     def get_token_analytics(self, days: int = 30, user_id: str = None) -> Optional[Dict[str, Any]]:
         """Get per-user/model/source token usage analytics for dashboard.
 
@@ -1273,6 +1294,26 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
             payment_method=payment_method,
         )
         return self._request_post_json(endpoint, payload, api_base=self.billing_api_base)
+
+    def reauthorize_mandate(
+        self,
+        billing_name: Optional[str] = None,
+        payment_method: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Authorize a fresh recurring mandate on the customer's CURRENT plan.
+
+        Used when the renewal cron flagged the saved Razorpay token as
+        exhausted (e.g., projected next-cycle debit > UPI Autopay's
+        per-debit ₹1,00,000 NPCI ceiling), or when the bank cancelled the
+        token. Returns the same Razorpay-checkout shape as ``upgrade_plan``
+        so callers reuse their existing widget-launching code path.
+        """
+        endpoint, payload = self._prepare_reauthorize_mandate(
+            billing_name=billing_name,
+            payment_method=payment_method,
+        )
+        return self._request_post_json(endpoint, payload, api_base=self.billing_api_base)
+
 
     def validate_promo_code(
         self,

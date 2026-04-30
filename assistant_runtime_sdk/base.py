@@ -810,6 +810,18 @@ class BaseAssistantRuntimeClient:
             "razorpay_signature": razorpay_signature,
         }
 
+    def _prepare_verify_seat_payment(
+        self, razorpay_payment_id: str,
+        razorpay_order_id: str, razorpay_signature: str,
+    ) -> tuple:
+        self._require_billing()
+        return "verify_seat_payment", {
+            "tenant_id": self.tenant_id,
+            "razorpay_payment_id": razorpay_payment_id,
+            "razorpay_order_id": razorpay_order_id,
+            "razorpay_signature": razorpay_signature,
+        }
+
     def _prepare_get_token_analytics(self, days: int = 30, user_id: str = None) -> tuple:
         params = {"tenant_id": self.tenant_id, "days": days}
         if user_id:
@@ -874,6 +886,23 @@ class BaseAssistantRuntimeClient:
         if payment_method:
             payload["payment_method"] = payment_method
         return "upgrade_plan", payload
+
+    def _prepare_reauthorize_mandate(
+        self,
+        billing_name: Optional[str] = None,
+        payment_method: Optional[str] = None,
+    ) -> tuple:
+        """Build the request for ``reauthorize_mandate`` — re-authorize the
+        saved Razorpay mandate without changing plans. Used when the
+        renewal cron has flagged the mandate as exhausted (e.g., projected
+        next-cycle debit exceeds UPI Autopay's per-debit ceiling)."""
+        self._require_billing()
+        payload: Dict[str, Any] = {"tenant_id": self.tenant_id}
+        if billing_name:
+            payload["billing_name"] = billing_name
+        if payment_method:
+            payload["payment_method"] = payment_method
+        return "reauthorize_mandate", payload
 
     def _prepare_validate_promo_code(
         self, promo_code: str, plan: Optional[str] = None,

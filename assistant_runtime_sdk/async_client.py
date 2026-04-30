@@ -797,6 +797,18 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         endpoint, payload = self._prepare_verify_razorpay_credit_payment(razorpay_payment_id, razorpay_order_id, razorpay_signature)
         return await self._request_post_json(endpoint, payload, api_base=self.billing_api_base)
 
+    async def verify_seat_payment(
+        self,
+        razorpay_payment_id: str,
+        razorpay_order_id: str,
+        razorpay_signature: str,
+    ) -> Optional[Dict[str, Any]]:
+        """Async version of AssistantRuntimeClient.verify_seat_payment."""
+        endpoint, payload = self._prepare_verify_seat_payment(
+            razorpay_payment_id, razorpay_order_id, razorpay_signature
+        )
+        return await self._request_post_json(endpoint, payload, api_base=self.billing_api_base)
+
     async def get_token_analytics(self, days: int = 30, user_id: str = None) -> Optional[Dict[str, Any]]:
         """Async version of AssistantRuntimeClient.get_token_analytics."""
         endpoint, payload = self._prepare_get_token_analytics(days, user_id)
@@ -852,6 +864,18 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         """Async version of AssistantRuntimeClient.upgrade_plan."""
         endpoint, payload = self._prepare_upgrade_plan(
             new_plan, billing_cycle, gateway, billing_name, billing_email, promo_code,
+            payment_method=payment_method,
+        )
+        return await self._request_post_json(endpoint, payload, api_base=self.billing_api_base)
+
+    async def reauthorize_mandate(
+        self,
+        billing_name: Optional[str] = None,
+        payment_method: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Async version of AssistantRuntimeClient.reauthorize_mandate."""
+        endpoint, payload = self._prepare_reauthorize_mandate(
+            billing_name=billing_name,
             payment_method=payment_method,
         )
         return await self._request_post_json(endpoint, payload, api_base=self.billing_api_base)
