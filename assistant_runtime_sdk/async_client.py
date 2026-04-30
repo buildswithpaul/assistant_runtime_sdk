@@ -955,11 +955,21 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         return await self._request_post_json(endpoint, payload, api_base=self.billing_api_base)
 
     async def purchase_credits(
-        self, token_amount: int, gateway: str = None
+        self, credit_amount: int, gateway: str = None
     ) -> Optional[Dict[str, Any]]:
         """Async version of AssistantRuntimeClient.purchase_credits."""
-        endpoint, payload = self._prepare_purchase_credits(token_amount, gateway)
+        endpoint, payload = self._prepare_purchase_credits(credit_amount, gateway)
         return await self._request_post_json(endpoint, payload, api_base=self.billing_api_base)
+
+    async def get_expiring_credits(self) -> Optional[Dict[str, Any]]:
+        """Async version of AssistantRuntimeClient.get_expiring_credits."""
+        endpoint, params = self._prepare_get_expiring_credits()
+        return await self._request_get(endpoint, params, api_base=self.billing_api_base)
+
+    async def get_consumption_breakdown(self, days: int = 30) -> Optional[Dict[str, Any]]:
+        """Async version of AssistantRuntimeClient.get_consumption_breakdown."""
+        endpoint, params = self._prepare_get_consumption_breakdown(days)
+        return await self._request_get(endpoint, params, api_base=self.billing_api_base)
 
     # =========================================================================
     # Conversation APIs

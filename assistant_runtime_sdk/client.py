@@ -1441,20 +1441,32 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         return self._request_post_json(endpoint, payload, api_base=self.billing_api_base)
 
     def purchase_credits(
-        self, token_amount: int, gateway: str = None
+        self, credit_amount: int, gateway: str = None
     ) -> Optional[Dict[str, Any]]:
         """
         Create a one-time checkout session for purchasing prepaid credits.
 
         Args:
-            token_amount: Number of tokens to purchase
-            gateway: "stripe" or "razorpay" (optional, auto-selects)
+            credit_amount: Number of credits to purchase. Pricing is flat —
+                ``(credit_amount / pack_credits) * pack_price`` per the
+                AR Payment Gateway Settings.
+            gateway: "stripe" or "razorpay" (optional, auto-selects).
 
         Returns:
             Gateway-specific checkout data (checkout URL or order ID).
         """
-        endpoint, payload = self._prepare_purchase_credits(token_amount, gateway)
+        endpoint, payload = self._prepare_purchase_credits(credit_amount, gateway)
         return self._request_post_json(endpoint, payload, api_base=self.billing_api_base)
+
+    def get_expiring_credits(self) -> Optional[Dict[str, Any]]:
+        """List unallocated credit batches expiring within 7 days."""
+        endpoint, params = self._prepare_get_expiring_credits()
+        return self._request_get(endpoint, params, api_base=self.billing_api_base)
+
+    def get_consumption_breakdown(self, days: int = 30) -> Optional[Dict[str, Any]]:
+        """Daily credit consumption rollup grouped by source."""
+        endpoint, params = self._prepare_get_consumption_breakdown(days)
+        return self._request_get(endpoint, params, api_base=self.billing_api_base)
 
     # =========================================================================
     # Conversation APIs

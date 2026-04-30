@@ -959,16 +959,27 @@ class BaseAssistantRuntimeClient:
         self._require_billing()
         return "get_credit_balance", {"tenant_id": self.tenant_id}
 
-    def _prepare_purchase_credits(self, token_amount: int,
+    def _prepare_purchase_credits(self, credit_amount: int,
                                   gateway: Optional[str] = None) -> tuple:
         self._require_billing()
         payload: Dict[str, Any] = {
             "tenant_id": self.tenant_id,
-            "token_amount": token_amount,
+            "credit_amount": credit_amount,
         }
         if gateway:
             payload["gateway"] = gateway
         return "purchase_credits", payload
+
+    def _prepare_get_expiring_credits(self) -> tuple:
+        self._require_billing()
+        return "get_expiring_credits", {"tenant_id": self.tenant_id}
+
+    def _prepare_get_consumption_breakdown(self, days: int = 30) -> tuple:
+        self._require_billing()
+        return "get_consumption_breakdown", {
+            "tenant_id": self.tenant_id,
+            "days": int(days),
+        }
 
     def _prepare_get_billing_details(self) -> tuple:
         self._require_billing()
