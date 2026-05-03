@@ -44,7 +44,7 @@ class ModelsResponse(TypedDict):
 
     success: bool
     models: List[ModelInfo]
-    max_tier_multiplier: float
+    max_tier_rank: float
     default_model: Optional[str]
     auto_mode: Optional[AutoModeInfo]
 
@@ -343,7 +343,7 @@ class PlanInfo(TypedDict):
 
     name: str
     quota: int  # Monthly token quota (-1 for unlimited)
-    max_multiplier: float
+    max_tier_rank: float
     max_users: int  # -1 for unlimited
     features: List[str]
     pricing: PlanPricingByGateway
@@ -361,7 +361,7 @@ class AvailablePlanInfo(TypedDict):
     name: str
     action: str  # "current", "upgrade", or "downgrade"
     quota: int
-    max_multiplier: float
+    max_tier_rank: float
     max_users: int
     features: List[str]
     pricing: PlanPricingByGateway
