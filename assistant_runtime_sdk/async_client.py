@@ -1343,6 +1343,15 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         endpoint, params = self._prepare_list_workflow_runs(workflow_name, status, page, page_size)
         return await self._request_get(endpoint, params, api_base=self.workflows_api_base)
 
+    async def get_workflow_audit_summary(
+        self,
+        workflow_id: str,
+        window: str = "last_7_days",
+    ) -> Optional[Dict[str, Any]]:
+        """Async version of AssistantRuntimeClient.get_workflow_audit_summary."""
+        endpoint, params = self._prepare_get_workflow_audit_summary(workflow_id, window)
+        return await self._request_get(endpoint, params, api_base=self.workflows_api_base)
+
     async def set_workflow_schedule(
         self,
         name: str,

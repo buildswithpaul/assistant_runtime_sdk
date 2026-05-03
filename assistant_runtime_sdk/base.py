@@ -1437,6 +1437,15 @@ class BaseAssistantRuntimeClient:
             params["status"] = status
         return "workflows.list_runs", params
 
+    def _prepare_get_workflow_audit_summary(
+        self, workflow_id: str, window: str = "last_7_days",
+    ) -> tuple:
+        return "audit.get_workflow_audit_summary", {
+            "tenant_id": self.tenant_id,
+            "workflow_id": workflow_id,
+            "window": window,
+        }
+
     def _prepare_set_workflow_schedule(
         self, name: str, cron_expression: str,
         timezone: str = "UTC", enabled: bool = True,

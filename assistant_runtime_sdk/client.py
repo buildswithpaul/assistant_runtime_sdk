@@ -1951,6 +1951,36 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         endpoint, params = self._prepare_list_workflow_runs(workflow_name, status, page, page_size)
         return self._request_get(endpoint, params, api_base=self.workflows_api_base)
 
+    def get_workflow_audit_summary(
+        self,
+        workflow_id: str,
+        window: str = "last_7_days",
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Get an audit summary for a workflow over the given window.
+
+        Args:
+            workflow_id: AR Workflow document name (e.g., "WF-00042")
+            window: One of "this_week", "last_7_days" (default), "last_30_days"
+
+        Returns:
+            {
+              "workflow_id": str,
+              "workflow_name": str,
+              "window": str,
+              "stats": {
+                "runs": int,
+                "success_rate": float (0..1),
+                "avg_latency_seconds": float,
+                "avg_credits_used": float,
+                "trigger_breakdown": {"manual": int, "scheduled": int, "api": int, "doc_event": int}
+              },
+              "runs_per_day": [{"date": "YYYY-MM-DD", "completed": int, "failed": int, "running": int}, ...]
+            }
+        """
+        endpoint, params = self._prepare_get_workflow_audit_summary(workflow_id, window)
+        return self._request_get(endpoint, params, api_base=self.workflows_api_base)
+
     def set_workflow_schedule(
         self,
         name: str,
