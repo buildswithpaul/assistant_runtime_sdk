@@ -1605,24 +1605,11 @@ class BaseAssistantRuntimeClient:
         }
 
     # `_prepare_delete_template` removed in chunk 4 — use `_prepare_delete_listing` instead.
-
-    def _prepare_upload_template(
-        self, user_id: str, is_public: bool = False, is_published: bool = True,
-    ) -> tuple:
-        return "workflows.upload_template", {
-            "tenant_id": self.tenant_id,
-            "user_id": user_id,
-            "is_public": "1" if is_public else "0",
-            "is_published": "1" if is_published else "0",
-        }
-
+    # `_prepare_upload_template` removed in chunk 5 — use `_prepare_upload_listing_from_json`
+    #   (in publishing.py) which wraps the workflow template in a marketplace listing.
     # `_prepare_rate_template` removed in chunk 4 — use `_prepare_rate_listing` instead.
-
-    def _prepare_download_template(self, name: str) -> tuple:
-        return "workflows.download_template", {
-            "tenant_id": self.tenant_id,
-            "name": name,
-        }
+    # `_prepare_download_template` removed in chunk 5 — use `_prepare_download_listing_as_json`
+    #   instead.
 
     # --- Heartbeat & Notifications ---
 
@@ -1838,3 +1825,54 @@ class BaseAssistantRuntimeClient:
         if listing_type:
             params["listing_type"] = listing_type
         return "creator.list_my_listings", params
+
+    # -------------------------------------------------------------------
+    # Marketplace publishing + downloads + version checks (chunk 5)
+    # -------------------------------------------------------------------
+
+    def _prepare_publish_workflow(
+        self,
+        user_id: str,
+        workflow_name: str,
+        template_name: Optional[str] = None,
+        category: str = "General",
+        short_description: Optional[str] = None,
+        description: Optional[str] = None,
+        tags: Optional[str] = None,
+        is_public: bool = False,
+        plan_tier: Optional[str] = None,
+    ) -> tuple:
+        payload: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+            "workflow_name": workflow_name,
+            "category": category,
+            "is_public": 1 if is_public else 0,
+        }
+        for k, v in (
+            ("template_name", template_name),
+            ("short_description", short_description),
+            ("description", description),
+            ("tags", tags),
+            ("plan_tier", plan_tier),
+        ):
+            if v is not None:
+                payload[k] = v
+        return "publishing.publish_workflow", payload
+
+    def _prepare_download_listing_as_json(self, name: str) -> tuple:
+        return "listings.download_listing_as_json", {
+            "tenant_id": self.tenant_id,
+            "name": name,
+        }
+
+    def _prepare_check_workflow_update(self, name: str) -> tuple:
+        return "versions.check_workflow_update", {
+            "tenant_id": self.tenant_id,
+            "name": name,
+        }
+
+    def _prepare_check_all_workflow_updates(self) -> tuple:
+        return "versions.check_all_workflow_updates", {
+            "tenant_id": self.tenant_id,
+        }

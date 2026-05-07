@@ -1419,17 +1419,25 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
     # methods (`list_listings(listing_type="Workflow")`, `get_listing`,
     # `import_listing`, `update_listing`, `delete_listing`) instead.
 
-    async def upload_template(
+    async def upload_listing_from_json(
         self,
         file_path: str,
         user_id: str,
         is_public: bool = False,
         is_published: bool = True,
+        plan_tier: Optional[str] = None,
         timeout: Optional[float] = None,
     ) -> Optional[Dict[str, Any]]:
-        """Async upload a .json template file to create an AR Workflow Template."""
-        endpoint, payload = self._prepare_upload_template(user_id, is_public, is_published)
-        url = f"{self.workflows_api_base}.{endpoint}"
+        """Async upload an ``ar_workflow_template_v1`` JSON file + create a listing."""
+        payload: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+            "is_public": "1" if is_public else "0",
+            "is_published": "1" if is_published else "0",
+        }
+        if plan_tier:
+            payload["plan_tier"] = plan_tier
+        url = f"{self.marketplace_api_base}.publishing.upload_listing_from_json"
         headers = self._get_headers(payload, for_query_string=False)
         timeout_val = timeout or self.timeout
 
@@ -1452,15 +1460,7 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
             return result.get("message", result)
 
     # `rate_template` removed in chunk 4 — use `rate_listing` instead.
-
-    async def download_template(
-        self,
-        name: str,
-        timeout: Optional[float] = None,
-    ) -> Optional[Dict[str, Any]]:
-        """Async download a template as portable ar_workflow_template_v1 JSON."""
-        endpoint, params = self._prepare_download_template(name)
-        return await self._request_get(endpoint, params, api_base=self.workflows_api_base, timeout=timeout)
+    # `download_template` removed in chunk 5 — use `download_listing_as_json` instead.
 
     # --- GDPR / Privacy ---
 
@@ -1639,4 +1639,38 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         page_size: int = 20,
     ) -> Optional[Dict[str, Any]]:
         endpoint, params = self._prepare_list_my_listings(user_id, listing_type, page, page_size)
+        return await self._request_get(endpoint, params, api_base=self.marketplace_api_base)
+
+    # -------------------------------------------------------------------
+    # Marketplace publishing + downloads + version checks (chunk 5)
+    # -------------------------------------------------------------------
+
+    async def publish_workflow(
+        self,
+        user_id: str,
+        workflow_name: str,
+        template_name: Optional[str] = None,
+        category: str = "General",
+        short_description: Optional[str] = None,
+        description: Optional[str] = None,
+        tags: Optional[str] = None,
+        is_public: bool = False,
+        plan_tier: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        endpoint, payload = self._prepare_publish_workflow(
+            user_id, workflow_name, template_name, category, short_description,
+            description, tags, is_public, plan_tier,
+        )
+        return await self._request_post_json(endpoint, payload, api_base=self.marketplace_api_base)
+
+    async def download_listing_as_json(self, name: str) -> Optional[Dict[str, Any]]:
+        endpoint, params = self._prepare_download_listing_as_json(name)
+        return await self._request_get(endpoint, params, api_base=self.marketplace_api_base)
+
+    async def check_workflow_update(self, name: str) -> Optional[Dict[str, Any]]:
+        endpoint, params = self._prepare_check_workflow_update(name)
+        return await self._request_get(endpoint, params, api_base=self.marketplace_api_base)
+
+    async def check_all_workflow_updates(self) -> Optional[Dict[str, Any]]:
+        endpoint, params = self._prepare_check_all_workflow_updates()
         return await self._request_get(endpoint, params, api_base=self.marketplace_api_base)

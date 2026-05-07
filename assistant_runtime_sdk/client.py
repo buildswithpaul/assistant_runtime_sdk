@@ -2101,19 +2101,31 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
     # (`list_listings(listing_type="Workflow")`, `get_listing`, `import_listing`,
     # `update_listing`, `delete_listing`) instead.
 
-    def upload_template(
+    def upload_listing_from_json(
         self,
         file_path: str,
         user_id: str,
         is_public: bool = False,
         is_published: bool = True,
+        plan_tier: Optional[str] = None,
         timeout: Optional[float] = None,
     ) -> Optional[Dict[str, Any]]:
-        """Upload a .json template file to create an AR Workflow Template."""
-        endpoint, payload = self._prepare_upload_template(user_id, is_public, is_published)
-        url = f"{self.workflows_api_base}.{endpoint}"
+        """Upload an ``ar_workflow_template_v1`` JSON file + create a listing.
+
+        Creates an AR Workflow Template owning the graph definition, then
+        wraps it in an AR Marketplace Listing. Replaces the legacy
+        ``upload_template`` method (deleted in chunk 5).
+        """
+        payload: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+            "is_public": "1" if is_public else "0",
+            "is_published": "1" if is_published else "0",
+        }
+        if plan_tier:
+            payload["plan_tier"] = plan_tier
+        url = f"{self.marketplace_api_base}.publishing.upload_listing_from_json"
         headers = self._get_headers(payload, for_query_string=False)
-        # Remove Content-Type — requests sets it automatically for multipart
         timeout = timeout or self.timeout
 
         try:
@@ -2137,15 +2149,7 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
             raise ARAPIError(str(e)) from e
 
     # `rate_template` removed in chunk 4 — use `rate_listing` instead.
-
-    def download_template(
-        self,
-        name: str,
-        timeout: Optional[float] = None,
-    ) -> Optional[Dict[str, Any]]:
-        """Download a template as portable ar_workflow_template_v1 JSON."""
-        endpoint, params = self._prepare_download_template(name)
-        return self._request_get(endpoint, params, api_base=self.workflows_api_base, timeout=timeout)
+    # `download_template` removed in chunk 5 — use `download_listing_as_json` instead.
 
     # --- GDPR / Privacy ---
 
@@ -2336,6 +2340,44 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
     ) -> Optional[Dict[str, Any]]:
         """List listings created by this tenant."""
         endpoint, params = self._prepare_list_my_listings(user_id, listing_type, page, page_size)
+        return self._request_get(endpoint, params, api_base=self.marketplace_api_base)
+
+    # -------------------------------------------------------------------
+    # Marketplace publishing + downloads + version checks (chunk 5)
+    # -------------------------------------------------------------------
+
+    def publish_workflow(
+        self,
+        user_id: str,
+        workflow_name: str,
+        template_name: Optional[str] = None,
+        category: str = "General",
+        short_description: Optional[str] = None,
+        description: Optional[str] = None,
+        tags: Optional[str] = None,
+        is_public: bool = False,
+        plan_tier: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Export a workflow + create a listing wrapping the new template."""
+        endpoint, payload = self._prepare_publish_workflow(
+            user_id, workflow_name, template_name, category, short_description,
+            description, tags, is_public, plan_tier,
+        )
+        return self._request_post_json(endpoint, payload, api_base=self.marketplace_api_base)
+
+    def download_listing_as_json(self, name: str) -> Optional[Dict[str, Any]]:
+        """Return a workflow listing as portable ar_workflow_template_v1 JSON."""
+        endpoint, params = self._prepare_download_listing_as_json(name)
+        return self._request_get(endpoint, params, api_base=self.marketplace_api_base)
+
+    def check_workflow_update(self, name: str) -> Optional[Dict[str, Any]]:
+        """Check whether the workflow's source template has a newer version."""
+        endpoint, params = self._prepare_check_workflow_update(name)
+        return self._request_get(endpoint, params, api_base=self.marketplace_api_base)
+
+    def check_all_workflow_updates(self) -> Optional[Dict[str, Any]]:
+        """Batch-check all tenant workflows for available template updates."""
+        endpoint, params = self._prepare_check_all_workflow_updates()
         return self._request_get(endpoint, params, api_base=self.marketplace_api_base)
 
 
