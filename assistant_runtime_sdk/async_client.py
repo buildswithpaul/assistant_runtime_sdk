@@ -1414,79 +1414,10 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         endpoint, payload = self._prepare_export_workflow(name, template_name, category, save_as_template, is_public)
         return await self._request_post_json(endpoint, payload, api_base=self.workflows_api_base)
 
-    async def list_templates(
-        self,
-        category: Optional[str] = None,
-        search: Optional[str] = None,
-        user_id: Optional[str] = None,
-        sort_by: Optional[str] = None,
-        featured_only: bool = False,
-        min_rating: Optional[float] = None,
-        page: int = 0,
-        page_size: int = 20,
-        timeout: Optional[float] = None,
-    ) -> Optional[Dict[str, Any]]:
-        """Async version of AssistantRuntimeClient.list_templates with marketplace sorting."""
-        endpoint, params = self._prepare_list_templates(
-            category, search, user_id, sort_by, featured_only, min_rating, page, page_size
-        )
-        return await self._request_get(endpoint, params, api_base=self.workflows_api_base, timeout=timeout)
-
-    async def get_template(
-        self,
-        template_name: Optional[str] = None,
-        name: Optional[str] = None,
-        user_id: Optional[str] = None,
-    ) -> Optional[Dict[str, Any]]:
-        """Async version of AssistantRuntimeClient.get_template."""
-        endpoint, params = self._prepare_get_template(template_name, name, user_id)
-        return await self._request_get(endpoint, params, api_base=self.workflows_api_base)
-
-    async def import_template(
-        self,
-        user_id: str,
-        template_name: Optional[str] = None,
-        template_json: Optional[str] = None,
-        workflow_name: Optional[str] = None,
-        variables: Optional[str] = None,
-        default_user_id: Optional[str] = None,
-        default_model_id: Optional[str] = None,
-    ) -> Optional[Dict[str, Any]]:
-        """Async version of AssistantRuntimeClient.import_template."""
-        endpoint, payload = self._prepare_import_template(
-            user_id, template_name, template_json, workflow_name,
-            variables, default_user_id, default_model_id,
-        )
-        return await self._request_post_json(endpoint, payload, api_base=self.workflows_api_base)
-
-    async def update_template(
-        self,
-        name: str,
-        template_name: Optional[str] = None,
-        description: Optional[str] = None,
-        category: Optional[str] = None,
-        is_public: Optional[bool] = None,
-        is_published: Optional[bool] = None,
-        graph_json: Optional[str] = None,
-        variables_schema: Optional[str] = None,
-        default_variables: Optional[str] = None,
-        default_model_id: Optional[str] = None,
-        error_strategy: Optional[str] = None,
-        timeout_seconds: Optional[int] = None,
-        tags: Optional[str] = None,
-    ) -> Optional[Dict[str, Any]]:
-        """Async version of AssistantRuntimeClient.update_template."""
-        endpoint, payload = self._prepare_update_template(
-            name, template_name, description, category, is_public,
-            is_published, graph_json, variables_schema, default_variables,
-            default_model_id, error_strategy, timeout_seconds, tags,
-        )
-        return await self._request_post_json(endpoint, payload, api_base=self.workflows_api_base)
-
-    async def delete_template(self, name: str) -> Optional[Dict[str, Any]]:
-        """Async version of AssistantRuntimeClient.delete_template."""
-        endpoint, payload = self._prepare_delete_template(name)
-        return await self._request_post_json(endpoint, payload, api_base=self.workflows_api_base)
+    # `list_templates`, `get_template`, `import_template`, `update_template`,
+    # and `delete_template` removed in chunk 4 — use the async marketplace
+    # methods (`list_listings(listing_type="Workflow")`, `get_listing`,
+    # `import_listing`, `update_listing`, `delete_listing`) instead.
 
     async def upload_template(
         self,
@@ -1520,17 +1451,7 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
             result = await resp.json()
             return result.get("message", result)
 
-    async def rate_template(
-        self,
-        name: str,
-        user_id: str,
-        rating: int,
-        review: Optional[str] = None,
-        timeout: Optional[float] = None,
-    ) -> Optional[Dict[str, Any]]:
-        """Async rate a template (1-5 stars)."""
-        endpoint, payload = self._prepare_rate_template(name, user_id, rating, review)
-        return await self._request_post_json(endpoint, payload, api_base=self.workflows_api_base, timeout=timeout)
+    # `rate_template` removed in chunk 4 — use `rate_listing` instead.
 
     async def download_template(
         self,

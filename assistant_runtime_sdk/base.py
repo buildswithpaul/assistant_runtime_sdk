@@ -1548,111 +1548,10 @@ class BaseAssistantRuntimeClient:
             payload["template_name"] = template_name
         return "workflows.export_workflow", payload
 
-    def _prepare_list_templates(
-        self, category: Optional[str] = None, search: Optional[str] = None,
-        user_id: Optional[str] = None, sort_by: Optional[str] = None,
-        featured_only: bool = False, min_rating: Optional[float] = None,
-        page: int = 0, page_size: int = 20,
-    ) -> tuple:
-        params: Dict[str, Any] = {
-            "tenant_id": self.tenant_id,
-            "page": page,
-            "page_size": page_size,
-        }
-        if category:
-            params["category"] = category
-        if search:
-            params["search"] = search
-        if user_id:
-            params["user_id"] = user_id
-        if sort_by:
-            params["sort_by"] = sort_by
-        if featured_only:
-            params["featured_only"] = "1"
-        if min_rating is not None:
-            params["min_rating"] = min_rating
-        return "workflows.list_templates", params
-
-    def _prepare_get_template(
-        self, template_name: Optional[str] = None,
-        name: Optional[str] = None, user_id: Optional[str] = None,
-    ) -> tuple:
-        params: Dict[str, Any] = {"tenant_id": self.tenant_id}
-        if name:
-            params["name"] = name
-        elif template_name:
-            params["template_name"] = template_name
-        if user_id:
-            params["user_id"] = user_id
-        return "workflows.get_template", params
-
-    def _prepare_import_template(
-        self, user_id: str, template_name: Optional[str] = None,
-        template_json: Optional[str] = None,
-        workflow_name: Optional[str] = None,
-        variables: Optional[str] = None,
-        default_user_id: Optional[str] = None,
-        default_model_id: Optional[str] = None,
-    ) -> tuple:
-        payload: Dict[str, Any] = {
-            "tenant_id": self.tenant_id,
-            "user_id": user_id,
-        }
-        if template_name:
-            payload["template_name"] = template_name
-        if template_json:
-            payload["template_json"] = template_json
-        if workflow_name:
-            payload["workflow_name"] = workflow_name
-        if variables:
-            payload["variables"] = variables
-        if default_user_id:
-            payload["default_user_id"] = default_user_id
-        if default_model_id:
-            payload["default_model_id"] = default_model_id
-        return "workflows.import_template", payload
-
-    def _prepare_update_template(
-        self, name: str, template_name: Optional[str] = None,
-        description: Optional[str] = None, category: Optional[str] = None,
-        is_public: Optional[bool] = None, is_published: Optional[bool] = None,
-        graph_json: Optional[str] = None,
-        variables_schema: Optional[str] = None,
-        default_variables: Optional[str] = None,
-        default_model_id: Optional[str] = None,
-        error_strategy: Optional[str] = None,
-        timeout_seconds: Optional[int] = None,
-        tags: Optional[str] = None,
-    ) -> tuple:
-        payload: Dict[str, Any] = {
-            "tenant_id": self.tenant_id,
-            "name": name,
-        }
-        if template_name is not None:
-            payload["template_name"] = template_name
-        if description is not None:
-            payload["description"] = description
-        if category is not None:
-            payload["category"] = category
-        if is_public is not None:
-            payload["is_public"] = is_public
-        if is_published is not None:
-            payload["is_published"] = is_published
-        if graph_json is not None:
-            payload["graph_json"] = graph_json
-        if variables_schema is not None:
-            payload["variables_schema"] = variables_schema
-        if default_variables is not None:
-            payload["default_variables"] = default_variables
-        if default_model_id is not None:
-            payload["default_model_id"] = default_model_id
-        if error_strategy is not None:
-            payload["error_strategy"] = error_strategy
-        if timeout_seconds is not None:
-            payload["timeout_seconds"] = timeout_seconds
-        if tags is not None:
-            payload["tags"] = tags
-        return "workflows.update_template", payload
+    # `_prepare_list_templates`, `_prepare_get_template`, `_prepare_import_template`,
+    # and `_prepare_update_template` removed in chunk 4 — use the marketplace
+    # listing prepare helpers (`_prepare_list_listings`, `_prepare_get_listing`,
+    # `_prepare_install_listing`, `_prepare_update_listing`) instead.
 
     # =========================================================================
     # Prepare Methods — GDPR / Privacy
@@ -1705,11 +1604,7 @@ class BaseAssistantRuntimeClient:
             "config": json.dumps(config) if isinstance(config, dict) else config,
         }
 
-    def _prepare_delete_template(self, name: str) -> tuple:
-        return "workflows.delete_template", {
-            "tenant_id": self.tenant_id,
-            "name": name,
-        }
+    # `_prepare_delete_template` removed in chunk 4 — use `_prepare_delete_listing` instead.
 
     def _prepare_upload_template(
         self, user_id: str, is_public: bool = False, is_published: bool = True,
@@ -1721,19 +1616,7 @@ class BaseAssistantRuntimeClient:
             "is_published": "1" if is_published else "0",
         }
 
-    def _prepare_rate_template(
-        self, name: str, user_id: str, rating: int,
-        review: Optional[str] = None,
-    ) -> tuple:
-        payload: Dict[str, Any] = {
-            "tenant_id": self.tenant_id,
-            "name": name,
-            "user_id": user_id,
-            "rating": rating,
-        }
-        if review:
-            payload["review"] = review
-        return "workflows.rate_template", payload
+    # `_prepare_rate_template` removed in chunk 4 — use `_prepare_rate_listing` instead.
 
     def _prepare_download_template(self, name: str) -> tuple:
         return "workflows.download_template", {
