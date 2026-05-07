@@ -1604,3 +1604,118 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         """Async record that a user has dismissed a notification."""
         endpoint, payload = self._prepare_dismiss_notification(notification_id, user_id)
         return await self._request_post_json(endpoint, payload, timeout=timeout)
+
+    # -------------------------------------------------------------------
+    # Marketplace API — async, routes via marketplace_api_base
+    # -------------------------------------------------------------------
+
+    async def list_listings(
+        self,
+        listing_type: Optional[str] = None,
+        category: Optional[str] = None,
+        search: Optional[str] = None,
+        featured_only: bool = False,
+        min_rating: Optional[float] = None,
+        plan_tier: Optional[str] = None,
+        sort_by: Optional[str] = None,
+        page: int = 0,
+        page_size: int = 20,
+        user_id: Optional[str] = None,
+        timeout: Optional[float] = None,
+    ) -> Optional[Dict[str, Any]]:
+        endpoint, params = self._prepare_list_listings(
+            listing_type, category, search, featured_only, min_rating,
+            plan_tier, sort_by, page, page_size, user_id,
+        )
+        return await self._request_get(endpoint, params, api_base=self.marketplace_api_base, timeout=timeout)
+
+    async def get_listing(
+        self, name: str, user_id: Optional[str] = None,
+        include_source: bool = True,
+    ) -> Optional[Dict[str, Any]]:
+        endpoint, params = self._prepare_get_listing(name, user_id, include_source)
+        return await self._request_get(endpoint, params, api_base=self.marketplace_api_base)
+
+    async def import_listing(
+        self,
+        user_id: str,
+        name: str,
+        new_title: Optional[str] = None,
+        variables: Optional[str] = None,
+        default_model_id: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        endpoint, payload = self._prepare_import_listing(
+            user_id, name, new_title, variables, default_model_id,
+        )
+        return await self._request_post_json(endpoint, payload, api_base=self.marketplace_api_base)
+
+    async def update_listing(
+        self,
+        name: str,
+        title: Optional[str] = None,
+        short_description: Optional[str] = None,
+        description: Optional[str] = None,
+        category: Optional[str] = None,
+        tags: Optional[str] = None,
+        icon: Optional[str] = None,
+        is_public: Optional[bool] = None,
+        is_published: Optional[bool] = None,
+        plan_tier: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        endpoint, payload = self._prepare_update_listing(
+            name, title, short_description, description, category, tags,
+            icon, is_public, is_published, plan_tier,
+        )
+        return await self._request_post_json(endpoint, payload, api_base=self.marketplace_api_base)
+
+    async def delete_listing(self, name: str) -> Optional[Dict[str, Any]]:
+        endpoint, payload = self._prepare_delete_listing(name)
+        return await self._request_post_json(endpoint, payload, api_base=self.marketplace_api_base)
+
+    async def rate_listing(
+        self, user_id: str, listing: str, rating: int,
+        review: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        endpoint, payload = self._prepare_rate_listing(user_id, listing, rating, review)
+        return await self._request_post_json(endpoint, payload, api_base=self.marketplace_api_base)
+
+    async def report_listing(
+        self, user_id: str, listing: str, reason: str,
+        details: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        endpoint, payload = self._prepare_report_listing(user_id, listing, reason, details)
+        return await self._request_post_json(endpoint, payload, api_base=self.marketplace_api_base)
+
+    async def list_pending_reviews(
+        self, page: int = 0, page_size: int = 20,
+    ) -> Optional[Dict[str, Any]]:
+        endpoint, params = self._prepare_list_pending_reviews(page, page_size)
+        return await self._request_get(endpoint, params, api_base=self.marketplace_api_base)
+
+    async def approve_listing(
+        self, listing: str, notes: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        endpoint, payload = self._prepare_approve_listing(listing, notes)
+        return await self._request_post_json(endpoint, payload, api_base=self.marketplace_api_base)
+
+    async def reject_listing(
+        self, listing: str, notes: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        endpoint, payload = self._prepare_reject_listing(listing, notes)
+        return await self._request_post_json(endpoint, payload, api_base=self.marketplace_api_base)
+
+    async def get_creator_stats(
+        self, user_id: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        endpoint, params = self._prepare_get_creator_stats(user_id)
+        return await self._request_get(endpoint, params, api_base=self.marketplace_api_base)
+
+    async def list_my_listings(
+        self,
+        user_id: Optional[str] = None,
+        listing_type: Optional[str] = None,
+        page: int = 0,
+        page_size: int = 20,
+    ) -> Optional[Dict[str, Any]]:
+        endpoint, params = self._prepare_list_my_listings(user_id, listing_type, page, page_size)
+        return await self._request_get(endpoint, params, api_base=self.marketplace_api_base)

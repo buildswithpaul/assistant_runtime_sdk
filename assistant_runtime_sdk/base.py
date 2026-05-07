@@ -57,6 +57,10 @@ class BaseAssistantRuntimeClient:
             ``{ar_url}/api/method/assistant_runtime_workflows.api``. Pass a full
             URL or just a Frappe dotted module path (e.g.
             ``"assistant_runtime_workflows.api"``).
+        marketplace_api_base: Override URL for marketplace API endpoints. Defaults to
+            ``{ar_url}/api/method/assistant_runtime_marketplace.api``. Pass a full
+            URL or just a Frappe dotted module path (e.g.
+            ``"assistant_runtime_marketplace.api"``).
 
     Example:
         >>> # Don't instantiate directly - use AssistantRuntimeClient or AsyncAssistantRuntimeClient
@@ -68,6 +72,7 @@ class BaseAssistantRuntimeClient:
     DEFAULT_BILLING_API_MODULE = "assistant_runtime_payments.api"
     DEFAULT_MEMORY_API_MODULE = "assistant_runtime_memory.api"
     DEFAULT_WORKFLOWS_API_MODULE = "assistant_runtime_workflows.api"
+    DEFAULT_MARKETPLACE_API_MODULE = "assistant_runtime_marketplace.api"
     DEFAULT_TIMEOUT = 30.0
     STREAM_CONNECT_TIMEOUT = 10.0
     STREAM_READ_TIMEOUT = 300.0  # 5 minutes for long responses
@@ -82,6 +87,7 @@ class BaseAssistantRuntimeClient:
         billing_api_base: Optional[str] = None,
         memory_api_base: Optional[str] = None,
         workflows_api_base: Optional[str] = None,
+        marketplace_api_base: Optional[str] = None,
     ):
         # Validate required parameters
         if not tenant_id:
@@ -99,6 +105,7 @@ class BaseAssistantRuntimeClient:
         self.billing_api_base = self._resolve_api_base(billing_api_base, self.DEFAULT_BILLING_API_MODULE)
         self.memory_api_base = self._resolve_api_base(memory_api_base, self.DEFAULT_MEMORY_API_MODULE)
         self.workflows_api_base = self._resolve_api_base(workflows_api_base, self.DEFAULT_WORKFLOWS_API_MODULE)
+        self.marketplace_api_base = self._resolve_api_base(marketplace_api_base, self.DEFAULT_MARKETPLACE_API_MODULE)
 
         # Billing availability state — None means unknown (not yet probed)
         self._billing_available: Optional[bool] = None
@@ -238,6 +245,20 @@ class BaseAssistantRuntimeClient:
             Full URL
         """
         return f"{self.workflows_api_base}.{endpoint}"
+
+    def _build_marketplace_endpoint_url(self, endpoint: str) -> str:
+        """
+        Build full URL for a marketplace API endpoint.
+
+        Routes through ``marketplace_api_base`` which targets the marketplace app.
+
+        Args:
+            endpoint: Endpoint path (e.g., 'listings.list_listings')
+
+        Returns:
+            Full URL
+        """
+        return f"{self.marketplace_api_base}.{endpoint}"
 
     def _require_billing(self) -> None:
         """
@@ -1751,3 +1772,186 @@ class BaseAssistantRuntimeClient:
             "notification_id": notification_id,
             "user_id": user_id,
         }
+
+    # -------------------------------------------------------------------
+    # Marketplace API prepares — route via marketplace_api_base
+    # -------------------------------------------------------------------
+
+    def _prepare_list_listings(
+        self,
+        listing_type: Optional[str] = None,
+        category: Optional[str] = None,
+        search: Optional[str] = None,
+        featured_only: bool = False,
+        min_rating: Optional[float] = None,
+        plan_tier: Optional[str] = None,
+        sort_by: Optional[str] = None,
+        page: int = 0,
+        page_size: int = 20,
+        user_id: Optional[str] = None,
+    ) -> tuple:
+        params: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "page": page,
+            "page_size": page_size,
+        }
+        if listing_type:
+            params["listing_type"] = listing_type
+        if category:
+            params["category"] = category
+        if search:
+            params["search"] = search
+        if featured_only:
+            params["featured_only"] = "1"
+        if min_rating is not None:
+            params["min_rating"] = min_rating
+        if plan_tier:
+            params["plan_tier"] = plan_tier
+        if sort_by:
+            params["sort_by"] = sort_by
+        if user_id:
+            params["user_id"] = user_id
+        return "listings.list_listings", params
+
+    def _prepare_get_listing(
+        self, name: str, user_id: Optional[str] = None,
+        include_source: bool = True,
+    ) -> tuple:
+        params: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "name": name,
+            "include_source": "1" if include_source else "0",
+        }
+        if user_id:
+            params["user_id"] = user_id
+        return "listings.get_listing", params
+
+    def _prepare_import_listing(
+        self, user_id: str, name: str,
+        new_title: Optional[str] = None,
+        variables: Optional[str] = None,
+        default_model_id: Optional[str] = None,
+    ) -> tuple:
+        payload: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+            "name": name,
+        }
+        if new_title:
+            payload["new_title"] = new_title
+        if variables:
+            payload["variables"] = variables
+        if default_model_id:
+            payload["default_model_id"] = default_model_id
+        return "listings.import_listing", payload
+
+    def _prepare_update_listing(
+        self, name: str,
+        title: Optional[str] = None,
+        short_description: Optional[str] = None,
+        description: Optional[str] = None,
+        category: Optional[str] = None,
+        tags: Optional[str] = None,
+        icon: Optional[str] = None,
+        is_public: Optional[bool] = None,
+        is_published: Optional[bool] = None,
+        plan_tier: Optional[str] = None,
+    ) -> tuple:
+        payload: Dict[str, Any] = {"tenant_id": self.tenant_id, "name": name}
+        for k, v in (
+            ("title", title), ("short_description", short_description),
+            ("description", description), ("category", category),
+            ("tags", tags), ("icon", icon),
+        ):
+            if v is not None:
+                payload[k] = v
+        if is_public is not None:
+            payload["is_public"] = 1 if is_public else 0
+        if is_published is not None:
+            payload["is_published"] = 1 if is_published else 0
+        if plan_tier is not None:
+            payload["plan_tier"] = plan_tier
+        return "publishing.update_listing", payload
+
+    def _prepare_delete_listing(self, name: str) -> tuple:
+        return "publishing.delete_listing", {
+            "tenant_id": self.tenant_id, "name": name,
+        }
+
+    def _prepare_rate_listing(
+        self, user_id: str, listing: str, rating: int, review: Optional[str] = None,
+    ) -> tuple:
+        payload: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+            "listing": listing,
+            "rating": rating,
+        }
+        if review:
+            payload["review"] = review
+        return "ratings.rate_listing", payload
+
+    def _prepare_report_listing(
+        self, user_id: str, listing: str, reason: str,
+        details: Optional[str] = None,
+    ) -> tuple:
+        payload: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+            "listing": listing,
+            "reason": reason,
+        }
+        if details:
+            payload["details"] = details
+        return "ratings.report_listing", payload
+
+    def _prepare_list_pending_reviews(
+        self, page: int = 0, page_size: int = 20,
+    ) -> tuple:
+        return "moderation.list_pending_reviews", {
+            "tenant_id": self.tenant_id,
+            "page": page,
+            "page_size": page_size,
+        }
+
+    def _prepare_approve_listing(
+        self, listing: str, notes: Optional[str] = None,
+    ) -> tuple:
+        payload: Dict[str, Any] = {"tenant_id": self.tenant_id, "listing": listing}
+        if notes:
+            payload["notes"] = notes
+        return "moderation.approve_listing", payload
+
+    def _prepare_reject_listing(
+        self, listing: str, notes: Optional[str] = None,
+    ) -> tuple:
+        payload: Dict[str, Any] = {"tenant_id": self.tenant_id, "listing": listing}
+        if notes:
+            payload["notes"] = notes
+        return "moderation.reject_listing", payload
+
+    def _prepare_get_creator_stats(
+        self, user_id: Optional[str] = None,
+    ) -> tuple:
+        params: Dict[str, Any] = {"tenant_id": self.tenant_id}
+        if user_id:
+            params["user_id"] = user_id
+        return "creator.get_creator_stats", params
+
+    def _prepare_list_my_listings(
+        self,
+        user_id: Optional[str] = None,
+        listing_type: Optional[str] = None,
+        page: int = 0,
+        page_size: int = 20,
+    ) -> tuple:
+        params: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "page": page,
+            "page_size": page_size,
+        }
+        if user_id:
+            params["user_id"] = user_id
+        if listing_type:
+            params["listing_type"] = listing_type
+        return "creator.list_my_listings", params
