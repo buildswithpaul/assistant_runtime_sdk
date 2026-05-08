@@ -1876,3 +1876,82 @@ class BaseAssistantRuntimeClient:
         return "versions.check_all_workflow_updates", {
             "tenant_id": self.tenant_id,
         }
+
+    # -------------------------------------------------------------------
+    # Platform Prompts admin (Task 14) — admin-gated, no tenant_id needed
+    # -------------------------------------------------------------------
+
+    def _prepare_list_platform_prompts(
+        self,
+        page: int = 0,
+        page_size: int = 50,
+        category: Optional[str] = None,
+        plan_tier: Optional[str] = None,
+        is_active: Optional[int] = None,
+        search: Optional[str] = None,
+    ) -> tuple:
+        params: Dict[str, Any] = {"page": page, "page_size": page_size}
+        if category:
+            params["category"] = category
+        if plan_tier:
+            params["plan_tier"] = plan_tier
+        if is_active is not None:
+            params["is_active"] = int(is_active)
+        if search:
+            params["search"] = search
+        return "platform_prompts.list_platform_prompts", params
+
+    def _prepare_get_platform_prompt(self, name: str) -> tuple:
+        return "platform_prompts.get_platform_prompt", {"name": name}
+
+    def _prepare_create_platform_prompt(self, data: Dict[str, Any]) -> tuple:
+        return "platform_prompts.create_platform_prompt", {"data": data}
+
+    def _prepare_update_platform_prompt(
+        self, name: str, data: Dict[str, Any],
+    ) -> tuple:
+        return "platform_prompts.update_platform_prompt", {"name": name, "data": data}
+
+    def _prepare_delete_platform_prompt(self, name: str) -> tuple:
+        return "platform_prompts.delete_platform_prompt", {"name": name}
+
+    # -------------------------------------------------------------------
+    # Platform Skills admin (Task 14) — admin-gated, no tenant_id needed
+    # -------------------------------------------------------------------
+
+    def _prepare_list_platform_skills(
+        self,
+        page: int = 0,
+        page_size: int = 50,
+        category: Optional[str] = None,
+        skill_type: Optional[str] = None,
+        plan_tier: Optional[str] = None,
+        is_active: Optional[int] = None,
+        search: Optional[str] = None,
+    ) -> tuple:
+        params: Dict[str, Any] = {"page": page, "page_size": page_size}
+        if category:
+            params["category"] = category
+        if skill_type:
+            params["skill_type"] = skill_type
+        if plan_tier:
+            params["plan_tier"] = plan_tier
+        if is_active is not None:
+            params["is_active"] = int(is_active)
+        if search:
+            params["search"] = search
+        return "platform_skills.list_platform_skills", params
+
+    def _prepare_get_platform_skill(self, name: str) -> tuple:
+        return "platform_skills.get_platform_skill", {"name": name}
+
+    def _prepare_create_platform_skill(self, data: Dict[str, Any]) -> tuple:
+        return "platform_skills.create_platform_skill", {"data": data}
+
+    def _prepare_update_platform_skill(
+        self, name: str, data: Dict[str, Any],
+    ) -> tuple:
+        return "platform_skills.update_platform_skill", {"name": name, "data": data}
+
+    def _prepare_delete_platform_skill(self, name: str) -> tuple:
+        return "platform_skills.delete_platform_skill", {"name": name}
