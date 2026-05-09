@@ -484,6 +484,46 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         return result.get("success", False) if result else False
 
     # =========================================================================
+    # Origin Binding APIs (Phase 2)
+    # =========================================================================
+
+    def request_rebind(self, new_site_url: str) -> Dict[str, Any]:
+        """Initiate a tenant rebind. Returns {"rebind_token": str, "expires_at": str}.
+
+        When the site URL of an installation changes, call this to begin the
+        rebind flow. AR sends a confirmation email to the tenant owner. After
+        the owner clicks the link, call the module-level helper
+        ``get_rotated_secret(ar_url, rebind_token)`` with the token from the
+        link to retrieve the new ``tenant_secret``.
+        """
+        return self._request_post_json(
+            "request_rebind",
+            {"tenant_id": self.tenant_id, "new_site_url": new_site_url},
+        )
+
+    def claim_tenant_email(self, owner_email: str) -> Dict[str, Any]:
+        """Bootstrap an owner_email on a legacy tenant (one without a verified
+        owner_email on file). AR sends a verification email; the email is only
+        persisted to the tenant record after the owner clicks the link.
+        """
+        return self._request_post_json(
+            "claim_tenant_email",
+            {"tenant_id": self.tenant_id, "owner_email": owner_email},
+        )
+
+    def diagnose_registration(self) -> Dict[str, Any]:
+        """Diagnose registration issues. Returns one of:
+
+        - ``{"status": "ok", "bound_host": ..., "last_verification": ...}``
+        - ``{"status": "origin_mismatch", "bound_host": ..., "claimed_host": ...,
+          "remediation": "rebind", "rebind_url": ...}``
+        """
+        return self._request_post_json(
+            "diagnose_registration",
+            {"tenant_id": self.tenant_id},
+        )
+
+    # =========================================================================
     # Prompt APIs
     # =========================================================================
 
@@ -2439,6 +2479,7 @@ def validate_referral_code(ar_url: str, referral_code: str) -> Dict[str, Any]:
 def register_tenant(
     ar_url: str,
     site_url: str,
+    owner_email: str,
     fac_mcp_endpoint: Optional[str] = None,
     terms_accepted: bool = True,
     terms_version: Optional[str] = None,
@@ -2450,19 +2491,27 @@ def register_tenant(
 
     Args:
         ar_url: Assistant Runtime server URL
-        site_url: This site's URL
+        site_url: This site's URL (used for origin binding)
+        owner_email: Email address of the tenant owner. Required. AR sends a
+            verification email to this address; the tenant is not fully active
+            until the owner confirms. After confirmation, call
+            ``get_initial_secret(ar_url, verification_token)`` with the token
+            from the link to retrieve the ``tenant_secret``. The response from
+            this function does **not** include the secret directly.
         fac_mcp_endpoint: Optional FAC MCP server endpoint URL
         terms_accepted: Must be True to register
         terms_version: Version of terms being accepted
         accepted_by: User who accepted the terms
+        referral_code: Optional referral code
 
     Returns:
-        Registration result with tenant_id and tenant_secret, or error
+        Registration result with tenant_id (secret delivered via email link), or error
     """
     url = f"{ar_url.rstrip('/')}/api/method/assistant_runtime.api.register_tenant"
 
     payload = {
         "site_url": site_url,
+        "owner_email": owner_email,
         "terms_accepted": terms_accepted,
         "terms_version": terms_version,
         "accepted_by": accepted_by,
@@ -2483,5 +2532,46 @@ def register_tenant(
         )
         response.raise_for_status()
         return response.json().get("message", response.json())
+    except requests.exceptions.RequestException as e:
+        return {"error": str(e)}
+
+
+def get_initial_secret(ar_url: str, verification_token: str) -> Dict[str, Any]:
+    """One-shot retrieval of the freshly-minted tenant_secret after the
+    owner has confirmed their email via the verification link.
+
+    Returns: {"tenant_secret": str} on success, or {"error": str} on failure.
+    Subsequent calls with the same token return {"error": ...} (single use).
+    """
+    url = f"{ar_url.rstrip('/')}/api/method/assistant_runtime.api.get_initial_secret"
+    try:
+        resp = requests.post(
+            url,
+            json={"verification_token": verification_token},
+            headers={"Content-Type": "application/json"},
+            timeout=30,
+        )
+        resp.raise_for_status()
+        return resp.json().get("message", resp.json())
+    except requests.exceptions.RequestException as e:
+        return {"error": str(e)}
+
+
+def get_rotated_secret(ar_url: str, rebind_token: str) -> Dict[str, Any]:
+    """One-shot retrieval of the rotated tenant_secret after a rebind has
+    been confirmed by the owner via the email link.
+
+    Returns: {"tenant_secret": str} on success, or {"error": str} on failure.
+    """
+    url = f"{ar_url.rstrip('/')}/api/method/assistant_runtime.api.get_rotated_secret"
+    try:
+        resp = requests.post(
+            url,
+            json={"rebind_token": rebind_token},
+            headers={"Content-Type": "application/json"},
+            timeout=30,
+        )
+        resp.raise_for_status()
+        return resp.json().get("message", resp.json())
     except requests.exceptions.RequestException as e:
         return {"error": str(e)}

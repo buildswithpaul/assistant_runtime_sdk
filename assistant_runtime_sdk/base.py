@@ -61,6 +61,10 @@ class BaseAssistantRuntimeClient:
             ``{ar_url}/api/method/assistant_runtime_marketplace.api``. Pass a full
             URL or just a Frappe dotted module path (e.g.
             ``"assistant_runtime_marketplace.api"``).
+        site_url: This installation's canonical URL (e.g. ``"https://mysite.example.com"``).
+            When set, it is automatically injected into every signed payload so that
+            AR's ``validate_tenant_signature`` can enforce origin binding (Phase 2).
+            Pass ``None`` (default) to preserve backward-compatible behaviour.
 
     Example:
         >>> # Don't instantiate directly - use AssistantRuntimeClient or AsyncAssistantRuntimeClient
@@ -88,6 +92,7 @@ class BaseAssistantRuntimeClient:
         memory_api_base: Optional[str] = None,
         workflows_api_base: Optional[str] = None,
         marketplace_api_base: Optional[str] = None,
+        site_url: Optional[str] = None,
     ):
         # Validate required parameters
         if not tenant_id:
@@ -97,6 +102,7 @@ class BaseAssistantRuntimeClient:
 
         self.tenant_id = tenant_id
         self.tenant_secret = tenant_secret
+        self.site_url = site_url  # Phase 2 origin binding: included in signed payloads when set
         self.ar_url = ar_url.rstrip("/")
         self.api_base = f"{self.ar_url}/api/method/assistant_runtime.api"
         self.timeout = timeout
@@ -135,6 +141,10 @@ class BaseAssistantRuntimeClient:
         Returns:
             Signature header value in format "timestamp:signature"
         """
+        # Origin binding (Phase 2): if the client knows its site_url, ensure it's
+        # part of the signed payload. AR's validate_tenant_signature requires it.
+        if self.site_url and "site_url" not in params:
+            params = {**params, "site_url": self.site_url}
         return generate_signature(
             self.tenant_id,
             self.tenant_secret,
