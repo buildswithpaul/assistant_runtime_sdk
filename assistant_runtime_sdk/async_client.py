@@ -50,6 +50,8 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         billing_api_base: Optional[str] = None,
         memory_api_base: Optional[str] = None,
         workflows_api_base: Optional[str] = None,
+        marketplace_api_base: Optional[str] = None,
+        site_url: Optional[str] = None,
     ):
         """
         Initialize async Assistant Runtime client.
@@ -64,6 +66,9 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
             billing_api_base: Override URL for billing API endpoints
             memory_api_base: Override URL for memory/onboarding/document API endpoints
             workflows_api_base: Override URL for workflow API endpoints
+            marketplace_api_base: Override URL for marketplace API endpoints
+            site_url: This installation's canonical URL (e.g. ``"https://mysite.example.com"``).
+                Automatically included in signed payloads for origin binding (Phase 2).
         """
         if aiohttp is None:
             raise ImportError(
@@ -71,7 +76,11 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
                 "Install it with: pip install assistant_runtime_sdk[async]"
             )
 
-        super().__init__(tenant_id, tenant_secret, ar_url, logger, timeout, billing_api_base, memory_api_base, workflows_api_base)
+        super().__init__(
+            tenant_id, tenant_secret, ar_url, logger, timeout,
+            billing_api_base, memory_api_base, workflows_api_base,
+            marketplace_api_base, site_url,
+        )
         self._session = session
         self._owns_session = session is None
 
@@ -449,6 +458,46 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         endpoint, payload = self._prepare_set_preferred_model(model_id)
         result = await self._request_post_json(endpoint, payload)
         return result.get("success", False) if result else False
+
+    # =========================================================================
+    # Origin Binding APIs (Phase 2)
+    # =========================================================================
+
+    async def request_rebind(self, new_site_url: str) -> Dict[str, Any]:
+        """Initiate a tenant rebind. Returns {"rebind_token": str, "expires_at": str}.
+
+        When the site URL of an installation changes, call this to begin the
+        rebind flow. AR sends a confirmation email to the tenant owner. After
+        the owner clicks the link, call the module-level helper
+        ``get_rotated_secret(ar_url, rebind_token)`` in the sync client with
+        the token from the link to retrieve the new ``tenant_secret``.
+        """
+        return await self._request_post_json(
+            "request_rebind",
+            {"tenant_id": self.tenant_id, "new_site_url": new_site_url},
+        )
+
+    async def claim_tenant_email(self, owner_email: str) -> Dict[str, Any]:
+        """Bootstrap an owner_email on a legacy tenant (one without a verified
+        owner_email on file). AR sends a verification email; the email is only
+        persisted to the tenant record after the owner clicks the link.
+        """
+        return await self._request_post_json(
+            "claim_tenant_email",
+            {"tenant_id": self.tenant_id, "owner_email": owner_email},
+        )
+
+    async def diagnose_registration(self) -> Dict[str, Any]:
+        """Diagnose registration issues. Returns one of:
+
+        - ``{"status": "ok", "bound_host": ..., "last_verification": ...}``
+        - ``{"status": "origin_mismatch", "bound_host": ..., "claimed_host": ...,
+          "remediation": "rebind", "rebind_url": ...}``
+        """
+        return await self._request_post_json(
+            "diagnose_registration",
+            {"tenant_id": self.tenant_id},
+        )
 
     # =========================================================================
     # Prompt APIs
