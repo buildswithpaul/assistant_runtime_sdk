@@ -69,6 +69,7 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
     ) -> Optional[Dict[str, Any]]:
         """Make authenticated GET request with query parameters."""
         url = f"{api_base}.{endpoint}" if api_base else self._build_endpoint_url(endpoint)
+        params = self._with_site_url(params)
         headers = self._get_headers(params, for_query_string=True)
         timeout = timeout or self.timeout
 
@@ -108,6 +109,7 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
             (content_bytes, content_type, filename) tuple
         """
         url = f"{api_base}.{endpoint}" if api_base else self._build_endpoint_url(endpoint)
+        params = self._with_site_url(params)
         headers = self._get_headers(params, for_query_string=True)
         timeout = timeout or self.timeout
 
@@ -153,6 +155,7 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
     ) -> Optional[Dict[str, Any]]:
         """Make authenticated POST request with JSON body."""
         url = f"{api_base}.{endpoint}" if api_base else self._build_endpoint_url(endpoint)
+        payload = self._with_site_url(payload)
         headers = {
             **self._get_headers(payload, for_query_string=False),
             "Content-Type": "application/json",
@@ -191,6 +194,7 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
     ) -> Optional[Dict[str, Any]]:
         """Make authenticated POST request with form-urlencoded body."""
         url = f"{api_base}.{endpoint}" if api_base else self._build_endpoint_url(endpoint)
+        params = self._with_site_url(params)
         headers = {
             **self._get_headers(params, for_query_string=True),
             "Content-Type": "application/x-www-form-urlencoded",
@@ -234,6 +238,7 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         """Make authenticated POST request with multipart form data including a file."""
         url = f"{api_base}.{endpoint}" if api_base else self._build_endpoint_url(endpoint)
         # Sign only non-file form fields — Frappe's form_dict excludes file parts
+        params = self._with_site_url(params)
         headers = self._get_headers(params, for_query_string=True)
         # Do NOT set Content-Type — requests sets multipart boundary automatically
         timeout = timeout or self.timeout
@@ -276,6 +281,7 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
     ) -> Optional[Dict[str, Any]]:
         """Make authenticated DELETE request with query parameters."""
         url = f"{api_base}.{endpoint}" if api_base else self._build_endpoint_url(endpoint)
+        params = self._with_site_url(params)
         headers = self._get_headers(params, for_query_string=True)
         timeout = timeout or self.timeout
 
@@ -370,6 +376,7 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
             message_id=message_id,
         )
         url = self._build_endpoint_url("streaming.stream_chat")
+        payload = self._with_site_url(payload)
         headers = self._get_stream_headers(payload, for_json_body=True)
 
         try:
@@ -2165,6 +2172,7 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         if plan_tier:
             payload["plan_tier"] = plan_tier
         url = f"{self.marketplace_api_base}.publishing.upload_listing_from_json"
+        payload = self._with_site_url(payload)
         headers = self._get_headers(payload, for_query_string=False)
         timeout = timeout or self.timeout
 

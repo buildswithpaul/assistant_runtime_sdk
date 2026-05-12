@@ -151,6 +151,7 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         """Make authenticated async GET request."""
         session = self._ensure_session()
         url = f"{api_base}.{endpoint}" if api_base else self._build_endpoint_url(endpoint)
+        params = self._with_site_url(params)
         headers = self._get_headers(params, for_query_string=True)
 
         try:
@@ -185,6 +186,7 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         """
         session = self._ensure_session()
         url = f"{api_base}.{endpoint}" if api_base else self._build_endpoint_url(endpoint)
+        params = self._with_site_url(params)
         headers = self._get_headers(params, for_query_string=True)
 
         try:
@@ -224,6 +226,7 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         """Make authenticated async POST request with JSON body."""
         session = self._ensure_session()
         url = f"{api_base}.{endpoint}" if api_base else self._build_endpoint_url(endpoint)
+        payload = self._with_site_url(payload)
         headers = {
             **self._get_headers(payload, for_query_string=False),
             "Content-Type": "application/json",
@@ -257,6 +260,7 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         """Make authenticated async POST request with form-urlencoded body."""
         session = self._ensure_session()
         url = f"{api_base}.{endpoint}" if api_base else self._build_endpoint_url(endpoint)
+        params = self._with_site_url(params)
         headers = {
             **self._get_headers(params, for_query_string=True),
             "Content-Type": "application/x-www-form-urlencoded",
@@ -295,6 +299,7 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         session = self._ensure_session()
         url = f"{api_base}.{endpoint}" if api_base else self._build_endpoint_url(endpoint)
         # Sign only non-file form fields — Frappe's form_dict excludes file parts
+        params = self._with_site_url(params)
         headers = self._get_headers(params, for_query_string=True)
         # Do NOT set Content-Type — aiohttp sets multipart boundary automatically
 
@@ -335,6 +340,7 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         """Make authenticated async DELETE request."""
         session = self._ensure_session()
         url = f"{api_base}.{endpoint}" if api_base else self._build_endpoint_url(endpoint)
+        params = self._with_site_url(params)
         headers = self._get_headers(params, for_query_string=True)
 
         try:
@@ -381,6 +387,7 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
             message_id=message_id,
         )
         url = self._build_endpoint_url("streaming.stream_chat")
+        payload = self._with_site_url(payload)
         headers = self._get_stream_headers(payload, for_json_body=True)
 
         try:
@@ -1487,6 +1494,7 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         if plan_tier:
             payload["plan_tier"] = plan_tier
         url = f"{self.marketplace_api_base}.publishing.upload_listing_from_json"
+        payload = self._with_site_url(payload)
         headers = self._get_headers(payload, for_query_string=False)
         timeout_val = timeout or self.timeout
 

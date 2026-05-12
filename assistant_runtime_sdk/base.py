@@ -130,6 +130,21 @@ class BaseAssistantRuntimeClient:
             return override.rstrip("/")
         return f"{self.ar_url}/api/method/{override}"
 
+    def _with_site_url(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Return a copy of ``params`` with ``site_url`` injected.
+
+        Origin binding (Phase 2): AR rebuilds the HMAC body from the request
+        payload (form_dict / query string), so anything signed but not sent on
+        the wire fails verification. Call this at every signed entry point to
+        keep the signed and sent payloads identical.
+
+        Returns the same dict if ``site_url`` is already present or if the
+        client wasn't configured with one. Never mutates the input.
+        """
+        if self.site_url and "site_url" not in params:
+            return {**params, "site_url": self.site_url}
+        return params
+
     def _generate_signature(self, params: Dict[str, Any], for_query_string: bool = False) -> str:
         """
         Generate HMAC-SHA256 signature for Assistant Runtime API request.
@@ -141,10 +156,10 @@ class BaseAssistantRuntimeClient:
         Returns:
             Signature header value in format "timestamp:signature"
         """
-        # Origin binding (Phase 2): if the client knows its site_url, ensure it's
-        # part of the signed payload. AR's validate_tenant_signature requires it.
-        if self.site_url and "site_url" not in params:
-            params = {**params, "site_url": self.site_url}
+        # Pre-Phase-2 callers may have stopped injecting site_url before signing —
+        # be defensive and mirror `_with_site_url` here too. Callers that already
+        # inserted site_url via `_with_site_url` will be a no-op.
+        params = self._with_site_url(params)
         return generate_signature(
             self.tenant_id,
             self.tenant_secret,
