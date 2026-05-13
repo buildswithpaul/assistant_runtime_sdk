@@ -1902,3 +1902,56 @@ class BaseAssistantRuntimeClient:
             "tenant_id": self.tenant_id,
         }
 
+    # -------------------------------------------------------------------
+    # Tenant Packs API prepares — route via marketplace_api_base
+    #
+    # These hit the *signed* endpoints in
+    # ``assistant_runtime_marketplace.api.tenant_packs_signed`` (not the
+    # whitelisted same-bench admin endpoints in ``api.tenant_packs``).
+    # -------------------------------------------------------------------
+
+    def _prepare_list_packs(self) -> tuple:
+        return "tenant_packs_signed.list_packs", {
+            "tenant_id": self.tenant_id,
+        }
+
+    def _prepare_set_industry(
+        self,
+        industry: Optional[str],
+        auto_enable: bool = True,
+    ) -> tuple:
+        payload: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "auto_enable": 1 if auto_enable else 0,
+        }
+        # An empty industry is a valid clear; send it as empty string.
+        payload["industry"] = industry or ""
+        return "tenant_packs_signed.set_industry", payload
+
+    def _prepare_set_pack_enabled(
+        self,
+        pack_id: str,
+        enabled: bool,
+        source: str = "User",
+    ) -> tuple:
+        return "tenant_packs_signed.set_pack_enabled", {
+            "tenant_id": self.tenant_id,
+            "pack_id": pack_id,
+            "enabled": 1 if enabled else 0,
+            "source": source,
+        }
+
+    def _prepare_get_recommended_pack(
+        self, user_id: Optional[str] = None,
+    ) -> tuple:
+        params: Dict[str, Any] = {"tenant_id": self.tenant_id}
+        if user_id:
+            params["user_id"] = user_id
+        return "tenant_packs_signed.get_recommended_pack", params
+
+    def _prepare_dismiss_pack_recommendation(self, user_id: str) -> tuple:
+        return "tenant_packs_signed.dismiss_pack_recommendation", {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+        }
+

@@ -1732,3 +1732,43 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         endpoint, params = self._prepare_check_all_workflow_updates()
         return await self._request_get(endpoint, params, api_base=self.marketplace_api_base)
 
+    # -------------------------------------------------------------------
+    # Tenant Packs API — admin-grade pack management for the calling tenant
+    # -------------------------------------------------------------------
+
+    async def list_packs(self) -> Optional[Dict[str, Any]]:
+        """Return every active pack with eligibility + enablement annotations."""
+        endpoint, params = self._prepare_list_packs()
+        return await self._request_get(endpoint, params, api_base=self.marketplace_api_base)
+
+    async def set_industry(
+        self,
+        industry: Optional[str],
+        auto_enable: bool = True,
+    ) -> Optional[Dict[str, Any]]:
+        """Set the calling tenant's industry and optionally auto-enable its pack."""
+        endpoint, payload = self._prepare_set_industry(industry, auto_enable)
+        return await self._request_post_json(endpoint, payload, api_base=self.marketplace_api_base)
+
+    async def set_pack_enabled(
+        self,
+        pack_id: str,
+        enabled: bool,
+        source: str = "User",
+    ) -> Optional[Dict[str, Any]]:
+        """Toggle a pack on or off for the calling tenant."""
+        endpoint, payload = self._prepare_set_pack_enabled(pack_id, enabled, source)
+        return await self._request_post_json(endpoint, payload, api_base=self.marketplace_api_base)
+
+    async def get_recommended_pack(
+        self, user_id: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Return at most one pack to surface in the onboarding recommendation toast."""
+        endpoint, params = self._prepare_get_recommended_pack(user_id)
+        return await self._request_get(endpoint, params, api_base=self.marketplace_api_base)
+
+    async def dismiss_pack_recommendation(self, user_id: str) -> Optional[Dict[str, Any]]:
+        """Mark the recommendation toast as dismissed for the given user."""
+        endpoint, payload = self._prepare_dismiss_pack_recommendation(user_id)
+        return await self._request_post_json(endpoint, payload, api_base=self.marketplace_api_base)
+

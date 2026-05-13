@@ -2428,6 +2428,63 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         endpoint, params = self._prepare_check_all_workflow_updates()
         return self._request_get(endpoint, params, api_base=self.marketplace_api_base)
 
+    # -------------------------------------------------------------------
+    # Tenant Packs API — admin-grade pack management for the calling tenant
+    #
+    # These methods hit the *signed* marketplace endpoints — tenant identity
+    # comes from the HMAC signature, so callers don't pass a tenant arg.
+    # -------------------------------------------------------------------
+
+    def list_packs(self) -> Optional[Dict[str, Any]]:
+        """Return every active pack with eligibility + enablement annotations.
+
+        Response shape: ``{"packs": [...]}`` where each pack dict carries
+        ``eligible``, ``enabled``, ``prompt_count``, ``skill_count`` and the
+        underlying ``AR Platform Pack`` fields.
+        """
+        endpoint, params = self._prepare_list_packs()
+        return self._request_get(endpoint, params, api_base=self.marketplace_api_base)
+
+    def set_industry(
+        self,
+        industry: Optional[str],
+        auto_enable: bool = True,
+    ) -> Optional[Dict[str, Any]]:
+        """Set the calling tenant's industry and optionally auto-enable its pack.
+
+        Pass an empty/None industry to clear (skip path). Returns
+        ``{"industry": str|None, "enabled_pack": str|None}``.
+        """
+        endpoint, payload = self._prepare_set_industry(industry, auto_enable)
+        return self._request_post_json(endpoint, payload, api_base=self.marketplace_api_base)
+
+    def set_pack_enabled(
+        self,
+        pack_id: str,
+        enabled: bool,
+        source: str = "User",
+    ) -> Optional[Dict[str, Any]]:
+        """Toggle a pack on or off for the calling tenant."""
+        endpoint, payload = self._prepare_set_pack_enabled(pack_id, enabled, source)
+        return self._request_post_json(endpoint, payload, api_base=self.marketplace_api_base)
+
+    def get_recommended_pack(
+        self, user_id: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Return at most one pack to surface in the onboarding recommendation toast.
+
+        Returns ``{"pack": <dict|null>}``. Returns null when the user has
+        already dismissed the toast, when there's no industry on the tenant,
+        or when the recommended pack is already enabled.
+        """
+        endpoint, params = self._prepare_get_recommended_pack(user_id)
+        return self._request_get(endpoint, params, api_base=self.marketplace_api_base)
+
+    def dismiss_pack_recommendation(self, user_id: str) -> Optional[Dict[str, Any]]:
+        """Mark the recommendation toast as dismissed for the given user."""
+        endpoint, payload = self._prepare_dismiss_pack_recommendation(user_id)
+        return self._request_post_json(endpoint, payload, api_base=self.marketplace_api_base)
+
 
 # =============================================================================
 # Standalone Functions
