@@ -1782,6 +1782,7 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         mime_type: str = "audio/webm",
         user_id: Optional[str] = None,
         duration_ms: int = 0,
+        language: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """
         Async transcribe an audio blob via AR's voice endpoint.
@@ -1792,6 +1793,9 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
             user_id: User identifier for per-user billing attribution.
             duration_ms: Client-reported recording length (advisory only;
                 billing uses the provider's authoritative duration).
+            language: ISO-639-1 hint ("en", "es"…). Strongly recommended —
+                without it Whisper auto-detects and frequently hallucinates
+                outro phrases ("Thank you for watching") on silent clips.
 
         Returns:
             {"text": str, "duration_seconds": float, "credits_consumed": float}
@@ -1802,6 +1806,8 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         }
         if user_id:
             params["user_id"] = user_id
+        if language:
+            params["language"] = language
         return await self._request_post_multipart(
             endpoint="transcribe_v1",
             params=params,
