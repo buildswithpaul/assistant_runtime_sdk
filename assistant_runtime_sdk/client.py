@@ -2509,7 +2509,10 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         Returns:
             {"text": str, "duration_seconds": float, "credits_consumed": float}
         """
-        params: Dict[str, Any] = {"duration_ms": duration_ms}
+        params: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "duration_ms": duration_ms,
+        }
         if user_id:
             params["user_id"] = user_id
         return self._request_post_multipart(
