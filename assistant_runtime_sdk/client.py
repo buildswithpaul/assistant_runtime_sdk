@@ -2485,6 +2485,43 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         endpoint, payload = self._prepare_dismiss_pack_recommendation(user_id)
         return self._request_post_json(endpoint, payload, api_base=self.marketplace_api_base)
 
+    # =========================================================================
+    # Voice API
+    # =========================================================================
+
+    def transcribe_audio(
+        self,
+        audio_bytes: bytes,
+        mime_type: str = "audio/webm",
+        user_id: Optional[str] = None,
+        duration_ms: int = 0,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Transcribe an audio blob via AR's voice endpoint.
+
+        Args:
+            audio_bytes: Raw audio bytes.
+            mime_type: MIME type (default: audio/webm).
+            user_id: User identifier for per-user billing attribution.
+            duration_ms: Client-reported recording length (advisory only;
+                billing uses the provider's authoritative duration).
+
+        Returns:
+            {"text": str, "duration_seconds": float, "credits_consumed": float}
+        """
+        params: Dict[str, Any] = {"duration_ms": duration_ms}
+        if user_id:
+            params["user_id"] = user_id
+        return self._request_post_multipart(
+            endpoint="transcribe_v1",
+            params=params,
+            file_field="audio",
+            file_name="audio.webm",
+            file_data=audio_bytes,
+            content_type=mime_type,
+            api_base=self.voice_api_base,
+        )
+
 
 # =============================================================================
 # Standalone Functions
