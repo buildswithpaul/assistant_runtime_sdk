@@ -77,6 +77,7 @@ class BaseAssistantRuntimeClient:
     DEFAULT_MEMORY_API_MODULE = "assistant_runtime_memory.api"
     DEFAULT_WORKFLOWS_API_MODULE = "assistant_runtime_workflows.api"
     DEFAULT_MARKETPLACE_API_MODULE = "assistant_runtime_marketplace.api"
+    DEFAULT_VOICE_API_MODULE = "assistant_runtime.api.voice"
     DEFAULT_TIMEOUT = 30.0
     STREAM_CONNECT_TIMEOUT = 10.0
     STREAM_READ_TIMEOUT = 300.0  # 5 minutes for long responses
@@ -92,6 +93,7 @@ class BaseAssistantRuntimeClient:
         memory_api_base: Optional[str] = None,
         workflows_api_base: Optional[str] = None,
         marketplace_api_base: Optional[str] = None,
+        voice_api_base: Optional[str] = None,
         site_url: Optional[str] = None,
     ):
         # Validate required parameters
@@ -112,6 +114,7 @@ class BaseAssistantRuntimeClient:
         self.memory_api_base = self._resolve_api_base(memory_api_base, self.DEFAULT_MEMORY_API_MODULE)
         self.workflows_api_base = self._resolve_api_base(workflows_api_base, self.DEFAULT_WORKFLOWS_API_MODULE)
         self.marketplace_api_base = self._resolve_api_base(marketplace_api_base, self.DEFAULT_MARKETPLACE_API_MODULE)
+        self.voice_api_base = self._resolve_api_base(voice_api_base, self.DEFAULT_VOICE_API_MODULE)
 
         # Billing availability state — None means unknown (not yet probed)
         self._billing_available: Optional[bool] = None
