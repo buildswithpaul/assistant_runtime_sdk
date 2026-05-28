@@ -1958,3 +1958,57 @@ class BaseAssistantRuntimeClient:
             "user_id": user_id,
         }
 
+    # -------------------------------------------------------------------
+    # Pack acquisition + checkout (paid packs v2)
+    # -------------------------------------------------------------------
+
+    def _prepare_enable_pack_as_free_grant(self, pack_id: str) -> tuple:
+        return "tenant_packs_signed.enable_pack_as_free_grant", {
+            "tenant_id": self.tenant_id,
+            "pack_id": pack_id,
+        }
+
+    def _prepare_grant_pack_as_admin(
+        self, pack_id: str, granted_by_user: Optional[str] = None,
+    ) -> tuple:
+        payload: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "pack_id": pack_id,
+        }
+        if granted_by_user:
+            payload["granted_by_user"] = granted_by_user
+        return "tenant_packs_signed.grant_pack_as_admin", payload
+
+    def _prepare_toggle_purchased_pack(
+        self, pack_id: str, enabled: bool,
+    ) -> tuple:
+        return "tenant_packs_signed.toggle_purchased_pack", {
+            "tenant_id": self.tenant_id,
+            "pack_id": pack_id,
+            "enabled": 1 if enabled else 0,
+        }
+
+    def _prepare_list_pack_purchases(self) -> tuple:
+        return "tenant_packs_signed.list_pack_purchases", {
+            "tenant_id": self.tenant_id,
+        }
+
+    def _prepare_initiate_pack_checkout(self, pack_id: str) -> tuple:
+        return "billing.pack_checkout.initiate_pack_checkout", {
+            "tenant_id": self.tenant_id,
+            "pack_id": pack_id,
+        }
+
+    def _prepare_verify_razorpay_pack_payment(
+        self,
+        razorpay_payment_id: str,
+        razorpay_order_id: str,
+        razorpay_signature: str,
+    ) -> tuple:
+        return "billing.pack_checkout.verify_razorpay_pack_payment", {
+            "tenant_id": self.tenant_id,
+            "razorpay_payment_id": razorpay_payment_id,
+            "razorpay_order_id": razorpay_order_id,
+            "razorpay_signature": razorpay_signature,
+        }
+

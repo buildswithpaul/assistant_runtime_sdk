@@ -2485,6 +2485,69 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         endpoint, payload = self._prepare_dismiss_pack_recommendation(user_id)
         return self._request_post_json(endpoint, payload, api_base=self.marketplace_api_base)
 
+    # -------------------------------------------------------------------
+    # Pack acquisition + checkout (paid packs v2)
+    # -------------------------------------------------------------------
+
+    def enable_pack_as_free_grant(
+        self, pack_id: str,
+    ) -> Optional[Dict[str, Any]]:
+        """Activate a pack as the tenant's free-grant pick. Permanent."""
+        endpoint, payload = self._prepare_enable_pack_as_free_grant(pack_id)
+        return self._request_post_json(
+            endpoint, payload, api_base=self.marketplace_api_base
+        )
+
+    def grant_pack_as_admin(
+        self, pack_id: str, granted_by_user: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Admin grant — does not consume free allowance."""
+        endpoint, payload = self._prepare_grant_pack_as_admin(
+            pack_id, granted_by_user
+        )
+        return self._request_post_json(
+            endpoint, payload, api_base=self.marketplace_api_base
+        )
+
+    def toggle_purchased_pack(
+        self, pack_id: str, enabled: bool,
+    ) -> Optional[Dict[str, Any]]:
+        """Enable or disable a purchased pack."""
+        endpoint, payload = self._prepare_toggle_purchased_pack(pack_id, enabled)
+        return self._request_post_json(
+            endpoint, payload, api_base=self.marketplace_api_base
+        )
+
+    def list_pack_purchases(self) -> Optional[Dict[str, Any]]:
+        """Return the tenant's AR Pack Purchase history."""
+        endpoint, params = self._prepare_list_pack_purchases()
+        return self._request_get(
+            endpoint, params, api_base=self.marketplace_api_base
+        )
+
+    def initiate_pack_checkout(
+        self, pack_id: str,
+    ) -> Optional[Dict[str, Any]]:
+        """Create a Razorpay one-time order for a pack purchase."""
+        endpoint, payload = self._prepare_initiate_pack_checkout(pack_id)
+        return self._request_post_json(
+            endpoint, payload, api_base=self.billing_api_base
+        )
+
+    def verify_razorpay_pack_payment(
+        self,
+        razorpay_payment_id: str,
+        razorpay_order_id: str,
+        razorpay_signature: str,
+    ) -> Optional[Dict[str, Any]]:
+        """Verify a Razorpay pack payment from the embedded widget."""
+        endpoint, payload = self._prepare_verify_razorpay_pack_payment(
+            razorpay_payment_id, razorpay_order_id, razorpay_signature
+        )
+        return self._request_post_json(
+            endpoint, payload, api_base=self.billing_api_base
+        )
+
     # =========================================================================
     # Voice API
     # =========================================================================
