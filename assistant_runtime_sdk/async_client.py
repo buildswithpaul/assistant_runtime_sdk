@@ -1773,6 +1773,15 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         return await self._request_post_json(endpoint, payload, api_base=self.marketplace_api_base)
 
     # =========================================================================
+    # HITL APIs
+    # =========================================================================
+
+    async def get_pending_interrupt(self, session_id: str) -> Optional[Dict[str, Any]]:
+        """Async version of AssistantRuntimeClient.get_pending_interrupt."""
+        endpoint, params = self._prepare_get_pending_interrupt(session_id)
+        return await self._request_get(endpoint, params, api_base=self.api_base)
+
+    # =========================================================================
     # Voice API
     # =========================================================================
 

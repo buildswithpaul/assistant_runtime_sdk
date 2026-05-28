@@ -533,6 +533,16 @@ class BaseAssistantRuntimeClient:
         return "onboarding.complete_onboarding", payload
 
     # =========================================================================
+    # Prepare Methods — HITL
+    # =========================================================================
+
+    def _prepare_get_pending_interrupt(self, session_id: str) -> tuple:
+        """Prepare GET for `assistant_runtime.api.hitl.get_pending_interrupt`."""
+        if not session_id:
+            raise ValueError("session_id is required")
+        return "hitl.get_pending_interrupt", {"session_id": session_id}
+
+    # =========================================================================
     # Prepare Methods — Documents
     # =========================================================================
 
