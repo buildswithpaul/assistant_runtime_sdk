@@ -536,10 +536,16 @@ class BaseAssistantRuntimeClient:
     # Prepare Methods — HITL
     # =========================================================================
 
-    def _prepare_get_pending_interrupt(self, session_id: str) -> tuple:
+    def _prepare_get_pending_interrupt(self, session_id: str, user_id: str) -> tuple:
         if not session_id:
             raise ValueError("session_id is required")
-        return "hitl.get_pending_interrupt", {"session_id": session_id}
+        if not user_id:
+            raise ValueError("user_id is required")
+        return "hitl.get_pending_interrupt", {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+            "session_id": session_id,
+        }
 
     # =========================================================================
     # Prepare Methods — Documents

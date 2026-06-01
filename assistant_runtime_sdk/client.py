@@ -2552,13 +2552,18 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
     # HITL APIs
     # =========================================================================
 
-    def get_pending_interrupt(self, session_id: str) -> Optional[Dict[str, Any]]:
+    def get_pending_interrupt(self, session_id: str, user_id: str) -> Optional[Dict[str, Any]]:
         """
         Return the currently-pending HITL pause for `session_id`, or None.
 
         Used by the FAC chat frontend on mount + on socket reconnect to
         rehydrate the InteractionCard after the user steps away or the
         socket times out.
+
+        Args:
+            session_id: The AR session whose HITL pause to retrieve.
+            user_id: The authenticated user on the FAC side (frappe.session.user).
+                     Checked against the persisted row's user_id on the AR side.
 
         Response shape (when pending):
             {
@@ -2575,7 +2580,7 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         Or `{"pending": False}` when nothing is pending.
         Or None on transport error.
         """
-        endpoint, params = self._prepare_get_pending_interrupt(session_id)
+        endpoint, params = self._prepare_get_pending_interrupt(session_id, user_id)
         return self._request_get(endpoint, params, api_base=self.api_base)
 
     # =========================================================================

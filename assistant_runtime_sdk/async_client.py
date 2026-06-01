@@ -1776,9 +1776,9 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
     # HITL APIs
     # =========================================================================
 
-    async def get_pending_interrupt(self, session_id: str) -> Optional[Dict[str, Any]]:
+    async def get_pending_interrupt(self, session_id: str, user_id: str) -> Optional[Dict[str, Any]]:
         """Async version of AssistantRuntimeClient.get_pending_interrupt."""
-        endpoint, params = self._prepare_get_pending_interrupt(session_id)
+        endpoint, params = self._prepare_get_pending_interrupt(session_id, user_id)
         return await self._request_get(endpoint, params, api_base=self.api_base)
 
     # =========================================================================
