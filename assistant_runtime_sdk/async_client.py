@@ -595,6 +595,20 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         endpoint, params = self._prepare_get_document(document_id)
         return await self._request_get(endpoint, params, api_base=self.memory_api_base)
 
+    async def list_chunks(
+        self,
+        document_id: str,
+        user_id: Optional[str] = None,
+        search: Optional[str] = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> Optional[Dict[str, Any]]:
+        """Async version of AssistantRuntimeClient.list_chunks."""
+        endpoint, params = self._prepare_list_chunks(
+            document_id, user_id=user_id, search=search, limit=limit, offset=offset
+        )
+        return await self._request_get(endpoint, params, api_base=self.memory_api_base)
+
     async def get_document_content(
         self, document_id: str, user_id: Optional[str] = None
     ) -> tuple:

@@ -703,6 +703,35 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         endpoint, params = self._prepare_get_document(document_id)
         return self._request_get(endpoint, params, api_base=self.memory_api_base)
 
+    def list_chunks(
+        self,
+        document_id: str,
+        user_id: Optional[str] = None,
+        search: Optional[str] = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        List stored chunks for a document (read-only chunk browser).
+
+        Visibility is enforced backend-side using user_id (private/shared
+        documents require the requesting user to own or be granted access).
+
+        Args:
+            document_id: Document whose chunks to list.
+            user_id: Requesting user. Enables visibility enforcement.
+            search: Optional case-insensitive substring filter on chunk text.
+            limit: Page size (default 50).
+            offset: Pagination offset (default 0).
+
+        Returns:
+            {"chunks": [...], "total": int, "pagination": {...}}
+        """
+        endpoint, params = self._prepare_list_chunks(
+            document_id, user_id=user_id, search=search, limit=limit, offset=offset
+        )
+        return self._request_get(endpoint, params, api_base=self.memory_api_base)
+
     def get_document_content(
         self, document_id: str, user_id: Optional[str] = None
     ) -> tuple:

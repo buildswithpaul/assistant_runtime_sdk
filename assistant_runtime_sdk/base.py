@@ -628,6 +628,26 @@ class BaseAssistantRuntimeClient:
             "document_id": document_id,
         }
 
+    def _prepare_list_chunks(
+        self,
+        document_id: str,
+        user_id: Optional[str] = None,
+        search: Optional[str] = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> tuple:
+        params: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "document_id": document_id,
+            "limit": str(limit),
+            "offset": str(offset),
+        }
+        if user_id:
+            params["user_id"] = user_id
+        if search:
+            params["search"] = search
+        return "documents.list_chunks", params
+
     def _prepare_get_document_content(
         self, document_id: str, user_id: Optional[str] = None, download: bool = False
     ) -> tuple:
