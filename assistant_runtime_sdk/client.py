@@ -2474,6 +2474,15 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         endpoint, params = self._prepare_list_packs()
         return self._request_get(endpoint, params, api_base=self.marketplace_api_base)
 
+    def get_pack_contents(self, pack_id: str) -> Optional[Dict[str, Any]]:
+        """Return the named prompts + skills of a pack the tenant owns.
+
+        Response: ``{"pack_id": str, "prompts": [{prompt_id,title,category}],
+        "skills": [{skill_id,title,category,skill_type}]}``.
+        """
+        endpoint, params = self._prepare_get_pack_contents(pack_id)
+        return self._request_get(endpoint, params, api_base=self.marketplace_api_base)
+
     def set_industry(
         self,
         industry: Optional[str],

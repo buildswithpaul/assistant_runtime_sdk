@@ -1953,6 +1953,12 @@ class BaseAssistantRuntimeClient:
             "tenant_id": self.tenant_id,
         }
 
+    def _prepare_get_pack_contents(self, pack_id: str) -> tuple:
+        return "tenant_packs_signed.get_pack_contents", {
+            "tenant_id": self.tenant_id,
+            "pack_id": pack_id,
+        }
+
     def _prepare_set_industry(
         self,
         industry: Optional[str],

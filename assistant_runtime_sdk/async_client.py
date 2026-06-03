@@ -1755,6 +1755,11 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         endpoint, params = self._prepare_list_packs()
         return await self._request_get(endpoint, params, api_base=self.marketplace_api_base)
 
+    async def get_pack_contents(self, pack_id: str) -> Optional[Dict[str, Any]]:
+        """Return the named prompts + skills of a pack the tenant owns."""
+        endpoint, params = self._prepare_get_pack_contents(pack_id)
+        return await self._request_get(endpoint, params, api_base=self.marketplace_api_base)
+
     async def set_industry(
         self,
         industry: Optional[str],
