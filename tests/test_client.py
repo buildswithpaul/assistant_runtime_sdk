@@ -322,3 +322,28 @@ class TestInviteUser:
         )
         assert params["user_role"] == "Admin"
         assert params["invited_by"] == "owner@example.com"
+
+
+class TestRevokeInvite:
+    def _client(self):
+        from assistant_runtime_sdk import AssistantRuntimeClient
+        return AssistantRuntimeClient(
+            tenant_id="test-tenant",
+            tenant_secret="test-secret",
+            ar_url="https://ar.example.com",
+        )
+
+    def test_prepare_revoke_invite(self):
+        client = self._client()
+        endpoint, params = client._prepare_revoke_invite(
+            "invitee@example.com", revoked_by="owner@example.com"
+        )
+        assert endpoint == "users.revoke_invite"
+        assert params["tenant_id"] == "test-tenant"
+        assert params["user_id"] == "invitee@example.com"
+        assert params["revoked_by"] == "owner@example.com"
+
+    def test_prepare_revoke_invite_no_actor(self):
+        client = self._client()
+        endpoint, params = client._prepare_revoke_invite("invitee@example.com")
+        assert "revoked_by" not in params

@@ -1680,6 +1680,19 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         endpoint, params = self._prepare_invite_user(user_id, user_role, invited_by)
         return self._request_post_form(endpoint, params)
 
+    def revoke_invite(
+        self,
+        user_id: str,
+        revoked_by: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Revoke a Pending invite, freeing its reserved seat.
+
+        Only Pending invites can be revoked; use deregister_user to remove an
+        active member.
+        """
+        endpoint, params = self._prepare_revoke_invite(user_id, revoked_by)
+        return self._request_post_form(endpoint, params)
+
     def get_user(self, user_id: str) -> Optional[Dict[str, Any]]:
         """Get user details including MCP server count."""
         endpoint, params = self._prepare_get_user(user_id)

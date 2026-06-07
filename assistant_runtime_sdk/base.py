@@ -1240,6 +1240,17 @@ class BaseAssistantRuntimeClient:
             params["invited_by"] = invited_by
         return "users.invite_user", params
 
+    def _prepare_revoke_invite(
+        self,
+        user_id: str,
+        revoked_by: Optional[str] = None,
+    ) -> tuple:
+        """Build the revoke_invite request: cancel a Pending invite (frees its seat)."""
+        params: Dict[str, Any] = {"tenant_id": self.tenant_id, "user_id": user_id}
+        if revoked_by:
+            params["revoked_by"] = revoked_by
+        return "users.revoke_invite", params
+
     def _prepare_get_user(self, user_id: str) -> tuple:
         return "users.get_user", {"tenant_id": self.tenant_id, "user_id": user_id}
 
