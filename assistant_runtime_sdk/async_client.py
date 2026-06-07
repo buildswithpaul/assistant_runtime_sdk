@@ -1162,6 +1162,16 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         )
         return await self._request_post_form(endpoint, params)
 
+    async def invite_user(
+        self,
+        user_id: str,
+        user_role: Optional[str] = None,
+        invited_by: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Async version of AssistantRuntimeClient.invite_user."""
+        endpoint, params = self._prepare_invite_user(user_id, user_role, invited_by)
+        return await self._request_post_form(endpoint, params)
+
     async def get_user(self, user_id: str) -> Optional[Dict[str, Any]]:
         """Async version of AssistantRuntimeClient.get_user."""
         endpoint, params = self._prepare_get_user(user_id)

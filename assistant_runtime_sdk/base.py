@@ -1226,6 +1226,20 @@ class BaseAssistantRuntimeClient:
             params["registered_by"] = registered_by
         return "users.register_user", params
 
+    def _prepare_invite_user(
+        self,
+        user_id: str,
+        user_role: Optional[str] = None,
+        invited_by: Optional[str] = None,
+    ) -> tuple:
+        """Build the invite_user request: create a Pending invite (reserves a seat)."""
+        params: Dict[str, Any] = {"tenant_id": self.tenant_id, "user_id": user_id}
+        if user_role:
+            params["user_role"] = user_role
+        if invited_by:
+            params["invited_by"] = invited_by
+        return "users.invite_user", params
+
     def _prepare_get_user(self, user_id: str) -> tuple:
         return "users.get_user", {"tenant_id": self.tenant_id, "user_id": user_id}
 

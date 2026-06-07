@@ -1665,6 +1665,21 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         )
         return self._request_post_form(endpoint, params)
 
+    def invite_user(
+        self,
+        user_id: str,
+        user_role: Optional[str] = None,
+        invited_by: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Invite an existing site user to the workspace as a Pending member.
+
+        The invite reserves a billed seat immediately and auto-activates on the
+        user's first activity. ``invited_by`` is the acting admin's user_id
+        (used for the server-side authority check).
+        """
+        endpoint, params = self._prepare_invite_user(user_id, user_role, invited_by)
+        return self._request_post_form(endpoint, params)
+
     def get_user(self, user_id: str) -> Optional[Dict[str, Any]]:
         """Get user details including MCP server count."""
         endpoint, params = self._prepare_get_user(user_id)

@@ -295,3 +295,30 @@ class TestEndpointURLBuilding:
 
         url = client._build_workflows_endpoint_url("workflows.create_workflow")
         assert url == "https://ar.example.com/api/method/assistant_runtime_workflows.api.workflows.create_workflow"
+
+
+class TestInviteUser:
+    def _client(self):
+        from assistant_runtime_sdk import AssistantRuntimeClient
+        return AssistantRuntimeClient(
+            tenant_id="test-tenant",
+            tenant_secret="test-secret",
+            ar_url="https://ar.example.com",
+        )
+
+    def test_prepare_invite_user_minimal(self):
+        client = self._client()
+        endpoint, params = client._prepare_invite_user("invitee@example.com")
+        assert endpoint == "users.invite_user"
+        assert params["tenant_id"] == "test-tenant"
+        assert params["user_id"] == "invitee@example.com"
+        assert "user_role" not in params
+        assert "invited_by" not in params
+
+    def test_prepare_invite_user_full(self):
+        client = self._client()
+        endpoint, params = client._prepare_invite_user(
+            "invitee@example.com", user_role="Admin", invited_by="owner@example.com"
+        )
+        assert params["user_role"] == "Admin"
+        assert params["invited_by"] == "owner@example.com"
