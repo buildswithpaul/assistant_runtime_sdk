@@ -372,3 +372,20 @@ class TestResendInvite:
         client = self._client()
         endpoint, params = client._prepare_resend_invite("invitee@example.com")
         assert "resent_by" not in params
+
+
+class TestListInvites:
+    def _client(self):
+        from assistant_runtime_sdk import AssistantRuntimeClient
+        return AssistantRuntimeClient(
+            tenant_id="test-tenant",
+            tenant_secret="test-secret",
+            ar_url="https://ar.example.com",
+        )
+
+    def test_prepare_list_invites(self):
+        client = self._client()
+        endpoint, params = client._prepare_list_invites()
+        assert endpoint == "users.list_invites"
+        assert params["tenant_id"] == "test-tenant"
+        assert set(params.keys()) == {"tenant_id"}

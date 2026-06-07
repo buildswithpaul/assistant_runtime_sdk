@@ -1702,6 +1702,11 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         endpoint, params = self._prepare_resend_invite(user_id, resent_by)
         return self._request_post_form(endpoint, params)
 
+    def list_invites(self) -> Dict[str, Any]:
+        """List all Pending invites for this tenant (with invited-by + timing)."""
+        endpoint, params = self._prepare_list_invites()
+        return self._request_get(endpoint, params)
+
     def get_user(self, user_id: str) -> Optional[Dict[str, Any]]:
         """Get user details including MCP server count."""
         endpoint, params = self._prepare_get_user(user_id)

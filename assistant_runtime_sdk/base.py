@@ -1262,6 +1262,10 @@ class BaseAssistantRuntimeClient:
             params["resent_by"] = resent_by
         return "users.resend_invite", params
 
+    def _prepare_list_invites(self) -> tuple:
+        """Build the list_invites request: all Pending invites for this tenant."""
+        return "users.list_invites", {"tenant_id": self.tenant_id}
+
     def _prepare_get_user(self, user_id: str) -> tuple:
         return "users.get_user", {"tenant_id": self.tenant_id, "user_id": user_id}
 
