@@ -389,3 +389,27 @@ class TestListInvites:
         assert endpoint == "users.list_invites"
         assert params["tenant_id"] == "test-tenant"
         assert set(params.keys()) == {"tenant_id"}
+
+
+class TestGetMemberAuditLog:
+    def _client(self):
+        from assistant_runtime_sdk import AssistantRuntimeClient
+        return AssistantRuntimeClient(
+            tenant_id="test-tenant",
+            tenant_secret="test-secret",
+            ar_url="https://ar.example.com",
+        )
+
+    def test_prepare_get_member_audit_log_defaults(self):
+        client = self._client()
+        endpoint, params = client._prepare_get_member_audit_log()
+        assert endpoint == "users.get_member_audit_log"
+        assert params["tenant_id"] == "test-tenant"
+        assert params["limit"] == "100"
+        assert params["offset"] == "0"
+
+    def test_prepare_get_member_audit_log_paginated(self):
+        client = self._client()
+        endpoint, params = client._prepare_get_member_audit_log(limit=50, offset=100)
+        assert params["limit"] == "50"
+        assert params["offset"] == "100"

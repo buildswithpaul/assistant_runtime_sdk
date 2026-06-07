@@ -1707,6 +1707,15 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         endpoint, params = self._prepare_list_invites()
         return self._request_get(endpoint, params)
 
+    def get_member_audit_log(self, limit: int = 100, offset: int = 0) -> Dict[str, Any]:
+        """Get the member-management audit log (newest first, paginated).
+
+        Returns only member-management actions — never GDPR/append-only rows.
+        Each entry's ``details`` field is a JSON string the caller must parse.
+        """
+        endpoint, params = self._prepare_get_member_audit_log(limit, offset)
+        return self._request_get(endpoint, params)
+
     def get_user(self, user_id: str) -> Optional[Dict[str, Any]]:
         """Get user details including MCP server count."""
         endpoint, params = self._prepare_get_user(user_id)

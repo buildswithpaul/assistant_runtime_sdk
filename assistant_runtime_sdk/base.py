@@ -1266,6 +1266,21 @@ class BaseAssistantRuntimeClient:
         """Build the list_invites request: all Pending invites for this tenant."""
         return "users.list_invites", {"tenant_id": self.tenant_id}
 
+    def _prepare_get_member_audit_log(
+        self, limit: int = 100, offset: int = 0,
+    ) -> tuple:
+        """Build the get_member_audit_log request (newest first, paginated).
+
+        Each returned entry's ``details`` field is a JSON string the caller
+        must parse.
+        """
+        params: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "limit": str(limit),
+            "offset": str(offset),
+        }
+        return "users.get_member_audit_log", params
+
     def _prepare_get_user(self, user_id: str) -> tuple:
         return "users.get_user", {"tenant_id": self.tenant_id, "user_id": user_id}
 

@@ -1195,6 +1195,11 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         endpoint, params = self._prepare_list_invites()
         return await self._request_get(endpoint, params)
 
+    async def get_member_audit_log(self, limit: int = 100, offset: int = 0) -> Dict[str, Any]:
+        """Async version of AssistantRuntimeClient.get_member_audit_log."""
+        endpoint, params = self._prepare_get_member_audit_log(limit, offset)
+        return await self._request_get(endpoint, params)
+
     async def get_user(self, user_id: str) -> Optional[Dict[str, Any]]:
         """Async version of AssistantRuntimeClient.get_user."""
         endpoint, params = self._prepare_get_user(user_id)
