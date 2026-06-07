@@ -1693,6 +1693,15 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         endpoint, params = self._prepare_revoke_invite(user_id, revoked_by)
         return self._request_post_form(endpoint, params)
 
+    def resend_invite(
+        self,
+        user_id: str,
+        resent_by: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Resend a Pending invite, restarting its 7-day expiry window."""
+        endpoint, params = self._prepare_resend_invite(user_id, resent_by)
+        return self._request_post_form(endpoint, params)
+
     def get_user(self, user_id: str) -> Optional[Dict[str, Any]]:
         """Get user details including MCP server count."""
         endpoint, params = self._prepare_get_user(user_id)

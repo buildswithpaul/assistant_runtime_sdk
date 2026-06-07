@@ -347,3 +347,28 @@ class TestRevokeInvite:
         client = self._client()
         endpoint, params = client._prepare_revoke_invite("invitee@example.com")
         assert "revoked_by" not in params
+
+
+class TestResendInvite:
+    def _client(self):
+        from assistant_runtime_sdk import AssistantRuntimeClient
+        return AssistantRuntimeClient(
+            tenant_id="test-tenant",
+            tenant_secret="test-secret",
+            ar_url="https://ar.example.com",
+        )
+
+    def test_prepare_resend_invite(self):
+        client = self._client()
+        endpoint, params = client._prepare_resend_invite(
+            "invitee@example.com", resent_by="owner@example.com"
+        )
+        assert endpoint == "users.resend_invite"
+        assert params["tenant_id"] == "test-tenant"
+        assert params["user_id"] == "invitee@example.com"
+        assert params["resent_by"] == "owner@example.com"
+
+    def test_prepare_resend_invite_no_actor(self):
+        client = self._client()
+        endpoint, params = client._prepare_resend_invite("invitee@example.com")
+        assert "resent_by" not in params

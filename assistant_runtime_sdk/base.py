@@ -1251,6 +1251,17 @@ class BaseAssistantRuntimeClient:
             params["revoked_by"] = revoked_by
         return "users.revoke_invite", params
 
+    def _prepare_resend_invite(
+        self,
+        user_id: str,
+        resent_by: Optional[str] = None,
+    ) -> tuple:
+        """Build the resend_invite request: restart a Pending invite's expiry window."""
+        params: Dict[str, Any] = {"tenant_id": self.tenant_id, "user_id": user_id}
+        if resent_by:
+            params["resent_by"] = resent_by
+        return "users.resend_invite", params
+
     def _prepare_get_user(self, user_id: str) -> tuple:
         return "users.get_user", {"tenant_id": self.tenant_id, "user_id": user_id}
 
