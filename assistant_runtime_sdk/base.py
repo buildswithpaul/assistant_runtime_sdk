@@ -312,6 +312,7 @@ class BaseAssistantRuntimeClient:
         client_type: Optional[str] = None,
         interrupt_response: Optional[List[Dict[str, str]]] = None,
         message_id: Optional[str] = None,
+        session_state: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         Prepare JSON payload for stream_chat POST request.
@@ -336,6 +337,9 @@ class BaseAssistantRuntimeClient:
                 {"interruptId": str, "response": "approve"|"rejected"|"trust"|"session"}
             message_id: Optional message ID to reuse on HITL resume (ensures all
                 events across multiple resume cycles link to the same message)
+            session_state: Optional client-held signed session blob for
+                zero-retention conversations (sent up so the server can rehydrate
+                state without storing it server-side)
 
         Returns:
             Payload dict ready for JSON body
@@ -376,6 +380,9 @@ class BaseAssistantRuntimeClient:
 
         if message_id:
             payload["message_id"] = message_id
+
+        if session_state:
+            payload["session_state"] = session_state
 
         return payload
 

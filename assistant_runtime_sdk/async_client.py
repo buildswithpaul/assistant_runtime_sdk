@@ -377,14 +377,20 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         client_type: Optional[str] = None,
         interrupt_response: Optional[List[Dict[str, str]]] = None,
         message_id: Optional[str] = None,
+        session_state: Optional[Dict[str, Any]] = None,
     ) -> AsyncGenerator[Dict[str, Any], None]:
-        """Async version of AssistantRuntimeClient.stream_chat."""
+        """Async version of AssistantRuntimeClient.stream_chat.
+
+        On ``stream_complete``, ``event['session_state']`` is the updated signed
+        blob — store it and pass it as ``session_state`` on the next turn.
+        """
         session = self._ensure_session()
         payload = self._prepare_stream_payload(
             session_id, message, user_id, context, model_id, attachments,
             system_prompt_addendum, client_type=client_type,
             interrupt_response=interrupt_response,
             message_id=message_id,
+            session_state=session_state,
         )
         url = self._build_endpoint_url("streaming.stream_chat")
         payload = self._with_site_url(payload)
