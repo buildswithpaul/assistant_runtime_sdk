@@ -2783,6 +2783,7 @@ def register_tenant(
     ar_url: str,
     site_url: str,
     owner_email: str,
+    application_id: str,
     fac_mcp_endpoint: Optional[str] = None,
     terms_accepted: bool = True,
     terms_version: Optional[str] = None,
@@ -2801,6 +2802,9 @@ def register_tenant(
             ``get_initial_secret(ar_url, verification_token)`` with the token
             from the link to retrieve the ``tenant_secret``. The response from
             this function does **not** include the secret directly.
+        application_id: The AR Application identifier this tenant belongs to
+            (required, e.g. "faco"). AR hard-validates that a matching
+            AR Application row exists and stores it on AR Tenant.application.
         fac_mcp_endpoint: Optional FAC MCP server endpoint URL
         terms_accepted: Must be True to register
         terms_version: Version of terms being accepted
@@ -2815,6 +2819,7 @@ def register_tenant(
     payload = {
         "site_url": site_url,
         "owner_email": owner_email,
+        "application_id": application_id,
         "terms_accepted": terms_accepted,
         "terms_version": terms_version,
         "accepted_by": accepted_by,
