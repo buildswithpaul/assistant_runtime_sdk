@@ -611,20 +611,20 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
     def complete_onboarding(
         self,
         user_id: str,
-        conversation_id: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """
-        Mark onboarding complete and trigger immediate memory extraction.
+        Mark onboarding complete for a user.
+
+        Memory is seeded from real chat turns via turn-end extraction, so this
+        only flips the completion flag and refreshes personalized suggestions.
 
         Args:
             user_id: User identifier (required)
-            conversation_id: Optional session ID of the onboarding conversation.
-                If provided, memory extraction runs immediately.
 
         Returns:
-            {"success": bool, "memories_extracted": int}
+            {"success": bool}
         """
-        endpoint, payload = self._prepare_complete_onboarding(user_id, conversation_id)
+        endpoint, payload = self._prepare_complete_onboarding(user_id)
         return self._request_post_json(endpoint, payload, api_base=self.memory_api_base)
 
     # =========================================================================

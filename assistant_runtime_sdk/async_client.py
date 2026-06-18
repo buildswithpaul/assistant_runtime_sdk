@@ -558,10 +558,9 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
     async def complete_onboarding(
         self,
         user_id: str,
-        conversation_id: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """Async version of AssistantRuntimeClient.complete_onboarding."""
-        endpoint, payload = self._prepare_complete_onboarding(user_id, conversation_id)
+        endpoint, payload = self._prepare_complete_onboarding(user_id)
         return await self._request_post_json(endpoint, payload, api_base=self.memory_api_base)
 
     # =========================================================================

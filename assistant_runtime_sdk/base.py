@@ -529,14 +529,11 @@ class BaseAssistantRuntimeClient:
             "user_id": user_id,
         }
 
-    def _prepare_complete_onboarding(self, user_id: str,
-                                     conversation_id: Optional[str] = None) -> tuple:
+    def _prepare_complete_onboarding(self, user_id: str) -> tuple:
         payload: Dict[str, Any] = {
             "tenant_id": self.tenant_id,
             "user_id": user_id,
         }
-        if conversation_id:
-            payload["conversation_id"] = conversation_id
         return "onboarding.complete_onboarding", payload
 
     # =========================================================================
