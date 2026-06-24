@@ -1714,6 +1714,51 @@ class BaseAssistantRuntimeClient:
             "granted": granted,
         }
 
+    # =========================================================================
+    # Prepare Methods — Support (Tickets & Feedback)
+    # =========================================================================
+
+    def _prepare_create_ticket(self, user_id: str, subject: str, description: str,
+                               category: Optional[str] = None,
+                               conversation_id: Optional[str] = None,
+                               environment: Optional[dict] = None) -> tuple:
+        """Returns (endpoint, payload)."""
+        payload: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+            "subject": subject,
+            "description": description,
+        }
+        if category is not None:
+            payload["category"] = category
+        if conversation_id is not None:
+            payload["conversation_id"] = conversation_id
+        if environment is not None:
+            payload["environment"] = environment
+        return "support.create_ticket", payload
+
+    def _prepare_submit_feedback(self, user_id: str, rating: Optional[int] = None,
+                                 comment: Optional[str] = None,
+                                 category: Optional[str] = None,
+                                 conversation_id: Optional[str] = None,
+                                 environment: Optional[dict] = None) -> tuple:
+        """Returns (endpoint, payload)."""
+        payload: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+        }
+        if rating is not None:
+            payload["rating"] = rating
+        if comment is not None:
+            payload["comment"] = comment
+        if category is not None:
+            payload["category"] = category
+        if conversation_id is not None:
+            payload["conversation_id"] = conversation_id
+        if environment is not None:
+            payload["environment"] = environment
+        return "support.submit_feedback", payload
+
     def _prepare_get_tenant_privacy_config(self) -> tuple:
         return "gdpr.get_tenant_privacy_config", {
             "tenant_id": self.tenant_id,

@@ -2311,6 +2311,25 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         endpoint, payload = self._prepare_update_user_consent(user_id, consent_type, granted)
         return self._request_post_json(endpoint, payload)
 
+    def create_ticket(self, user_id: str, subject: str, description: str,
+                      category: Optional[str] = None,
+                      conversation_id: Optional[str] = None,
+                      environment: Optional[dict] = None) -> Optional[Dict[str, Any]]:
+        """Raise a support ticket. Returns {ticket_id, portal_link}."""
+        endpoint, payload = self._prepare_create_ticket(
+            user_id, subject, description, category, conversation_id, environment)
+        return self._request_post_json(endpoint, payload)
+
+    def submit_feedback(self, user_id: str, rating: Optional[int] = None,
+                       comment: Optional[str] = None,
+                       category: Optional[str] = None,
+                       conversation_id: Optional[str] = None,
+                       environment: Optional[dict] = None) -> Optional[Dict[str, Any]]:
+        """Submit product/service feedback. Returns {feedback_id}."""
+        endpoint, payload = self._prepare_submit_feedback(
+            user_id, rating, comment, category, conversation_id, environment)
+        return self._request_post_json(endpoint, payload)
+
     def get_tenant_privacy_config(self) -> Optional[Dict[str, Any]]:
         """Get tenant's privacy policy configuration."""
         endpoint, payload = self._prepare_get_tenant_privacy_config()
