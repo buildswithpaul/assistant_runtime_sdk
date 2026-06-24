@@ -1622,6 +1622,21 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
             user_id, rating, comment, category, conversation_id, environment)
         return await self._request_post_json(endpoint, payload)
 
+    async def list_tickets(self, user_id: str, status: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        """List the user's support tickets. Returns {tickets: [...]}."""
+        endpoint, payload = self._prepare_list_tickets(user_id, status)
+        return await self._request_post_json(endpoint, payload)
+
+    async def get_ticket_thread(self, user_id: str, ticket_id: str) -> Optional[Dict[str, Any]]:
+        """Get a ticket's full conversation thread. Returns {ticket, messages: [...]}."""
+        endpoint, payload = self._prepare_get_ticket_thread(user_id, ticket_id)
+        return await self._request_post_json(endpoint, payload)
+
+    async def reply_to_ticket(self, user_id: str, ticket_id: str, message: str) -> Optional[Dict[str, Any]]:
+        """Post a reply to a ticket. Returns {message_id}."""
+        endpoint, payload = self._prepare_reply_to_ticket(user_id, ticket_id, message)
+        return await self._request_post_json(endpoint, payload)
+
     async def get_tenant_privacy_config(self) -> Optional[Dict[str, Any]]:
         """Get tenant's privacy policy configuration."""
         endpoint, payload = self._prepare_get_tenant_privacy_config()

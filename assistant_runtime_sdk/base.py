@@ -1759,6 +1759,30 @@ class BaseAssistantRuntimeClient:
             payload["environment"] = environment
         return "support.submit_feedback", payload
 
+    def _prepare_list_tickets(self, user_id: str, status: Optional[str] = None) -> tuple:
+        """Returns (endpoint, payload)."""
+        payload: Dict[str, Any] = {"tenant_id": self.tenant_id, "user_id": user_id}
+        if status is not None:
+            payload["status"] = status
+        return "support.list_tickets", payload
+
+    def _prepare_get_ticket_thread(self, user_id: str, ticket_id: str) -> tuple:
+        """Returns (endpoint, payload)."""
+        return "support.get_ticket_thread", {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+            "ticket_id": ticket_id,
+        }
+
+    def _prepare_reply_to_ticket(self, user_id: str, ticket_id: str, message: str) -> tuple:
+        """Returns (endpoint, payload)."""
+        return "support.reply_to_ticket", {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+            "ticket_id": ticket_id,
+            "message": message,
+        }
+
     def _prepare_get_tenant_privacy_config(self) -> tuple:
         return "gdpr.get_tenant_privacy_config", {
             "tenant_id": self.tenant_id,
