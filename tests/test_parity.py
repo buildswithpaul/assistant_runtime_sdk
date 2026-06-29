@@ -120,6 +120,33 @@ class TestSyncAsyncParity:
             + "\n".join(mismatches)
         )
 
+    def test_constructor_signatures_match(self):
+        """Sync and async __init__ must expose the same parameters.
+
+        The sync client inherits BaseAssistantRuntimeClient.__init__; the async
+        client overrides it. A param added to the base/sync ctor but forgotten in
+        the async override silently makes that override unreachable on async
+        (regression: voice_api_base was dropped from the async ctor, so async
+        transcribe_audio could not override the voice base). The general
+        signature parity test skips dunders, so __init__ needs its own check.
+        """
+        sync_params = [
+            (p.name, p.default, p.kind)
+            for p in inspect.signature(AssistantRuntimeClient.__init__).parameters.values()
+            if p.name != "self"
+        ]
+        async_params = [
+            (p.name, p.default, p.kind)
+            for p in inspect.signature(AsyncAssistantRuntimeClient.__init__).parameters.values()
+            if p.name not in ("self", "session")  # async-only: optional aiohttp session reuse
+        ]
+
+        assert sync_params == async_params, (
+            "Constructor parameter mismatch between sync and async:\n"
+            f"  sync:  {[p[0] for p in sync_params]}\n"
+            f"  async: {[p[0] for p in async_params]}"
+        )
+
     def test_method_count_reasonable(self):
         """Sanity check: both clients should have a reasonable number of public methods."""
         sync_count = len(_public_methods(AssistantRuntimeClient))

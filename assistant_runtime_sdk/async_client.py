@@ -51,6 +51,7 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         memory_api_base: Optional[str] = None,
         workflows_api_base: Optional[str] = None,
         marketplace_api_base: Optional[str] = None,
+        voice_api_base: Optional[str] = None,
         site_url: Optional[str] = None,
     ):
         """
@@ -67,6 +68,7 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
             memory_api_base: Override URL for memory/onboarding/document API endpoints
             workflows_api_base: Override URL for workflow API endpoints
             marketplace_api_base: Override URL for marketplace API endpoints
+            voice_api_base: Override URL for voice/transcription API endpoints
             site_url: This installation's canonical URL (e.g. ``"https://mysite.example.com"``).
                 Automatically included in signed payloads for origin binding (Phase 2).
         """
@@ -79,7 +81,7 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         super().__init__(
             tenant_id, tenant_secret, ar_url, logger, timeout,
             billing_api_base, memory_api_base, workflows_api_base,
-            marketplace_api_base, site_url,
+            marketplace_api_base, voice_api_base, site_url,
         )
         self._session = session
         self._owns_session = session is None
