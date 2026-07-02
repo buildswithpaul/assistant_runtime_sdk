@@ -2878,6 +2878,31 @@ def register_tenant(
         return {"error": str(e)}
 
 
+def get_registration_state(
+    ar_url: str,
+    site_url: str,
+    tenant_id: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Look up whether a tenant already exists for site_url (guest, no auth).
+
+    Returns {"exists": bool, "status": str, "owner_email_masked": str,
+    "reregistration": bool} or {"error": str}. Never returns a secret.
+    """
+    url = f"{ar_url.rstrip('/')}/api/method/assistant_runtime.api.get_registration_state"
+    payload = {"site_url": site_url}
+    if tenant_id:
+        payload["tenant_id"] = tenant_id
+    try:
+        response = requests.post(
+            url, json=payload,
+            headers={"Content-Type": "application/json"}, timeout=30,
+        )
+        response.raise_for_status()
+        return response.json().get("message", response.json())
+    except requests.exceptions.RequestException as e:
+        return {"error": str(e)}
+
+
 def get_initial_secret(ar_url: str, verification_token: str) -> Dict[str, Any]:
     """One-shot retrieval of the freshly-minted tenant_secret after the
     owner has confirmed their email via the verification link.

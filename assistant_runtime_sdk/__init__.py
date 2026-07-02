@@ -61,7 +61,7 @@ __license__ = "AGPL-3.0"
 # Core Client Classes
 # =============================================================================
 
-from .client import AssistantRuntimeClient, get_terms, register_tenant
+from .client import AssistantRuntimeClient, get_terms, register_tenant, get_registration_state
 
 # Async client - import lazily to avoid requiring aiohttp
 # Skill providers - import lazily to avoid requiring strands-agents
@@ -170,6 +170,7 @@ __all__ = [
     # Standalone functions
     "get_terms",
     "register_tenant",
+    "get_registration_state",
     # Exceptions - new names
     "ARError",
     "ARAuthenticationError",
