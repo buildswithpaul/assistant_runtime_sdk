@@ -313,6 +313,7 @@ class BaseAssistantRuntimeClient:
         interrupt_response: Optional[List[Dict[str, str]]] = None,
         message_id: Optional[str] = None,
         session_state: Optional[Dict[str, Any]] = None,
+        continue_from_message_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Prepare JSON payload for stream_chat POST request.
@@ -340,6 +341,8 @@ class BaseAssistantRuntimeClient:
             session_state: Optional client-held signed session blob for
                 zero-retention conversations (sent up so the server can rehydrate
                 state without storing it server-side)
+            continue_from_message_id: Optional message ID to continue a
+                previous truncated response from
 
         Returns:
             Payload dict ready for JSON body
@@ -383,6 +386,9 @@ class BaseAssistantRuntimeClient:
 
         if session_state:
             payload["session_state"] = session_state
+
+        if continue_from_message_id:
+            payload["continue_from_message_id"] = continue_from_message_id
 
         return payload
 

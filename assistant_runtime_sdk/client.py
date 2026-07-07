@@ -325,6 +325,7 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         interrupt_response: Optional[List[Dict[str, str]]] = None,
         message_id: Optional[str] = None,
         session_state: Optional[Dict[str, Any]] = None,
+        continue_from_message_id: Optional[str] = None,
     ) -> Generator[Dict[str, Any], None, None]:
         """
         Stream chat response from Assistant Runtime.
@@ -353,6 +354,8 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
             session_state: Optional client-held signed session blob (zero-retention).
                 On ``stream_complete``, ``event['session_state']`` is the updated
                 signed blob — store it and pass it as ``session_state`` on the next turn.
+            continue_from_message_id: Optional message ID to continue a previous
+                truncated response from
 
         Yields:
             Parsed SSE events with structure:
@@ -379,6 +382,7 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
             interrupt_response=interrupt_response,
             message_id=message_id,
             session_state=session_state,
+            continue_from_message_id=continue_from_message_id,
         )
         url = self._build_endpoint_url("streaming.stream_chat")
         payload = self._with_site_url(payload)
