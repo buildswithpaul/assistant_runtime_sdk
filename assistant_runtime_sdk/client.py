@@ -594,6 +594,22 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         endpoint, params = self._prepare_get_suggestions(user_id, context, limit)
         return self._request_get(endpoint, params, timeout=timeout)
 
+    def generate_curated_suggestions(
+        self,
+        user_id: str,
+        signals: Optional[Dict[str, Any]] = None,
+        timeout: Optional[float] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Generate LLM-curated welcome suggestions from usage signals.
+
+        Costs one Economy-tier completion on AR (rate-limited server-side to
+        one generation per user per 20h). Returns
+        {"suggestions": [...], "generated_at": ...} or an empty-suggestions
+        dict with a reason/rate_limited flag.
+        """
+        endpoint, payload = self._prepare_generate_curated_suggestions(user_id, signals)
+        return self._request_post_json(endpoint, payload, timeout=timeout)
+
     # =========================================================================
     # Onboarding APIs
     # =========================================================================

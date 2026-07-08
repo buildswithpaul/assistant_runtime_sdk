@@ -525,6 +525,16 @@ class BaseAssistantRuntimeClient:
             params["context"] = json.dumps(context)
         return "suggestions.get_suggestions", params
 
+    def _prepare_generate_curated_suggestions(
+        self, user_id: str, signals: Optional[Dict[str, Any]] = None
+    ) -> tuple:
+        payload: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+            "signals": signals or {},
+        }
+        return "suggestions.generate_curated", payload
+
     # =========================================================================
     # Prepare Methods — Onboarding
     # =========================================================================
