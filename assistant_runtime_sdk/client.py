@@ -2843,6 +2843,7 @@ def register_tenant(
     terms_version: Optional[str] = None,
     accepted_by: Optional[str] = None,
     referral_code: Optional[str] = None,
+    promotion_token: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Register this installation as a tenant with Assistant Runtime.
@@ -2864,6 +2865,10 @@ def register_tenant(
         terms_version: Version of terms being accepted
         accepted_by: User who accepted the terms
         referral_code: Optional referral code
+        promotion_token: Optional one-time waitlist promotion token. When an
+            admin approves a waitlisted applicant, AR emails a resume link
+            carrying this token; passing it here lets the applicant bypass the
+            registration cap exactly once.
 
     Returns:
         Registration result with tenant_id (secret delivered via email link), or error
@@ -2884,6 +2889,9 @@ def register_tenant(
 
     if referral_code:
         payload["referral_code"] = referral_code
+
+    if promotion_token:
+        payload["promotion_token"] = promotion_token
 
     try:
         response = requests.post(
