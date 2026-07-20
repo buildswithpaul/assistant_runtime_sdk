@@ -1626,10 +1626,12 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
     async def create_ticket(self, user_id: str, subject: str, description: str,
                             category: Optional[str] = None,
                             conversation_id: Optional[str] = None,
-                            environment: Optional[dict] = None) -> Optional[Dict[str, Any]]:
+                            environment: Optional[dict] = None,
+                            attachment_ids: Optional[List[str]] = None) -> Optional[Dict[str, Any]]:
         """Raise a support ticket. Returns {ticket_id, portal_link}."""
         endpoint, payload = self._prepare_create_ticket(
-            user_id, subject, description, category, conversation_id, environment)
+            user_id, subject, description, category, conversation_id, environment,
+            attachment_ids)
         return await self._request_post_json(endpoint, payload)
 
     async def submit_feedback(self, user_id: str, rating: Optional[int] = None,

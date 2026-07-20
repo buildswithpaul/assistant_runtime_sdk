@@ -115,3 +115,58 @@ def test_async_upload_ticket_attachment_awaits_multipart():
         assert result["is_image"] is False
 
     asyncio.run(_run())
+
+
+def test_prepare_create_ticket_includes_attachment_ids_when_set():
+    c = _client()
+    endpoint, payload = c._prepare_create_ticket(
+        user_id="u", subject="X", description="Y",
+        attachment_ids=["file-1", "file-2"],
+    )
+    assert endpoint == "support.create_ticket"
+    assert payload["attachment_ids"] == ["file-1", "file-2"]
+
+
+def test_prepare_create_ticket_omits_attachment_ids_when_none_or_empty():
+    c = _client()
+    _, payload_none = c._prepare_create_ticket(user_id="u", subject="X", description="Y")
+    assert "attachment_ids" not in payload_none
+    _, payload_empty = c._prepare_create_ticket(
+        user_id="u", subject="X", description="Y", attachment_ids=[],
+    )
+    assert "attachment_ids" not in payload_empty
+
+
+def test_create_ticket_passes_attachment_ids_through():
+    from unittest.mock import patch
+
+    c = _client()
+    captured = {}
+
+    def _fake_json(endpoint, payload, timeout=None, api_base=None):
+        captured.update(endpoint=endpoint, payload=payload)
+        return {"ticket_id": "T-1", "portal_link": "/x"}
+
+    with patch.object(c, "_request_post_json", side_effect=_fake_json):
+        c.create_ticket(
+            user_id="u", subject="X", description="Y",
+            attachment_ids=["file-1"],
+        )
+    assert captured["payload"]["attachment_ids"] == ["file-1"]
+
+
+def test_async_create_ticket_passes_attachment_ids_through():
+    a = _async_client()
+
+    async def _run():
+        fake = AsyncMock(return_value={"ticket_id": "T-2", "portal_link": "/y"})
+        with _patch.object(a, "_request_post_json", fake):
+            await a.create_ticket(
+                user_id="u", subject="X", description="Y",
+                attachment_ids=["file-9"],
+            )
+        kwargs = fake.await_args.kwargs
+        payload = fake.await_args.args[1] if len(fake.await_args.args) > 1 else kwargs.get("payload")
+        assert payload["attachment_ids"] == ["file-9"]
+
+    asyncio.run(_run())

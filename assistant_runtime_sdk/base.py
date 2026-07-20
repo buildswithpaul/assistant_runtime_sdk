@@ -1737,7 +1737,8 @@ class BaseAssistantRuntimeClient:
     def _prepare_create_ticket(self, user_id: str, subject: str, description: str,
                                category: Optional[str] = None,
                                conversation_id: Optional[str] = None,
-                               environment: Optional[dict] = None) -> tuple:
+                               environment: Optional[dict] = None,
+                               attachment_ids: Optional[List[str]] = None) -> tuple:
         """Returns (endpoint, payload)."""
         payload: Dict[str, Any] = {
             "tenant_id": self.tenant_id,
@@ -1751,6 +1752,8 @@ class BaseAssistantRuntimeClient:
             payload["conversation_id"] = conversation_id
         if environment is not None:
             payload["environment"] = environment
+        if attachment_ids:
+            payload["attachment_ids"] = attachment_ids
         return "support.create_ticket", payload
 
     def _prepare_submit_feedback(self, user_id: str, rating: Optional[int] = None,
