@@ -147,6 +147,30 @@ class TestSyncAsyncParity:
             f"  async: {[p[0] for p in async_params]}"
         )
 
+    def test_upload_ticket_attachment_parity(self):
+        """upload_ticket_attachment must exist on both clients with matching params."""
+        assert hasattr(AssistantRuntimeClient, "upload_ticket_attachment")
+        assert hasattr(AsyncAssistantRuntimeClient, "upload_ticket_attachment")
+
+        sync_sig = inspect.signature(AssistantRuntimeClient.upload_ticket_attachment)
+        async_sig = inspect.signature(AsyncAssistantRuntimeClient.upload_ticket_attachment)
+        sync_params = [(p.name, p.default, p.kind) for p in sync_sig.parameters.values() if p.name != "self"]
+        async_params = [(p.name, p.default, p.kind) for p in async_sig.parameters.values() if p.name != "self"]
+        assert sync_params == async_params, (
+            "upload_ticket_attachment signature mismatch:\n"
+            f"  sync:  {[p[0] for p in sync_params]}\n"
+            f"  async: {[p[0] for p in async_params]}"
+        )
+
+    def test_ticket_attachment_ids_param_present(self):
+        """create_ticket and reply_to_ticket must both expose attachment_ids."""
+        for cls in (AssistantRuntimeClient, AsyncAssistantRuntimeClient):
+            for method_name in ("create_ticket", "reply_to_ticket"):
+                params = inspect.signature(getattr(cls, method_name)).parameters
+                assert "attachment_ids" in params, (
+                    f"{cls.__name__}.{method_name} is missing attachment_ids"
+                )
+
     def test_method_count_reasonable(self):
         """Sanity check: both clients should have a reasonable number of public methods."""
         sync_count = len(_public_methods(AssistantRuntimeClient))
