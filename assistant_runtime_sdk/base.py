@@ -1799,6 +1799,45 @@ class BaseAssistantRuntimeClient:
             "message": message,
         }
 
+    def _prepare_upload_ticket_attachment(
+        self,
+        user_id: str,
+        file_name: str,
+        file_data: bytes,
+        content_type: Optional[str] = None,
+    ) -> tuple:
+        """Returns (endpoint, params, file_field, file_name, file_data, content_type).
+
+        Mirrors _prepare_upload_document: signs only the scalar form fields
+        (tenant_id, user_id); the file bytes ride the multipart 'file' part,
+        which Frappe's form_dict excludes from the signed body.
+        """
+        import mimetypes as _mt
+
+        if not user_id:
+            raise ARConfigurationError("user_id is required for upload_ticket_attachment")
+        if not file_name:
+            raise ARConfigurationError("file_name is required for upload_ticket_attachment")
+        if not file_data:
+            raise ARConfigurationError("file_data is required for upload_ticket_attachment")
+
+        if not content_type:
+            guessed, _ = _mt.guess_type(file_name)
+            content_type = guessed or "application/octet-stream"
+
+        params: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+        }
+        return (
+            "support.upload_ticket_attachment",
+            params,
+            "file",
+            file_name,
+            file_data,
+            content_type,
+        )
+
     def _prepare_get_tenant_privacy_config(self) -> tuple:
         return "gdpr.get_tenant_privacy_config", {
             "tenant_id": self.tenant_id,
