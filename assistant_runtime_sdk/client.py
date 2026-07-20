@@ -2365,6 +2365,31 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         endpoint, payload = self._prepare_reply_to_ticket(user_id, ticket_id, message)
         return self._request_post_json(endpoint, payload)
 
+    def upload_ticket_attachment(
+        self,
+        user_id: str,
+        file_name: str,
+        file_data: bytes,
+        content_type: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Pre-upload a support-ticket attachment (image or PDF).
+
+        Stores a private, pending File on AR scoped to this tenant+user and
+        returns a reference to embed later via create_ticket/reply_to_ticket's
+        ``attachment_ids``.
+
+        Returns:
+            {"file_id": str, "file_url": str, "file_name": str, "is_image": bool}
+        """
+        endpoint, params, f_field, f_name, f_data, c_type = self._prepare_upload_ticket_attachment(
+            user_id, file_name, file_data, content_type,
+        )
+        return self._request_post_multipart(
+            endpoint, params=params, file_field=f_field,
+            file_name=f_name, file_data=f_data, content_type=c_type,
+            timeout=120.0,
+        )
+
     def get_tenant_privacy_config(self) -> Optional[Dict[str, Any]]:
         """Get tenant's privacy policy configuration."""
         endpoint, payload = self._prepare_get_tenant_privacy_config()
