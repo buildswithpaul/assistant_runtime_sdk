@@ -1793,14 +1793,18 @@ class BaseAssistantRuntimeClient:
             "ticket_id": ticket_id,
         }
 
-    def _prepare_reply_to_ticket(self, user_id: str, ticket_id: str, message: str) -> tuple:
+    def _prepare_reply_to_ticket(self, user_id: str, ticket_id: str, message: str,
+                                 attachment_ids: Optional[List[str]] = None) -> tuple:
         """Returns (endpoint, payload)."""
-        return "support.reply_to_ticket", {
+        payload: Dict[str, Any] = {
             "tenant_id": self.tenant_id,
             "user_id": user_id,
             "ticket_id": ticket_id,
             "message": message,
         }
+        if attachment_ids:
+            payload["attachment_ids"] = attachment_ids
+        return "support.reply_to_ticket", payload
 
     def _prepare_upload_ticket_attachment(
         self,

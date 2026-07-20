@@ -170,3 +170,57 @@ def test_async_create_ticket_passes_attachment_ids_through():
         assert payload["attachment_ids"] == ["file-9"]
 
     asyncio.run(_run())
+
+
+def test_prepare_reply_to_ticket_includes_attachment_ids_when_set():
+    c = _client()
+    endpoint, payload = c._prepare_reply_to_ticket(
+        user_id="u", ticket_id="T-1", message="see attached",
+        attachment_ids=["file-7"],
+    )
+    assert endpoint == "support.reply_to_ticket"
+    assert payload["ticket_id"] == "T-1"
+    assert payload["message"] == "see attached"
+    assert payload["attachment_ids"] == ["file-7"]
+
+
+def test_prepare_reply_to_ticket_omits_attachment_ids_when_none_or_empty():
+    c = _client()
+    _, payload_none = c._prepare_reply_to_ticket(user_id="u", ticket_id="T-1", message="hi")
+    assert "attachment_ids" not in payload_none
+    _, payload_empty = c._prepare_reply_to_ticket(
+        user_id="u", ticket_id="T-1", message="hi", attachment_ids=[],
+    )
+    assert "attachment_ids" not in payload_empty
+
+
+def test_reply_to_ticket_passes_attachment_ids_through():
+    from unittest.mock import patch
+
+    c = _client()
+    captured = {}
+
+    def _fake_json(endpoint, payload, timeout=None, api_base=None):
+        captured.update(endpoint=endpoint, payload=payload)
+        return {"message_id": "M-1"}
+
+    with patch.object(c, "_request_post_json", side_effect=_fake_json):
+        c.reply_to_ticket(user_id="u", ticket_id="T-1", message="hi", attachment_ids=["file-7"])
+    assert captured["payload"]["attachment_ids"] == ["file-7"]
+
+
+def test_async_reply_to_ticket_passes_attachment_ids_through():
+    a = _async_client()
+
+    async def _run():
+        fake = AsyncMock(return_value={"message_id": "M-2"})
+        with _patch.object(a, "_request_post_json", fake):
+            await a.reply_to_ticket(
+                user_id="u", ticket_id="T-1", message="hi",
+                attachment_ids=["file-9"],
+            )
+        kwargs = fake.await_args.kwargs
+        payload = fake.await_args.args[1] if len(fake.await_args.args) > 1 else kwargs.get("payload")
+        assert payload["attachment_ids"] == ["file-9"]
+
+    asyncio.run(_run())

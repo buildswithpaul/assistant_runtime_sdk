@@ -2362,9 +2362,10 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         endpoint, payload = self._prepare_get_ticket_thread(user_id, ticket_id)
         return self._request_post_json(endpoint, payload)
 
-    def reply_to_ticket(self, user_id: str, ticket_id: str, message: str) -> Optional[Dict[str, Any]]:
+    def reply_to_ticket(self, user_id: str, ticket_id: str, message: str,
+                        attachment_ids: Optional[List[str]] = None) -> Optional[Dict[str, Any]]:
         """Post a reply to a ticket. Returns {message_id}."""
-        endpoint, payload = self._prepare_reply_to_ticket(user_id, ticket_id, message)
+        endpoint, payload = self._prepare_reply_to_ticket(user_id, ticket_id, message, attachment_ids)
         return self._request_post_json(endpoint, payload)
 
     def upload_ticket_attachment(
