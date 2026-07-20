@@ -4,12 +4,23 @@
 
 """Unit tests for ticket-attachment SDK helpers (multipart upload + attachment_ids threading)."""
 
+import asyncio
+from unittest.mock import AsyncMock, patch as _patch
+
 from assistant_runtime_sdk import AssistantRuntimeClient
 from assistant_runtime_sdk.async_client import AsyncAssistantRuntimeClient
 
 
 def _client():
     return AssistantRuntimeClient(
+        tenant_id="tid-1",
+        tenant_secret="secret",
+        ar_url="https://ar.example.com",
+    )
+
+
+def _async_client():
+    return AsyncAssistantRuntimeClient(
         tenant_id="tid-1",
         tenant_secret="secret",
         ar_url="https://ar.example.com",
@@ -82,3 +93,25 @@ def test_upload_ticket_attachment_calls_multipart_on_core_base():
     # Support endpoints live on the CORE api_base, never the memory base.
     assert captured["api_base"] in (None, c.api_base)
     assert captured["api_base"] != c.memory_api_base
+
+
+def test_async_upload_ticket_attachment_awaits_multipart():
+    a = _async_client()
+
+    async def _run():
+        fake = AsyncMock(return_value={
+            "file_id": "file-9", "file_url": "/private/files/scan.pdf",
+            "file_name": "scan.pdf", "is_image": False,
+        })
+        with _patch.object(a, "_request_post_multipart", fake):
+            result = await a.upload_ticket_attachment(
+                user_id="u", file_name="scan.pdf", file_data=b"%PDF-1.4",
+            )
+        fake.assert_awaited_once()
+        kwargs = fake.await_args.kwargs
+        assert fake.await_args.args[0] == "support.upload_ticket_attachment"
+        assert kwargs["file_field"] == "file"
+        assert kwargs["content_type"] == "application/pdf"
+        assert result["is_image"] is False
+
+    asyncio.run(_run())

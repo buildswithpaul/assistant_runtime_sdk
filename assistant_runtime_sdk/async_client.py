@@ -1657,6 +1657,23 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         endpoint, payload = self._prepare_reply_to_ticket(user_id, ticket_id, message)
         return await self._request_post_json(endpoint, payload)
 
+    async def upload_ticket_attachment(
+        self,
+        user_id: str,
+        file_name: str,
+        file_data: bytes,
+        content_type: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Async version of AssistantRuntimeClient.upload_ticket_attachment."""
+        endpoint, params, f_field, f_name, f_data, c_type = self._prepare_upload_ticket_attachment(
+            user_id, file_name, file_data, content_type,
+        )
+        return await self._request_post_multipart(
+            endpoint, params=params, file_field=f_field,
+            file_name=f_name, file_data=f_data, content_type=c_type,
+            timeout=120.0,
+        )
+
     async def get_tenant_privacy_config(self) -> Optional[Dict[str, Any]]:
         """Get tenant's privacy policy configuration."""
         endpoint, payload = self._prepare_get_tenant_privacy_config()
