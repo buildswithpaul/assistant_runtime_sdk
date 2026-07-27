@@ -1917,6 +1917,11 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         endpoint, params = self._prepare_get_pending_interrupt(session_id, user_id)
         return await self._request_get(endpoint, params, api_base=self.api_base)
 
+    async def cancel_session(self, session_id: str) -> Optional[Dict[str, Any]]:
+        """Async version of AssistantRuntimeClient.cancel_session."""
+        endpoint, payload = self._prepare_cancel_session(session_id)
+        return await self._request_post_json(endpoint, payload, api_base=self.api_base)
+
     # =========================================================================
     # Voice API
     # =========================================================================

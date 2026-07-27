@@ -2759,6 +2759,11 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         endpoint, params = self._prepare_get_pending_interrupt(session_id, user_id)
         return self._request_get(endpoint, params, api_base=self.api_base)
 
+    def cancel_session(self, session_id: str) -> Optional[Dict[str, Any]]:
+        """Stop the session's active stream / clear its HITL pause."""
+        endpoint, payload = self._prepare_cancel_session(session_id)
+        return self._request_post_json(endpoint, payload, api_base=self.api_base)
+
     # =========================================================================
     # Voice API
     # =========================================================================

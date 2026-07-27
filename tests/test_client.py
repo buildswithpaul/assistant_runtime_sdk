@@ -413,3 +413,26 @@ class TestGetMemberAuditLog:
         endpoint, params = client._prepare_get_member_audit_log(limit=50, offset=100)
         assert params["limit"] == "50"
         assert params["offset"] == "100"
+
+
+class TestCancelSession:
+    def _client(self):
+        from assistant_runtime_sdk import AssistantRuntimeClient
+        return AssistantRuntimeClient(
+            tenant_id="test-tenant",
+            tenant_secret="test-secret",
+            ar_url="https://ar.example.com",
+        )
+
+    def test_prepare_cancel_session(self):
+        client = self._client()
+        endpoint, payload = client._prepare_cancel_session("session-123")
+        assert endpoint == "cancel.cancel_session"
+        assert payload["tenant_id"] == "test-tenant"
+        assert payload["session_id"] == "session-123"
+        assert set(payload.keys()) == {"tenant_id", "session_id"}
+
+    def test_prepare_cancel_session_requires_session_id(self):
+        client = self._client()
+        with pytest.raises(ValueError):
+            client._prepare_cancel_session("")

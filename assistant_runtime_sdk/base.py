@@ -567,6 +567,15 @@ class BaseAssistantRuntimeClient:
             "session_id": session_id,
         }
 
+    def _prepare_cancel_session(self, session_id: str) -> tuple:
+        """Returns (endpoint, payload)."""
+        if not session_id:
+            raise ValueError("session_id is required")
+        return "cancel.cancel_session", {
+            "tenant_id": self.tenant_id,
+            "session_id": session_id,
+        }
+
     # =========================================================================
     # Prepare Methods — Documents
     # =========================================================================
