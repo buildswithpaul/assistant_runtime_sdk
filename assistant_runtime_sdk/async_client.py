@@ -1696,12 +1696,19 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         frappe_version: Optional[str] = None,
         erpnext_version: Optional[str] = None,
         python_version: Optional[str] = None,
+        copilot_version: Optional[str] = None,
         timeout: Optional[float] = None,
     ) -> Optional[Dict[str, Any]]:
         """Async send version/health info and receive pending notifications."""
         endpoint, payload = self._prepare_heartbeat(
-            faco_version, fac_version, frappe_version, erpnext_version, python_version
+            faco_version, fac_version, frappe_version, erpnext_version,
+            python_version, copilot_version,
         )
+        return await self._request_post_json(endpoint, payload, timeout=timeout)
+
+    async def get_notifications(self, user_id: str, timeout: Optional[float] = None) -> Optional[Dict[str, Any]]:
+        """Async fetch pending notifications for a user."""
+        endpoint, payload = self._prepare_get_notifications(user_id)
         return await self._request_post_json(endpoint, payload, timeout=timeout)
 
     async def dismiss_notification(

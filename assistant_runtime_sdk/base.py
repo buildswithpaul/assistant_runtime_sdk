@@ -1882,6 +1882,7 @@ class BaseAssistantRuntimeClient:
         frappe_version: Optional[str] = None,
         erpnext_version: Optional[str] = None,
         python_version: Optional[str] = None,
+        copilot_version: Optional[str] = None,
     ) -> tuple:
         payload: Dict[str, Any] = {"tenant_id": self.tenant_id}
         if faco_version:
@@ -1894,12 +1895,20 @@ class BaseAssistantRuntimeClient:
             payload["erpnext_version"] = erpnext_version
         if python_version:
             payload["python_version"] = python_version
+        if copilot_version:
+            payload["copilot_version"] = copilot_version
         return "heartbeat.heartbeat", payload
+
+    def _prepare_get_notifications(self, user_id: str) -> tuple:
+        return "notifications.get_notifications", {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+        }
 
     def _prepare_dismiss_notification(
         self, notification_id: str, user_id: str,
     ) -> tuple:
-        return "heartbeat.dismiss_notification", {
+        return "notifications.dismiss_notification", {
             "tenant_id": self.tenant_id,
             "notification_id": notification_id,
             "user_id": user_id,

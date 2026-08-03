@@ -436,3 +436,41 @@ class TestCancelSession:
         client = self._client()
         with pytest.raises(ValueError):
             client._prepare_cancel_session("")
+
+
+class TestNotifications:
+    def _client(self):
+        from assistant_runtime_sdk import AssistantRuntimeClient
+        return AssistantRuntimeClient(
+            tenant_id="test-tenant",
+            tenant_secret="test-secret",
+            ar_url="https://ar.example.com",
+        )
+
+    def test_prepare_get_notifications(self):
+        client = self._client()
+        endpoint, payload = client._prepare_get_notifications(user_id="u@example.com")
+        assert endpoint == "notifications.get_notifications"
+        assert payload["tenant_id"] == client.tenant_id
+        assert payload["user_id"] == "u@example.com"
+
+    def test_prepare_dismiss_notification_points_at_notifications_module(self):
+        client = self._client()
+        endpoint, payload = client._prepare_dismiss_notification("NID-1", "u@example.com")
+        assert endpoint == "notifications.dismiss_notification"
+        assert payload == {
+            "tenant_id": client.tenant_id,
+            "notification_id": "NID-1",
+            "user_id": "u@example.com",
+        }
+
+    def test_prepare_heartbeat_accepts_copilot_version(self):
+        client = self._client()
+        endpoint, payload = client._prepare_heartbeat(copilot_version="1.2.3")
+        assert endpoint == "heartbeat.heartbeat"
+        assert payload["copilot_version"] == "1.2.3"
+
+    def test_prepare_heartbeat_still_accepts_faco_version(self):
+        client = self._client()
+        _, payload = client._prepare_heartbeat(faco_version="0.9.0")
+        assert payload["faco_version"] == "0.9.0"
