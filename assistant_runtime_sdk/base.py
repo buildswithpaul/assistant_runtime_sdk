@@ -314,6 +314,8 @@ class BaseAssistantRuntimeClient:
         message_id: Optional[str] = None,
         session_state: Optional[Dict[str, Any]] = None,
         continue_from_message_id: Optional[str] = None,
+        web_search: Optional[bool] = None,
+        thinking_enabled: Optional[bool] = None,
     ) -> Dict[str, Any]:
         """
         Prepare JSON payload for stream_chat POST request.
@@ -343,6 +345,8 @@ class BaseAssistantRuntimeClient:
                 state without storing it server-side)
             continue_from_message_id: Optional message ID to continue a
                 previous truncated response from
+            web_search: Optional explicit web-search toggle for this turn
+            thinking_enabled: Optional explicit extended-thinking toggle for this turn
 
         Returns:
             Payload dict ready for JSON body
@@ -389,6 +393,12 @@ class BaseAssistantRuntimeClient:
 
         if continue_from_message_id:
             payload["continue_from_message_id"] = continue_from_message_id
+
+        if web_search is not None:
+            payload["web_search"] = bool(web_search)
+
+        if thinking_enabled is not None:
+            payload["thinking_enabled"] = bool(thinking_enabled)
 
         return payload
 

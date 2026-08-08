@@ -326,6 +326,9 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         message_id: Optional[str] = None,
         session_state: Optional[Dict[str, Any]] = None,
         continue_from_message_id: Optional[str] = None,
+        *,
+        web_search: Optional[bool] = None,
+        thinking_enabled: Optional[bool] = None,
     ) -> Generator[Dict[str, Any], None, None]:
         """
         Stream chat response from Assistant Runtime.
@@ -356,6 +359,8 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
                 signed blob — store it and pass it as ``session_state`` on the next turn.
             continue_from_message_id: Optional message ID to continue a previous
                 truncated response from
+            web_search: Optional explicit web-search toggle for this turn
+            thinking_enabled: Optional explicit extended-thinking toggle for this turn
 
         Yields:
             Parsed SSE events with structure:
@@ -383,6 +388,8 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
             message_id=message_id,
             session_state=session_state,
             continue_from_message_id=continue_from_message_id,
+            web_search=web_search,
+            thinking_enabled=thinking_enabled,
         )
         url = self._build_endpoint_url("streaming.stream_chat")
         payload = self._with_site_url(payload)
