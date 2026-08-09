@@ -1545,8 +1545,8 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         Returns:
             Dict with ``balance`` (int) and ``transactions`` (list).
         """
-        endpoint, payload = self._prepare_get_credit_balance()
-        return self._request_post_json(endpoint, payload, api_base=self.billing_api_base)
+        endpoint, params = self._prepare_get_credit_balance()
+        return self._request_get(endpoint, params, api_base=self.billing_api_base)
 
     def purchase_credits(
         self, credit_amount: int, gateway: str = None

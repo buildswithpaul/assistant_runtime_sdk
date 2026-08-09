@@ -1051,8 +1051,8 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
 
     async def get_credit_balance(self) -> Optional[Dict[str, Any]]:
         """Async version of AssistantRuntimeClient.get_credit_balance."""
-        endpoint, payload = self._prepare_get_credit_balance()
-        return await self._request_post_json(endpoint, payload, api_base=self.billing_api_base)
+        endpoint, params = self._prepare_get_credit_balance()
+        return await self._request_get(endpoint, params, api_base=self.billing_api_base)
 
     async def purchase_credits(
         self, credit_amount: int, gateway: str = None
