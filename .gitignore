@@ -1,3 +1,7 @@
+# Superpowers local design/plan scratch — never commit
+.superpowers/
+superpowers/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
