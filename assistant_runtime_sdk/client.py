@@ -1905,14 +1905,25 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         endpoint, params = self._prepare_revoke_user(user_id)
         return self._request_post_form(endpoint, params)
 
-    def set_user_credit_limit(self, user_id: str, monthly_credit_limit: float = 0) -> Dict[str, Any]:
-        """Set a per-user monthly credit limit. 0 = no limit (shared pool)."""
+    def set_user_credit_limit(
+        self,
+        user_id: str,
+        monthly_credit_limit: float = 0,
+        acted_by: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Set a per-user monthly credit limit. 0 = no limit (shared pool).
+
+        ``acted_by`` is the acting admin's user_id (recorded on the member
+        audit log when provided).
+        """
         endpoint = "users.set_user_credit_limit"
         params = {
             "tenant_id": self.tenant_id,
             "user_id": user_id,
             "monthly_credit_limit": str(monthly_credit_limit),
         }
+        if acted_by:
+            params["acted_by"] = acted_by
         return self._request_post_form(endpoint, params)
 
     def get_my_credit_status(self, user_id: str) -> Dict[str, Any]:
