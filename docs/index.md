@@ -69,6 +69,7 @@ Step-by-step guides for common tasks:
 - [Async Usage](guides/async-usage.md) - Using the async client
 - [Error Handling](guides/error-handling.md) - Exception handling patterns
 - [Frappe Integration](guides/frappe-integration.md) - Using with Frappe Framework
+- [Releasing to PyPI](guides/releasing.md) - Publishing a new version
 
 ### API Reference
 
