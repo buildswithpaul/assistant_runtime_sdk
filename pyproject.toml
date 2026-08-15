@@ -1,6 +1,6 @@
 [project]
 name = "assistant_runtime_sdk"
-version = "0.1.0"
+version = "1.0.0"
 description = "Python SDK for Assistant Runtime - AI-powered assistant backend"
 readme = "README.md"
 license = {text = "AGPL-3.0"}
@@ -10,7 +10,7 @@ authors = [
 ]
 keywords = ["frappe", "ai", "assistant", "llm", "mcp", "anthropic", "openai", "streaming"]
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: GNU Affero General Public License v3",
     "Programming Language :: Python :: 3",
@@ -40,9 +40,10 @@ all = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/frappe/assistant-runtime-sdk"
-Documentation = "https://github.com/frappe/assistant-runtime-sdk#readme"
-Repository = "https://github.com/frappe/assistant-runtime-sdk"
+Homepage = "https://github.com/buildswithpaul/assistant_runtime_sdk"
+Documentation = "https://github.com/buildswithpaul/assistant_runtime_sdk#readme"
+Repository = "https://github.com/buildswithpaul/assistant_runtime_sdk"
+Issues = "https://github.com/buildswithpaul/assistant_runtime_sdk/issues"
 
 [build-system]
 requires = ["flit_core>=3.4,<4"]
