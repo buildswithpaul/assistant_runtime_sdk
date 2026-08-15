@@ -478,6 +478,15 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         endpoint, payload = self._prepare_accept_terms(terms_version, accepted_by)
         return self._request_post_json(endpoint, payload)
 
+    def get_terms_status(self, timeout: Optional[float] = None) -> Optional[Dict[str, Any]]:
+        """Report whether this tenant must (re-)accept Terms and Conditions.
+
+        Read-only — safe to call at boot to decide whether to render the
+        acceptance surface before a gated feature fails.
+        """
+        endpoint, params = self._prepare_get_terms_status()
+        return self._request_get(endpoint, params, timeout=timeout)
+
     # =========================================================================
     # Model APIs
     # =========================================================================

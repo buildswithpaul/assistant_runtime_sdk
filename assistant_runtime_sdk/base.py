@@ -489,6 +489,10 @@ class BaseAssistantRuntimeClient:
             "accepted_by": accepted_by,
         }
 
+    def _prepare_get_terms_status(self) -> tuple:
+        """Returns (endpoint, params)."""
+        return "get_terms_status", {"tenant_id": self.tenant_id}
+
     # =========================================================================
     # Prepare Methods — Models
     # =========================================================================
