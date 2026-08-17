@@ -951,6 +951,11 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         endpoint, payload = self._prepare_get_payment_methods()
         return await self._request_post_json(endpoint, payload, api_base=self.billing_api_base)
 
+    async def get_payment_instrument(self) -> Optional[Dict[str, Any]]:
+        """Async version of AssistantRuntimeClient.get_payment_instrument."""
+        endpoint, payload = self._prepare_get_payment_instrument()
+        return await self._request_post_json(endpoint, payload, api_base=self.billing_api_base)
+
     async def upgrade_plan(
         self,
         new_plan: str,
@@ -1020,9 +1025,16 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         endpoint, payload = self._prepare_resume_subscription()
         return await self._request_post_json(endpoint, payload, api_base=self.billing_api_base)
 
-    async def update_payment_method(self) -> Optional[Dict[str, Any]]:
+    async def update_payment_method(
+        self,
+        payment_method: Optional[str] = None,
+        billing_name: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
         """Async version of AssistantRuntimeClient.update_payment_method."""
-        endpoint, payload = self._prepare_update_payment_method()
+        endpoint, payload = self._prepare_update_payment_method(
+            payment_method=payment_method,
+            billing_name=billing_name,
+        )
         return await self._request_post_json(endpoint, payload, api_base=self.billing_api_base)
 
     async def get_subscription_status(self) -> Optional[Dict[str, Any]]:

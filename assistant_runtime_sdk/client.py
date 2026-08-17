@@ -1375,6 +1375,40 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         endpoint, payload = self._prepare_get_payment_methods()
         return self._request_post_json(endpoint, payload, api_base=self.billing_api_base)
 
+    def get_payment_instrument(self) -> Optional[Dict[str, Any]]:
+        """Get the instrument on file for automatic payments.
+
+        Returns:
+            {
+              "gateway": "razorpay" | "stripe",
+              "autopay": {
+                "mandate": str,
+                "status": str,
+                "method": "upi" | "card" | "emandate",
+                "label": str,          # "UPI Autopay"
+                "display": str,        # "paul@okhdfcbank" / "Visa •••• 4242"
+                "card": {"last4", "network", "issuer", "expiry"},
+                "vpa": str | None,
+                "bank": str | None,
+                "max_amount": float,   # per-debit ceiling
+                "currency": str,
+                "authorized_on": str | None,
+                "next_charge_date": str | None,
+                "needs_reauth": bool,
+                "suspended": bool,
+              } | None,               # None when no mandate exists
+              "can_update": bool,
+              "update_mode": "settle" | "swap" | "portal",
+              "amount_due": {"invoice", "amount", "currency"} | None,
+            }
+
+        ``update_mode`` tells the caller what ``update_payment_method`` will
+        do: settle an outstanding invoice, swap the saved instrument, or
+        hand back a Stripe portal URL.
+        """
+        endpoint, payload = self._prepare_get_payment_instrument()
+        return self._request_post_json(endpoint, payload, api_base=self.billing_api_base)
+
     def upgrade_plan(
         self,
         new_plan: str,
@@ -1487,9 +1521,40 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         endpoint, payload = self._prepare_resume_subscription()
         return self._request_post_json(endpoint, payload, api_base=self.billing_api_base)
 
-    def update_payment_method(self) -> Optional[Dict[str, Any]]:
-        """Get URL to update payment method."""
-        endpoint, payload = self._prepare_update_payment_method()
+    def update_payment_method(
+        self,
+        payment_method: Optional[str] = None,
+        billing_name: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Change the instrument that pays for this subscription.
+
+        What this does depends on whether anything is owed, which the
+        server decides — call ``get_payment_instrument`` first if you need
+        to know in advance:
+
+        - An unpaid renewal exists: the returned Razorpay checkout settles
+          *that* invoice at the amount it was billed for and registers the
+          new instrument for autopay in the same authorization. The billing
+          period does not move. ``amount_due`` carries the figure.
+        - Nothing is owed: the checkout debits one currency unit purely to
+          register the token, refunded automatically on capture.
+        - Stripe: returns ``portal_url`` for the Customer Portal.
+
+        Args:
+            payment_method: Razorpay only — "upi" (UPI Autopay) or "card".
+                Defaults to "upi" for India, "card" for international.
+            billing_name: Name to prefill in the checkout widget.
+
+        Returns:
+            Razorpay: the checkout payload (``razorpay_key``,
+            ``razorpay_order_id``, ``amount``, ``currency``, ``prefill``, …)
+            plus ``update_mode`` and, when settling, ``amount_due``.
+            Stripe: ``{"update_mode": "portal", "portal_url": str}``.
+        """
+        endpoint, payload = self._prepare_update_payment_method(
+            payment_method=payment_method,
+            billing_name=billing_name,
+        )
         return self._request_post_json(endpoint, payload, api_base=self.billing_api_base)
 
     def get_subscription_status(self) -> Optional[Dict[str, Any]]:
