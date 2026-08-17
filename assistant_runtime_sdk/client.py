@@ -1378,25 +1378,36 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
     def get_payment_instrument(self) -> Optional[Dict[str, Any]]:
         """Get the instrument on file for automatic payments.
 
+        One shape regardless of gateway — callers never need to branch on
+        ``gateway`` to read ``autopay``. Fields that only apply to Razorpay
+        (``mandate``, ``max_amount``, ``authorized_on``, ``needs_reauth``,
+        ``vpa``, ``bank``, and ``card.issuer``) are ``None`` on Stripe, not
+        omitted.
+
         Returns:
             {
               "gateway": "razorpay" | "stripe",
               "autopay": {
-                "mandate": str,
+                "mandate": str | None,      # Razorpay only
                 "status": str,
                 "method": "upi" | "card" | "emandate",
-                "label": str,          # "UPI Autopay"
-                "display": str,        # "paul@okhdfcbank" / "Visa •••• 4242"
-                "card": {"last4", "network", "issuer", "expiry"},
-                "vpa": str | None,
-                "bank": str | None,
-                "max_amount": float,   # per-debit ceiling
+                "label": str,               # "UPI Autopay"
+                "display": str,             # "paul@okhdfcbank" / "Visa •••• 4242"
+                "card": {
+                    "last4": str | None,
+                    "network": str | None,
+                    "issuer": str | None,   # Razorpay only
+                    "expiry": str | None,   # "MM/YYYY"
+                } | None,
+                "vpa": str | None,          # Razorpay UPI only
+                "bank": str | None,         # Razorpay only
+                "max_amount": float | None, # per-debit ceiling, Razorpay only
                 "currency": str,
-                "authorized_on": str | None,
+                "authorized_on": str | None,  # Razorpay only
                 "next_charge_date": str | None,
-                "needs_reauth": bool,
+                "needs_reauth": bool | None,  # Razorpay only
                 "suspended": bool,
-              } | None,               # None when no mandate exists
+              } | None,               # None when no instrument is on file
               "can_update": bool,
               "update_mode": "settle" | "swap" | "portal",
               "amount_due": {"invoice", "amount", "currency"} | None,
