@@ -618,6 +618,98 @@ def cancel_subscription(
 ) -> Dict[str, Any]
 ```
 
+### get_payment_instrument()
+
+Get the instrument on file for automatic payments.
+
+```python
+def get_payment_instrument(self) -> Optional[Dict[str, Any]]
+```
+
+**Returns:** the autopay instrument, plus an `update_mode` that tells the
+caller what `update_payment_method()` will do next — `"settle"` (an unpaid
+renewal exists), `"swap"` (nothing is owed), or `"portal"` (Stripe). The
+shape is the same for both gateways; fields that only apply to Razorpay
+(`mandate`, `max_amount`, `authorized_on`, `needs_reauth`, `vpa`, `bank`,
+`card.issuer`) are `None` on Stripe rather than omitted.
+
+```python
+{
+    "gateway": "razorpay",
+    "autopay": {
+        "mandate": "mandate_Ee5pAn9Sy1jaAA",
+        "status": "active",
+        "method": "upi",
+        "label": "UPI Autopay",
+        "display": "paul@okhdfcbank",
+        "card": None,
+        "vpa": "paul@okhdfcbank",
+        "bank": None,
+        "max_amount": 5000.0,
+        "currency": "INR",
+        "authorized_on": "2026-06-01",
+        "next_charge_date": "2026-09-01",
+        "needs_reauth": False,
+        "suspended": False
+    },
+    "can_update": True,
+    "update_mode": "settle",
+    "amount_due": {"invoice": "inv_...", "amount": 3538.82, "currency": "INR"}
+}
+```
+
+**Example:**
+
+```python
+info = client.get_payment_instrument()
+print(info["autopay"]["display"])   # "paul@okhdfcbank"
+if info["update_mode"] == "settle":
+    print(f"Renewal due: {info['amount_due']['amount']}")
+```
+
+### update_payment_method()
+
+Start a checkout that changes the instrument paying for the subscription.
+
+```python
+def update_payment_method(
+    self,
+    payment_method: Optional[str] = None,
+    billing_name: Optional[str] = None,
+) -> Optional[Dict[str, Any]]
+```
+
+The server decides what this does based on whether anything is currently
+owed — call `get_payment_instrument()` first if the caller needs to know in
+advance:
+
+- **Unpaid renewal**: the checkout settles that invoice at the amount it
+  was billed for and registers the new instrument for autopay in the same
+  authorization. The billing period does not move.
+- **Nothing owed**: the checkout debits one currency unit to register the
+  token, refunded automatically.
+- **Stripe**: returns a Customer Portal URL instead of a checkout.
+
+**Parameters:**
+- `payment_method`: Razorpay only — `"upi"` or `"card"`, validated
+  server-side. Defaults to `"upi"` for India, `"card"` for international.
+- `billing_name`: Name to prefill in the checkout widget.
+
+**Returns:** Razorpay — the checkout payload (`razorpay_key`,
+`razorpay_order_id`, `amount`, `currency`, `prefill`, …) plus `update_mode`
+and, when settling, `amount_due`. Stripe — `{"update_mode": "portal",
+"portal_url": str}`.
+
+**Example:**
+
+```python
+checkout = client.update_payment_method(payment_method="upi")
+if checkout["update_mode"] == "portal":
+    open_browser(checkout["portal_url"])
+else:
+    launch_razorpay_widget(checkout)
+```
+
 ---
 
 ## Prompt API
