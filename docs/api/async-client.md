@@ -340,6 +340,29 @@ async def verify_checkout(
 ) -> Optional[Dict[str, Any]]
 ```
 
+### get_payment_instrument()
+
+Get the instrument on file for automatic payments, plus an `update_mode`
+saying what `update_payment_method()` will do next.
+
+```python
+async def get_payment_instrument(self) -> Optional[Dict[str, Any]]
+```
+
+### update_payment_method()
+
+Change the instrument paying for the subscription — settles an unpaid
+renewal, swaps the instrument when nothing is owed, or returns a Stripe
+Customer Portal URL.
+
+```python
+async def update_payment_method(
+    self,
+    payment_method: Optional[str] = None,
+    billing_name: Optional[str] = None,
+) -> Optional[Dict[str, Any]]
+```
+
 ---
 
 ## Prompt API
