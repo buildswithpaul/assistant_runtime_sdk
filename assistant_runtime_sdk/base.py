@@ -989,6 +989,12 @@ class BaseAssistantRuntimeClient:
         self._require_billing()
         return "get_payment_methods", {"tenant_id": self.tenant_id}
 
+    def _prepare_get_payment_instrument(self) -> tuple:
+        """Build the request for ``get_payment_instrument`` — the instrument
+        on file for autopay, plus how it can be changed."""
+        self._require_billing()
+        return "get_payment_instrument", {"tenant_id": self.tenant_id}
+
     def _prepare_upgrade_plan(
         self, new_plan: str, billing_cycle: str = "monthly",
         gateway: Optional[str] = None, billing_name: Optional[str] = None,
@@ -1070,9 +1076,24 @@ class BaseAssistantRuntimeClient:
         self._require_billing()
         return "resume_subscription", {"tenant_id": self.tenant_id}
 
-    def _prepare_update_payment_method(self) -> tuple:
+    def _prepare_update_payment_method(
+        self,
+        payment_method: Optional[str] = None,
+        billing_name: Optional[str] = None,
+    ) -> tuple:
+        """Build the request for ``update_payment_method``.
+
+        Optional values are omitted rather than sent as null: the endpoint
+        derives its own defaults (UPI for India, card otherwise), and an
+        explicit null would override that with nothing.
+        """
         self._require_billing()
-        return "update_payment_method", {"tenant_id": self.tenant_id}
+        payload: Dict[str, Any] = {"tenant_id": self.tenant_id}
+        if payment_method:
+            payload["payment_method"] = payment_method
+        if billing_name:
+            payload["billing_name"] = billing_name
+        return "update_payment_method", payload
 
     def _prepare_get_subscription_status(self) -> tuple:
         self._require_billing()
