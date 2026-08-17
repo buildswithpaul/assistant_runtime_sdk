@@ -637,24 +637,24 @@ shape is the same for both gateways; fields that only apply to Razorpay
 {
     "gateway": "razorpay",
     "autopay": {
-        "mandate": "mandate_Ee5pAn9Sy1jaAA",
-        "status": "active",
+        "mandate": "MANDATE-2026-00042",
+        "status": "Active",
         "method": "upi",
         "label": "UPI Autopay",
         "display": "paul@okhdfcbank",
-        "card": None,
+        "card": {"last4": None, "network": None, "issuer": None, "expiry": None},
         "vpa": "paul@okhdfcbank",
         "bank": None,
         "max_amount": 5000.0,
         "currency": "INR",
-        "authorized_on": "2026-06-01",
+        "authorized_on": "2026-06-01 09:12:03",
         "next_charge_date": "2026-09-01",
         "needs_reauth": False,
         "suspended": False
     },
     "can_update": True,
     "update_mode": "settle",
-    "amount_due": {"invoice": "inv_...", "amount": 3538.82, "currency": "INR"}
+    "amount_due": {"invoice": "AR-INV-2026-00123", "amount": 3538.82, "currency": "INR"}
 }
 ```
 
