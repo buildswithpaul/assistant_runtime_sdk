@@ -906,6 +906,20 @@ class BaseAssistantRuntimeClient:
             payload["billing_email"] = billing_email
         return "initiate_checkout", payload
 
+    def _prepare_create_hosted_checkout(
+        self, purpose: str, params: Optional[Dict[str, Any]] = None,
+        return_url: Optional[str] = None,
+    ) -> tuple:
+        self._require_billing()
+        payload: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "purpose": purpose,
+            "params": params or {},
+        }
+        if return_url:
+            payload["return_url"] = return_url
+        return "create_hosted_checkout", payload
+
     def _prepare_verify_checkout(self, session_id: Optional[str] = None) -> tuple:
         self._require_billing()
         payload: Dict[str, Any] = {"tenant_id": self.tenant_id}

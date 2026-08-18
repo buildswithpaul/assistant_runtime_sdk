@@ -1238,6 +1238,34 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         endpoint, payload = self._prepare_initiate_checkout(plan, billing_cycle, gateway, billing_name, billing_email)
         return self._request_post_json(endpoint, payload, api_base=self.billing_api_base)
 
+    def create_hosted_checkout(
+        self,
+        purpose: str,
+        params: Optional[Dict[str, Any]] = None,
+        return_url: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Get a link to the page where a purchase is paid for.
+
+        Payments are collected on the runtime's own public site rather than
+        on this one, so that a payment gateway can be onboarded against a
+        single declared address. Send the user to ``checkout_url``; they are
+        returned to ``return_url`` when they are done.
+
+        Args:
+            purpose: "Subscription", "Payment Method", "Credits", "Pack" or "Seat".
+            params: Purpose-specific arguments — e.g. ``{"plan": "Team",
+                "billing_cycle": "monthly"}`` for a subscription, or
+                ``{"credit_amount": 5000}`` for credits.
+            return_url: Where to send the user afterwards. Must be on this
+                site; defaults to the registered site URL.
+
+        Returns:
+            Dict with checkout_url, session, purpose and expires_at.
+        """
+        endpoint, payload = self._prepare_create_hosted_checkout(purpose, params, return_url)
+        return self._request_post_json(endpoint, payload, api_base=self.billing_api_base)
+
     def verify_checkout(self, session_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Verify payment completion after checkout."""
         endpoint, payload = self._prepare_verify_checkout(session_id)

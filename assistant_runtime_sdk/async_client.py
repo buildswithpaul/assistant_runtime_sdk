@@ -872,6 +872,16 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         endpoint, payload = self._prepare_initiate_checkout(plan, billing_cycle, gateway, billing_name, billing_email)
         return await self._request_post_json(endpoint, payload, api_base=self.billing_api_base)
 
+    async def create_hosted_checkout(
+        self,
+        purpose: str,
+        params: Optional[Dict[str, Any]] = None,
+        return_url: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Async version of AssistantRuntimeClient.create_hosted_checkout."""
+        endpoint, payload = self._prepare_create_hosted_checkout(purpose, params, return_url)
+        return await self._request_post_json(endpoint, payload, api_base=self.billing_api_base)
+
     async def verify_checkout(self, session_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Async version of AssistantRuntimeClient.verify_checkout."""
         endpoint, payload = self._prepare_verify_checkout(session_id)
