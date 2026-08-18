@@ -124,9 +124,9 @@ surface. A representative selection:
 `create_message()`, `update_conversation()`, `delete_conversation()`, `delete_message()`
 
 **Billing** — `get_plan_comparison()`, `get_usage_dashboard()`, `get_usage_history()`,
-`get_credit_balance()`, `initiate_checkout()`, `verify_checkout()`, `upgrade_plan()`,
-`cancel_subscription()`, `get_invoices()`, `get_payment_instrument()`,
-`update_payment_method()`
+`get_credit_balance()`, `initiate_checkout()`, `create_hosted_checkout()`,
+`verify_checkout()`, `upgrade_plan()`, `cancel_subscription()`, `get_invoices()`,
+`get_payment_instrument()`, `update_payment_method()`
 
 **Users & seats** — `register_user()`, `get_user()`, `list_users()`, `invite_user()`,
 `add_user_seat()`, `set_user_credit_limit()`, `get_user_auth_status()`
