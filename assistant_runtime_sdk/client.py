@@ -953,7 +953,11 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
             timeout: Optional request timeout in seconds.
 
         Returns:
-            {"summary": str | None, "cached": bool, "reason": str | None}
+            {"summary": str | None, "cached": bool, "stale": bool,
+             "reason": str | None}
+
+            ``stale`` means the server handed back the previous summary and is
+            regenerating behind it — the text is servable, just not current.
         """
         endpoint, params = self._prepare_get_memory_summary(user_id, force)
         return self._request_get(endpoint, params, timeout=timeout, api_base=self.memory_api_base)
