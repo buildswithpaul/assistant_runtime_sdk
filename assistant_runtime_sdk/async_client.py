@@ -846,7 +846,9 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
     async def remove_user_seat(self) -> Optional[Dict[str, Any]]:
         """Async version of AssistantRuntimeClient.remove_user_seat."""
         endpoint, params = self._prepare_remove_user_seat()
-        return await self._request_get(endpoint, params, api_base=self.billing_api_base)
+        return await self._request_post_json(
+            endpoint, params, api_base=self.billing_api_base
+        )
 
     async def preview_seat_charge(self) -> Optional[Dict[str, Any]]:
         """Async version of AssistantRuntimeClient.preview_seat_charge."""

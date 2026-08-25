@@ -1193,9 +1193,14 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         return self._request_get(endpoint, params, api_base=self.billing_api_base)
 
     def remove_user_seat(self) -> Optional[Dict[str, Any]]:
-        """Remove one seat. No refund; next renewal reflects lower count."""
+        """Remove one vacant seat. No refund; next renewal reflects the lower count.
+
+        POST, not GET: this is a write, and Frappe rolls back any request
+        whose method it considers safe. Over GET the subscription save was
+        discarded while the response still said success.
+        """
         endpoint, params = self._prepare_remove_user_seat()
-        return self._request_get(endpoint, params, api_base=self.billing_api_base)
+        return self._request_post_json(endpoint, params, api_base=self.billing_api_base)
 
     def preview_seat_charge(self) -> Optional[Dict[str, Any]]:
         """Preview the prorated cost of adding one seat."""
