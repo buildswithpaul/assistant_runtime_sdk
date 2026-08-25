@@ -1836,6 +1836,13 @@ class BaseAssistantRuntimeClient:
             payload["environment"] = environment
         return "support.submit_feedback", payload
 
+    def _prepare_list_feedback(self, user_id: str) -> tuple:
+        """Returns (endpoint, payload)."""
+        return "support.list_feedback", {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+        }
+
     def _prepare_list_tickets(self, user_id: str, status: Optional[str] = None) -> tuple:
         """Returns (endpoint, payload)."""
         payload: Dict[str, Any] = {"tenant_id": self.tenant_id, "user_id": user_id}

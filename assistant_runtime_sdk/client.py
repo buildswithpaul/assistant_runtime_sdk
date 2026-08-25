@@ -2497,6 +2497,11 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         endpoint, payload = self._prepare_list_tickets(user_id, status)
         return self._request_post_json(endpoint, payload)
 
+    def list_feedback(self, user_id: str) -> Optional[Dict[str, Any]]:
+        """List the user's submitted feedback. Returns a list of summary dicts."""
+        endpoint, payload = self._prepare_list_feedback(user_id)
+        return self._request_post_json(endpoint, payload)
+
     def get_ticket_thread(self, user_id: str, ticket_id: str) -> Optional[Dict[str, Any]]:
         """Get a ticket's full conversation thread. Returns {ticket, messages: [...]}."""
         endpoint, payload = self._prepare_get_ticket_thread(user_id, ticket_id)
