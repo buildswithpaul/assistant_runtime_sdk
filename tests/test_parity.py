@@ -17,6 +17,12 @@ from assistant_runtime_sdk.async_client import AsyncAssistantRuntimeClient
 
 # Methods that only exist on sync client (module-level standalone functions,
 # not class methods) or only on async client (lifecycle methods).
+#
+# Do NOT add a method here to make this test green. A missing async
+# counterpart is a real gap for async consumers, not a documented exception.
+# Seven methods drifted for three months because nothing ran this test; the
+# fix is to add the async wrapper, which is a five-line mirror of the sync one
+# since base.py already holds the shared _prepare_* logic.
 SYNC_ONLY = frozenset()
 ASYNC_ONLY = frozenset({
     "__aenter__",

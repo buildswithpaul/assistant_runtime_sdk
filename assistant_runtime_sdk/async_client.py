@@ -461,6 +461,11 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         endpoint, payload = self._prepare_accept_terms(terms_version, accepted_by)
         return await self._request_post_json(endpoint, payload)
 
+    async def get_terms_status(self, timeout: Optional[float] = None) -> Optional[Dict[str, Any]]:
+        """Async version of AssistantRuntimeClient.get_terms_status."""
+        endpoint, params = self._prepare_get_terms_status()
+        return await self._request_get(endpoint, params, timeout=timeout)
+
     # =========================================================================
     # Model APIs
     # =========================================================================
@@ -1954,6 +1959,45 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
     async def dismiss_pack_recommendation(self, user_id: str) -> Optional[Dict[str, Any]]:
         """Mark the recommendation toast as dismissed for the given user."""
         endpoint, payload = self._prepare_dismiss_pack_recommendation(user_id)
+        return await self._request_post_json(endpoint, payload, api_base=self.marketplace_api_base)
+
+    async def initiate_pack_checkout(self, pack_id: str) -> Optional[Dict[str, Any]]:
+        """Async version of AssistantRuntimeClient.initiate_pack_checkout."""
+        endpoint, payload = self._prepare_initiate_pack_checkout(pack_id)
+        return await self._request_post_json(endpoint, payload, api_base=self.billing_api_base)
+
+    async def verify_razorpay_pack_payment(
+        self,
+        razorpay_payment_id: str,
+        razorpay_order_id: str,
+        razorpay_signature: str,
+    ) -> Optional[Dict[str, Any]]:
+        """Async version of AssistantRuntimeClient.verify_razorpay_pack_payment."""
+        endpoint, payload = self._prepare_verify_razorpay_pack_payment(
+            razorpay_payment_id, razorpay_order_id, razorpay_signature
+        )
+        return await self._request_post_json(endpoint, payload, api_base=self.billing_api_base)
+
+    async def list_pack_purchases(self) -> Optional[Dict[str, Any]]:
+        """Async version of AssistantRuntimeClient.list_pack_purchases."""
+        endpoint, params = self._prepare_list_pack_purchases()
+        return await self._request_get(endpoint, params, api_base=self.marketplace_api_base)
+
+    async def toggle_purchased_pack(self, pack_id: str, enabled: bool) -> Optional[Dict[str, Any]]:
+        """Async version of AssistantRuntimeClient.toggle_purchased_pack."""
+        endpoint, payload = self._prepare_toggle_purchased_pack(pack_id, enabled)
+        return await self._request_post_json(endpoint, payload, api_base=self.marketplace_api_base)
+
+    async def grant_pack_as_admin(
+        self, pack_id: str, granted_by_user: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
+        """Async version of AssistantRuntimeClient.grant_pack_as_admin."""
+        endpoint, payload = self._prepare_grant_pack_as_admin(pack_id, granted_by_user)
+        return await self._request_post_json(endpoint, payload, api_base=self.marketplace_api_base)
+
+    async def enable_pack_as_free_grant(self, pack_id: str) -> Optional[Dict[str, Any]]:
+        """Async version of AssistantRuntimeClient.enable_pack_as_free_grant."""
+        endpoint, payload = self._prepare_enable_pack_as_free_grant(pack_id)
         return await self._request_post_json(endpoint, payload, api_base=self.marketplace_api_base)
 
     # =========================================================================

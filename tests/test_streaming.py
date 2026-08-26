@@ -83,13 +83,15 @@ class TestParseSSELine:
         assert result["value"] == 3000
 
     def test_parse_comment_line(self):
-        """Test parsing comment line (starts with :)."""
-        # Comments (including heartbeats) are skipped - returns None
-        result = parse_sse_line(": this is a comment")
-        assert result is None
-
-        result = parse_sse_line(": heartbeat")
-        assert result is None
+        """Comment lines surface as heartbeats so callers can treat them as keepalives."""
+        assert parse_sse_line(": this is a comment") == {
+            "type": "heartbeat",
+            "value": "this is a comment",
+        }
+        assert parse_sse_line(": heartbeat") == {
+            "type": "heartbeat",
+            "value": "heartbeat",
+        }
 
     def test_parse_empty_line(self):
         """Test that empty lines return None."""
@@ -140,8 +142,13 @@ class TestParseSSEStream:
         assert events[0]["data"]["content"] == "A"
         assert events[1]["data"]["content"] == "B"
 
-    def test_parse_stream_ignores_comments(self):
-        """Test that comments are ignored in stream."""
+    def test_parse_stream_surfaces_comments_as_heartbeats(self):
+        """Keepalive comments are emitted as heartbeat events, not dropped.
+
+        FAC depends on this: both the chat relay and the mobile stream
+        re-emit these downstream to hold the client connection open.
+        Reverting to "skip comments" would silently break both.
+        """
         lines = [
             ": keep-alive",
             "event: stream_chunk",
@@ -150,8 +157,9 @@ class TestParseSSEStream:
 
         events = list(parse_sse_stream(iter(lines)))
 
-        assert len(events) == 1
-        assert events[0]["data"]["content"] == "test"
+        assert len(events) == 2
+        assert events[0]["event"] == "heartbeat"
+        assert events[1]["data"]["content"] == "test"
 
     def test_parse_stream_handles_data_only(self):
         """Test parsing data without preceding event line."""
