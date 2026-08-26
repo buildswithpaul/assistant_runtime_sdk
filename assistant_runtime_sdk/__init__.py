@@ -53,7 +53,7 @@ Standalone Functions:
 
 """
 
-__version__ = "1.2.1"
+__version__ = "1.3.0"
 __author__ = "Paul Clinton"
 __license__ = "AGPL-3.0"
 

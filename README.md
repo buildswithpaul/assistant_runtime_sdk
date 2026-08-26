@@ -140,6 +140,10 @@ surface. A representative selection:
 **Workflows** — `list_workflows()`, `create_workflow()`, `execute_workflow()`,
 `list_workflow_runs()`, `set_workflow_schedule()`
 
+**Support & feedback** — `create_ticket()`, `list_tickets()`, `get_ticket_thread()`,
+`reply_to_ticket()`, `upload_ticket_attachment()`, `submit_feedback()`,
+`list_feedback(user_id)`
+
 **Prompts** — `list_prompts(user_id)`, `get_prompt(prompt_name, arguments=None)`
 
 See [`docs/`](docs/) for the full reference.
