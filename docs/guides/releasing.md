@@ -159,7 +159,15 @@ print('OK', s.__version__, s.__file__)
 twine upload dist/*
 ```
 
-Then confirm against real PyPI with no index overrides:
+Then confirm against real PyPI with no index overrides.
+
+> **Expect a stale resolve for a minute or two.** PyPI's indexes propagate
+> independently: `https://pypi.org/simple/<name>/` (what pip reads) usually has
+> the new version immediately, while the JSON API can still report the previous
+> one. Poll `/simple/`, not the JSON API. Always verify in a **fresh** venv with
+> `--upgrade` — `pip install <name>` against a venv that already has an older
+> copy sees the requirement satisfied and silently does nothing, which looks
+> exactly like a failed upload.
 
 ```bash
 python3 -m venv /tmp/sdkprod
@@ -186,9 +194,15 @@ FAC declares it as an ordinary versioned dependency:
 
 ```toml
 dependencies = [
-    "assistant_runtime_sdk>=1.0.0",
+    "assistant_runtime_sdk>=1.4.0",
 ]
 ```
+
+**Raise that floor to the new version as the last step of every release**, even
+when FAC does not yet call the new API. It is a correctness guard, not
+bookkeeping: FAC has twice called an SDK method its own floor did not
+guarantee, so pip could legitimately resolve a version where the call raised
+`AttributeError` or `TypeError` at runtime.
 
 This replaced a `git+https://...` URL with an embedded GitHub PAT, which
 existed only because the SDK repo was private. Publishing to PyPI is what
@@ -198,6 +212,21 @@ environment-configured index or an extras group with documented auth.
 
 Note the SDK requires **Python >= 3.10**. Any consumer declaring a lower
 `requires-python` floor will fail to resolve.
+
+## Continuous integration
+
+`.github/workflows/ci.yml` runs the test suite on every push to `main` or
+`develop` and on every pull request, against Python 3.10 and 3.12.
+
+It exists because the suite previously ran only when someone remembered to
+type `pytest`. A sync/async parity regression sat unnoticed for three months
+and two streaming tests were stale for five, across five releases. **A red
+suite blocks the release** — fix the code or the test, and never silence a
+parity failure by adding the method to `SYNC_ONLY`.
+
+Lint is deliberately not gated: `ruff check .` currently reports ~1567
+pre-existing errors, so enabling it would block every change until that is
+cleaned up separately.
 
 ## Known rough edges
 
