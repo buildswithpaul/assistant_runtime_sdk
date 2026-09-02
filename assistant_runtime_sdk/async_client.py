@@ -1489,10 +1489,11 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         input_data: Dict[str, Any],
         user_id: str,
         trigger_id: str,
+        workflow_docname: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """Async version of AssistantRuntimeClient.execute_workflow_from_event."""
         endpoint, payload = self._prepare_execute_workflow_from_event(
-            workflow_name, input_data, user_id, trigger_id,
+            workflow_name, input_data, user_id, trigger_id, workflow_docname,
         )
         return await self._request_post_json(endpoint, payload, api_base=self.workflows_api_base)
 
