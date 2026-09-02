@@ -2193,21 +2193,24 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         input_data: Dict[str, Any],
         user_id: str,
         trigger_id: str,
+        workflow_docname: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """
-        Trigger workflow execution from a FACO-side doc event.
+        Trigger workflow execution from a FAC-side doc event.
 
         Args:
-            workflow_name: AR Workflow.workflow_name (human identifier)
+            workflow_name: AR Workflow.workflow_name (mutable display label)
             input_data: Structured payload {trigger, doc, changed_fields}
             user_id: User on the customer bench who saved the doc
-            trigger_id: FACO AR Workflow Trigger name (for traceability)
+            trigger_id: FAC Workflow Trigger name (for traceability)
+            workflow_docname: AR Workflow docname (WF-#####). Preferred — a
+                rename cannot invalidate it. Falls back to workflow_name.
 
         Returns:
             {"status": "queued", "run_name": str, "run_id": str, ...}
         """
         endpoint, payload = self._prepare_execute_workflow_from_event(
-            workflow_name, input_data, user_id, trigger_id,
+            workflow_name, input_data, user_id, trigger_id, workflow_docname,
         )
         return self._request_post_json(endpoint, payload, api_base=self.workflows_api_base)
 

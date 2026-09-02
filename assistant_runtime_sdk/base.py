@@ -1617,14 +1617,20 @@ class BaseAssistantRuntimeClient:
         input_data: Dict[str, Any],
         user_id: str,
         trigger_id: str,
+        workflow_docname: Optional[str] = None,
     ) -> tuple:
-        return "workflows.execute_from_event", {
+        payload = {
             "tenant_id": self.tenant_id,
             "workflow_name": workflow_name,
             "input_data": input_data,
             "user_id": user_id,
             "trigger_id": trigger_id,
         }
+        # The docname is the stable binding; workflow_name is a mutable display
+        # label a rename can invalidate. Both travel so an older AR keeps working.
+        if workflow_docname:
+            payload["workflow_docname"] = workflow_docname
+        return "workflows.execute_from_event", payload
 
     def _prepare_cancel_workflow_run(self, run_name: str) -> tuple:
         return "workflows.cancel_run", {
