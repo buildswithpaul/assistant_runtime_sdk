@@ -793,6 +793,56 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         return await self._request_post_json(endpoint, payload)
 
     # =========================================================================
+    # Routing Preference APIs
+    # =========================================================================
+
+    async def list_routing_preferences(self, user_id: str) -> Optional[Dict[str, Any]]:
+        """Async version of AssistantRuntimeClient.list_routing_preferences."""
+        endpoint, payload = self._prepare_list_routing_preferences(user_id)
+        return await self._request_post_json(endpoint, payload)
+
+    async def create_routing_preference(
+        self,
+        user_id: str,
+        scope: str,
+        match_kind: str,
+        match_value: str,
+        target_tier: str,
+        priority: int = None,
+        source_message_id: str = None,
+        origin: str = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Async version of AssistantRuntimeClient.create_routing_preference."""
+        endpoint, payload = self._prepare_create_routing_preference(
+            user_id, scope, match_kind, match_value, target_tier,
+            priority, source_message_id, origin)
+        return await self._request_post_json(endpoint, payload)
+
+    async def set_routing_preference_status(
+        self, user_id: str, preference_id: str, status: str,
+    ) -> Optional[Dict[str, Any]]:
+        """Async version of AssistantRuntimeClient.set_routing_preference_status."""
+        endpoint, payload = self._prepare_set_routing_preference_status(
+            user_id, preference_id, status)
+        return await self._request_post_json(endpoint, payload)
+
+    async def delete_routing_preference(
+        self, user_id: str, preference_id: str,
+    ) -> Optional[Dict[str, Any]]:
+        """Async version of AssistantRuntimeClient.delete_routing_preference."""
+        endpoint, payload = self._prepare_delete_routing_preference(
+            user_id, preference_id)
+        return await self._request_post_json(endpoint, payload)
+
+    async def forecast_routing_preference(
+        self, user_id: str, match_kind: str, match_value: str, target_tier: str,
+    ) -> Optional[Dict[str, Any]]:
+        """Async version of AssistantRuntimeClient.forecast_routing_preference."""
+        endpoint, payload = self._prepare_forecast_routing_preference(
+            user_id, match_kind, match_value, target_tier)
+        return await self._request_post_json(endpoint, payload)
+
+    # =========================================================================
     # Billing & Subscription APIs
     # =========================================================================
 
