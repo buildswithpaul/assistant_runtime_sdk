@@ -847,6 +847,63 @@ class BaseAssistantRuntimeClient:
         }
 
     # =========================================================================
+    # Prepare Methods — Routing Preferences
+    # =========================================================================
+
+    def _prepare_list_routing_preferences(self, user_id: str) -> tuple:
+        return "routing_preferences.list_routing_preferences", {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+        }
+
+    def _prepare_create_routing_preference(
+        self, user_id: str, scope: str, match_kind: str, match_value: str,
+        target_tier: str, priority: int = None, source_message_id: str = None,
+        origin: str = None,
+    ) -> tuple:
+        return "routing_preferences.create_routing_preference", {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+            "scope": scope,
+            "match_kind": match_kind,
+            "match_value": match_value,
+            "target_tier": target_tier,
+            "priority": priority,
+            "source_message_id": source_message_id,
+            "origin": origin,
+        }
+
+    def _prepare_set_routing_preference_status(
+        self, user_id: str, preference_id: str, status: str,
+    ) -> tuple:
+        return "routing_preferences.set_routing_preference_status", {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+            "preference_id": preference_id,
+            "status": status,
+        }
+
+    def _prepare_delete_routing_preference(
+        self, user_id: str, preference_id: str,
+    ) -> tuple:
+        return "routing_preferences.delete_routing_preference", {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+            "preference_id": preference_id,
+        }
+
+    def _prepare_forecast_routing_preference(
+        self, user_id: str, match_kind: str, match_value: str, target_tier: str,
+    ) -> tuple:
+        return "routing_preferences.forecast_routing_preference", {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+            "match_kind": match_kind,
+            "match_value": match_value,
+            "target_tier": target_tier,
+        }
+
+    # =========================================================================
     # Prepare Methods — Billing
     # =========================================================================
 
