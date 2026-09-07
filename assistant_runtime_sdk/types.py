@@ -90,8 +90,10 @@ class RoutingReceiptData(TypedDict):
     mode: str                          # auto | explicit
     incomplete: bool                   # true on the live emit, false at completion
     selected_model: Optional[str]
+    selected_model_name: Optional[str]   # resolved server-side for catalogue-less clients
     selected_tier: Optional[str]
     fallback_from: Optional[str]
+    fallback_from_name: Optional[str]
     classification: Optional[dict]     # complexity, task_type, source, floor_applied
     floor: Optional[dict]              # tier, reasons[]
     ceiling: Optional[dict]            # tier, source, reasons[]
