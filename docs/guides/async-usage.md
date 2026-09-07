@@ -113,7 +113,7 @@ async def handle_async_stream(client, session_id, message, user_id):
         if event_type == "stream_start":
             print(f"Started: {data.get('model_id')}")
 
-        elif event_type == "model_fallback":
+        elif event_type == "model_selected":
             print(f"Using model: {data.get('selected')}")
 
         elif event_type == "stream_chunk":
