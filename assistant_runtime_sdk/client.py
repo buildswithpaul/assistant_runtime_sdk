@@ -1120,6 +1120,103 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         return self._request_post_json(endpoint, payload)
 
     # =========================================================================
+    # Routing Preference APIs
+    # =========================================================================
+    #
+    # Every one of these is POST, reads included: a rule's match_value is text
+    # the user wrote, and a GET would put it in the query string and from
+    # there into access logs.
+
+    def list_routing_preferences(self, user_id: str) -> Optional[Dict[str, Any]]:
+        """List this member's routing rules and their workspace's.
+
+        Args:
+            user_id: User identifier
+
+        Returns:
+            {"mine": [...], "team": [...], "mode": "off"|"shadow"|"on",
+             "can_manage_team": bool}. A team rule's `match_value` is None
+            unless the caller wrote it or administers the workspace.
+        """
+        endpoint, payload = self._prepare_list_routing_preferences(user_id)
+        return self._request_post_json(endpoint, payload)
+
+    def create_routing_preference(
+        self,
+        user_id: str,
+        scope: str,
+        match_kind: str,
+        match_value: str,
+        target_tier: str,
+        priority: int = None,
+        source_message_id: str = None,
+        origin: str = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Create a routing rule. Workspace scope is admin-capable only.
+
+        Args:
+            user_id: User identifier — the recorded author
+            scope: "Tenant" (workspace) or "User" (personal, not yet open)
+            match_kind: "doctype", "keyword" or "task_type"
+            match_value: what to match on
+            target_tier: "Economy", "Standard" or "Premium"
+            priority: lower runs first; defaults to 100
+            source_message_id: opaque id of the message this came from
+            origin: "panel", "settings" or "admin"
+
+        Returns:
+            {"preference_id": ..., "direction": ..., "status": ...}
+        """
+        endpoint, payload = self._prepare_create_routing_preference(
+            user_id, scope, match_kind, match_value, target_tier,
+            priority, source_message_id, origin)
+        return self._request_post_json(endpoint, payload)
+
+    def set_routing_preference_status(
+        self, user_id: str, preference_id: str, status: str,
+    ) -> Optional[Dict[str, Any]]:
+        """Suspend or re-enable a rule.
+
+        Args:
+            user_id: User identifier
+            preference_id: the rule
+            status: "active" or "suspended"
+
+        Returns:
+            {"preference_id": ..., "status": ...}
+        """
+        endpoint, payload = self._prepare_set_routing_preference_status(
+            user_id, preference_id, status)
+        return self._request_post_json(endpoint, payload)
+
+    def delete_routing_preference(
+        self, user_id: str, preference_id: str,
+    ) -> Optional[Dict[str, Any]]:
+        """Remove a rule outright.
+
+        Returns:
+            {"preference_id": ..., "deleted": True}
+        """
+        endpoint, payload = self._prepare_delete_routing_preference(
+            user_id, preference_id)
+        return self._request_post_json(endpoint, payload)
+
+    def forecast_routing_preference(
+        self, user_id: str, match_kind: str, match_value: str, target_tier: str,
+    ) -> Optional[Dict[str, Any]]:
+        """What a rule would cost, before saving it.
+
+        Returns:
+            {"direction": ..., "cost_multiplier": float|None,
+             "rates_reviewed": bool, "requires_confirmation": bool,
+             "can_manage_team": bool}. A null multiplier means the rates are
+            not configured — it never means parity.
+        """
+        endpoint, payload = self._prepare_forecast_routing_preference(
+            user_id, match_kind, match_value, target_tier)
+        return self._request_post_json(endpoint, payload)
+
+    # =========================================================================
     # Billing & Subscription APIs
     # =========================================================================
     # These methods route through billing_api_base -> assistant_runtime_payments.api
