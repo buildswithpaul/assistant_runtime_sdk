@@ -48,8 +48,8 @@ class ChatHandler:
         print()
         return True
 
-    def on_model_fallback(self, data: dict) -> bool:
-        """Handle model_fallback event (auto mode)."""
+    def on_model_selected(self, data: dict) -> bool:
+        """Handle model_selected event (auto mode)."""
         self.model_id = data.get("selected")
         if data.get("fallback_attempted"):
             print(f"[Fallback] Using {data['selected']} instead of {data['original']}")

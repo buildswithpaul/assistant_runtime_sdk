@@ -85,7 +85,7 @@ def stream_chat(
 | `tool_call_result` | Tool execution complete |
 | `approval_required` | Human approval needed |
 | `tool_cancelled` | Tool was rejected |
-| `model_fallback` | Auto mode selected model |
+| `model_selected` | Auto mode selected model |
 | `rate_limited` | All models rate limited |
 
 **Example:**

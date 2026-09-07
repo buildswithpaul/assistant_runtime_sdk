@@ -77,6 +77,41 @@ class StreamChunkData(TypedDict):
     chunk_index: Optional[int]
 
 
+class RoutingReceiptData(TypedDict):
+    """Why a given model answered a turn (`stream_complete.routing`).
+
+    Closed reason codes, never sentences — the client owns the wording. The
+    server cannot put a price, a credit rate or a review timestamp in here.
+    `preference` / `preference_source` are reserved; they stay null until
+    routing preferences ship.
+    """
+
+    v: int
+    mode: str                          # auto | explicit
+    incomplete: bool                   # true on the live emit, false at completion
+    selected_model: Optional[str]
+    selected_model_name: Optional[str]   # resolved server-side for catalogue-less clients
+    selected_tier: Optional[str]
+    fallback_from: Optional[str]
+    fallback_from_name: Optional[str]
+    classification: Optional[dict]     # complexity, task_type, source, floor_applied
+    floor: Optional[dict]              # tier, reasons[]
+    ceiling: Optional[dict]            # tier, source, reasons[]
+    bound_by: Optional[str]            # floor | ceiling | neither
+    target_tier: Optional[str]
+    band: Optional[str]                # only for an admin-capable viewer
+    band_disclosed: str                # full | capacity_managed
+    shortlist_size: int
+    pick_reason: str
+    notices: List[str]
+    thinking: dict                     # requested, applied, effort, not_applied_reason
+    credits: dict                      # actual
+    cycles: int
+    also_ran: List[str]
+    preference: Optional[dict]
+    preference_source: str
+
+
 class StreamCompleteData(TypedDict):
     """Data from stream_complete event."""
 
@@ -86,16 +121,25 @@ class StreamCompleteData(TypedDict):
     model_id: str
     session_id: str
     message_id: str
+    credits_used: Optional[float]
+    model_breakdown: Optional[dict]
+    routing: Optional[RoutingReceiptData]
 
 
-class ModelFallbackData(TypedDict):
-    """Data from model_fallback event (auto-mode)."""
+class ModelSelectedData(TypedDict):
+    """Data from the `model_selected` event (auto-mode)."""
 
-    original: str
+    original: Optional[str]
     selected: str
     provider: str
     tier: str
     fallback_attempted: bool
+    routing: Optional[RoutingReceiptData]
+
+
+# Deprecated: named for a `model_fallback` event that has never existed on the
+# wire. Kept as an alias because this is a published API.
+ModelFallbackData = ModelSelectedData
 
 
 class RateLimitedData(TypedDict):

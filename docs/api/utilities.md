@@ -151,7 +151,8 @@ class SSEEventType(str, Enum):
     TOOL_CALL_RESULT = "tool_call_result"
     APPROVAL_REQUIRED = "approval_required"
     TOOL_CANCELLED = "tool_cancelled"
-    MODEL_FALLBACK = "model_fallback"
+    MODEL_SELECTED = "model_selected"
+    MODEL_FALLBACK = "model_fallback"  # deprecated: never emitted
     RATE_LIMITED = "rate_limited"
     UNKNOWN = "unknown"
 
