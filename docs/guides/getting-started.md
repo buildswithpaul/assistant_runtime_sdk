@@ -119,7 +119,7 @@ When streaming, you'll receive various event types:
 | `thinking` | Reasoning content | `content` |
 | `tool_call_start` | Tool execution starting | `tool_name`, `tool_id`, `arguments` |
 | `tool_call_result` | Tool execution complete | `tool_id`, `result`, `success` |
-| `model_fallback` | Auto mode selected model | `original`, `selected`, `provider` |
+| `model_selected` | Auto mode selected model | `original`, `selected`, `provider`, `routing` |
 | `rate_limited` | All models rate limited | `retry_after`, `models_checked` |
 
 ## Configuration Options

@@ -45,7 +45,7 @@ def handle_stream(client, session_id, message, user_id):
             print(f"[Started] Model: {data.get('model_id')}")
             print(f"[Session] {data.get('session_id')}")
 
-        elif event_type == "model_fallback":
+        elif event_type == "model_selected":
             # Auto mode selected a model
             if data.get("fallback_attempted"):
                 print(f"[Fallback] {data.get('original')} -> {data.get('selected')}")
@@ -132,7 +132,7 @@ def handle_stream(client, session_id, message, user_id):
 
 | Event | When | Key Data Fields |
 |-------|------|-----------------|
-| `model_fallback` | Model selected | `original`, `selected`, `provider`, `tier`, `fallback_attempted` |
+| `model_selected` | Model selected | `original`, `selected`, `provider`, `tier`, `fallback_attempted`, `routing` |
 | `rate_limited` | All exhausted | `error`, `error_code`, `retry_after`, `models_checked` |
 
 ## Using SSE Utilities
@@ -243,7 +243,7 @@ for event in client.stream_chat(
     user_id="user@example.com",
     model_id="auto"  # Automatic selection with fallback
 ):
-    if event["event"] == "model_fallback":
+    if event["event"] == "model_selected":
         data = event["data"]
         if data.get("fallback_attempted"):
             print(f"Fell back from {data['original']} to {data['selected']}")

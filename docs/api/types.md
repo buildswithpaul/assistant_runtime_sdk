@@ -128,20 +128,63 @@ class StreamCompleteData(TypedDict):
     model_id: str         # Model that generated response
     session_id: str
     message_id: str
+    credits_used: Optional[float]
+    model_breakdown: Optional[dict]
+    routing: Optional[RoutingReceiptData]
 ```
 
-### ModelFallbackData
+### RoutingReceiptData
 
-Data from `model_fallback` event (auto mode).
+Why a given model answered a turn, from `stream_complete.routing`.
+
+Closed reason codes, never sentences — your client owns the wording, so
+translation stays client-side. The server cannot put a price, a credit rate
+or a review timestamp in here. `preference` / `preference_source` are
+reserved and stay `None` until routing preferences ship.
 
 ```python
-class ModelFallbackData(TypedDict):
-    original: str          # Requested model ("auto")
-    selected: str          # Actually selected model
-    provider: str          # Provider of selected model
-    tier: str              # Tier of selected model
-    fallback_attempted: bool  # True if primary was unavailable
+class RoutingReceiptData(TypedDict):
+    v: int
+    mode: str                       # "auto" | "explicit"
+    incomplete: bool                # True on the live emit, False at completion
+    selected_model: Optional[str]
+    selected_tier: Optional[str]
+    fallback_from: Optional[str]    # Set when the first choice was unavailable
+    classification: Optional[dict]  # complexity, task_type, source, floor_applied
+    floor: Optional[dict]           # tier, reasons[] — what the task needed
+    ceiling: Optional[dict]         # tier, source — what was allowed
+    bound_by: Optional[str]         # "floor" | "ceiling" | "neither"
+    target_tier: Optional[str]
+    band: Optional[str]             # Only for an admin-capable viewer
+    band_disclosed: str             # "full" | "capacity_managed"
+    shortlist_size: int
+    pick_reason: str
+    notices: List[str]
+    thinking: dict                  # requested, applied, effort, not_applied_reason
+    credits: dict                   # actual
+    cycles: int
+    also_ran: List[str]
+    preference: Optional[dict]
+    preference_source: str
 ```
+
+### ModelSelectedData
+
+Data from the `model_selected` event (auto mode).
+
+```python
+class ModelSelectedData(TypedDict):
+    original: Optional[str]   # Requested model ("auto")
+    selected: str             # Actually selected model
+    provider: str             # Provider of selected model
+    tier: str                 # Tier of selected model
+    fallback_attempted: bool  # True if primary was unavailable
+    routing: Optional[RoutingReceiptData]  # incomplete=True at this point
+```
+
+> `ModelFallbackData` is a deprecated alias of `ModelSelectedData`. It was
+> named for a `model_fallback` event that has never existed on the wire — the
+> event AR emits is `model_selected`. Use `SSEEventType.MODEL_SELECTED`.
 
 ### RateLimitedData
 

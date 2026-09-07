@@ -18,10 +18,12 @@ class SSEEventType(str, Enum):
     STREAM_START = "stream_start"
     STREAM_CHUNK = "stream_chunk"
     STREAM_COMPLETE = "stream_complete"
+    STREAM_CANCELLED = "stream_cancelled"
     STREAM_ERROR = "stream_error"
 
     # AI response events
     THINKING = "thinking"
+    THINKING_COMPLETE = "thinking_complete"
 
     # Tool execution events
     TOOL_CALL_START = "tool_call_start"
@@ -32,7 +34,18 @@ class SSEEventType(str, Enum):
     TOOL_CANCELLED = "tool_cancelled"
 
     # Auto-model events
+    MODEL_SELECTED = "model_selected"
+    # Deprecated: AR has never emitted `model_fallback`. Kept because this is a
+    # published API; use MODEL_SELECTED.
     MODEL_FALLBACK = "model_fallback"
+    ROUTING_NOTICE = "routing_notice"
+
+    # Retrieval, planning and workflow events
+    SOURCES = "sources"
+    PLAN_COMPLETE = "plan_complete"
+    TASK_UPDATED = "task_updated"
+    WORKFLOW_CREATED = "workflow_created"
+    CONTEXT_SUMMARIZED = "context_summarized"
 
     # Rate limiting events
     RATE_LIMITED = "rate_limited"

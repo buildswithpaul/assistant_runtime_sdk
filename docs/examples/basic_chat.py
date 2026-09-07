@@ -84,7 +84,7 @@ def main():
         elif event_type == "stream_error":
             print(f"\nError: {data.get('error')}")
 
-        elif event_type == "model_fallback":
+        elif event_type == "model_selected":
             if data.get("fallback_attempted"):
                 print(f"\n[Fell back to {data.get('selected')}]", end="")
 
