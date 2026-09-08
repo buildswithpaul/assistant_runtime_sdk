@@ -2575,11 +2575,12 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
                       category: Optional[str] = None,
                       conversation_id: Optional[str] = None,
                       environment: Optional[dict] = None,
-                      attachment_ids: Optional[List[str]] = None) -> Optional[Dict[str, Any]]:
-        """Raise a support ticket. Returns {ticket_id, portal_link}."""
+                      attachment_ids: Optional[List[str]] = None,
+                      conversation_transcript: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        """Raise a support ticket. Returns {ticket_id}."""
         endpoint, payload = self._prepare_create_ticket(
             user_id, subject, description, category, conversation_id, environment,
-            attachment_ids)
+            attachment_ids, conversation_transcript)
         return self._request_post_json(endpoint, payload)
 
     def submit_feedback(self, user_id: str, rating: Optional[int] = None,
