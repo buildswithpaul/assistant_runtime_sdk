@@ -1859,7 +1859,8 @@ class BaseAssistantRuntimeClient:
                                category: Optional[str] = None,
                                conversation_id: Optional[str] = None,
                                environment: Optional[dict] = None,
-                               attachment_ids: Optional[List[str]] = None) -> tuple:
+                               attachment_ids: Optional[List[str]] = None,
+                               conversation_transcript: Optional[str] = None) -> tuple:
         """Returns (endpoint, payload)."""
         payload: Dict[str, Any] = {
             "tenant_id": self.tenant_id,
@@ -1875,6 +1876,8 @@ class BaseAssistantRuntimeClient:
             payload["environment"] = environment
         if attachment_ids:
             payload["attachment_ids"] = attachment_ids
+        if conversation_transcript:
+            payload["conversation_transcript"] = conversation_transcript
         return "support.create_ticket", payload
 
     def _prepare_submit_feedback(self, user_id: str, rating: Optional[int] = None,
