@@ -1924,6 +1924,16 @@ class BaseAssistantRuntimeClient:
             "ticket_id": ticket_id,
         }
 
+    def _prepare_download_ticket_attachment(self, user_id: str, ticket_id: str,
+                                            file_url: str) -> tuple:
+        """Returns (endpoint, params)."""
+        return "support.download_ticket_attachment", {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+            "ticket_id": ticket_id,
+            "file_url": file_url,
+        }
+
     def _prepare_reply_to_ticket(self, user_id: str, ticket_id: str, message: str,
                                  attachment_ids: Optional[List[str]] = None) -> tuple:
         """Returns (endpoint, payload)."""
