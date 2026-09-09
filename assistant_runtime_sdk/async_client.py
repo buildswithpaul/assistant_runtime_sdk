@@ -1737,6 +1737,18 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
             user_id, rating, comment, category, conversation_id, environment)
         return await self._request_post_json(endpoint, payload)
 
+    async def download_ticket_attachment(self, user_id: str, ticket_id: str,
+                                         file_url: str) -> tuple:
+        """Download one attachment from a ticket the user owns.
+
+        Returns:
+            (content_bytes, content_type, filename) tuple.
+        """
+        endpoint, params = self._prepare_download_ticket_attachment(
+            user_id, ticket_id, file_url
+        )
+        return await self._request_get_raw(endpoint, params)
+
     async def list_tickets(self, user_id: str, status: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """List the user's support tickets. Returns {tickets: [...]}."""
         endpoint, payload = self._prepare_list_tickets(user_id, status)

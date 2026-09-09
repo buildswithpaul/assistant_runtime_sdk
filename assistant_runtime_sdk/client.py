@@ -2593,6 +2593,21 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
             user_id, rating, comment, category, conversation_id, environment)
         return self._request_post_json(endpoint, payload)
 
+    def download_ticket_attachment(self, user_id: str, ticket_id: str,
+                                   file_url: str) -> tuple:
+        """Download one attachment from a ticket the user owns.
+
+        Raw bytes rather than JSON, so a 10 MB screenshot doesn't get
+        base64-inflated through two hops.
+
+        Returns:
+            (content_bytes, content_type, filename) tuple.
+        """
+        endpoint, params = self._prepare_download_ticket_attachment(
+            user_id, ticket_id, file_url
+        )
+        return self._request_get_raw(endpoint, params)
+
     def list_tickets(self, user_id: str, status: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """List the user's support tickets. Returns {tickets: [...]}."""
         endpoint, payload = self._prepare_list_tickets(user_id, status)
