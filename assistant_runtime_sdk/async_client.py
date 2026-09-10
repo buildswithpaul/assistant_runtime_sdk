@@ -826,6 +826,14 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
             user_id, preference_id, status)
         return await self._request_post_json(endpoint, payload)
 
+    async def set_routing_preference_mode(
+        self, user_id: str, preference_id: str, rule_mode: str,
+    ) -> Optional[Dict[str, Any]]:
+        """Async version of AssistantRuntimeClient.set_routing_preference_mode."""
+        endpoint, payload = self._prepare_set_routing_preference_mode(
+            user_id, preference_id, rule_mode)
+        return await self._request_post_json(endpoint, payload)
+
     async def delete_routing_preference(
         self, user_id: str, preference_id: str,
     ) -> Optional[Dict[str, Any]]:
