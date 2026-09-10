@@ -1380,6 +1380,11 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         endpoint, params = self._prepare_remove_user_mcp_server(user_id, server_name)
         return await self._request_delete(endpoint, params)
 
+    async def enable_mcp_server(self, user_id: str, server_name: str, enabled: bool = True) -> Dict[str, Any]:
+        """Async version of AssistantRuntimeClient.enable_mcp_server."""
+        endpoint, params = self._prepare_enable_mcp_server(user_id, server_name, enabled)
+        return await self._request_post_form(endpoint, params)
+
     async def list_users(
         self,
         status: Optional[str] = None,

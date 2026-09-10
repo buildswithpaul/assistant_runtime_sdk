@@ -1496,6 +1496,16 @@ class BaseAssistantRuntimeClient:
             "server_name": server_name,
         }
 
+    def _prepare_enable_mcp_server(
+        self, user_id: str, server_name: str, enabled: bool = True
+    ) -> tuple:
+        return "users.enable_mcp_server", {
+            "tenant_id": self.tenant_id,
+            "user_id": str(user_id),
+            "server_name": str(server_name),
+            "enabled": "1" if enabled else "0",
+        }
+
     def _prepare_list_users(
         self, status: Optional[str] = None, limit: int = 50,
         offset: int = 0, include_mcp_count: bool = True,

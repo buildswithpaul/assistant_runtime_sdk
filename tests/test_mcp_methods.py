@@ -31,6 +31,14 @@ one new capability (4):
    matching this SDK's stringify-all-scalars convention. AR's endpoint still
    accepts the param but derives the authoritative value server-side, so
    this is API completeness, not a trust decision made by the SDK.
+5. ``enable_mcp_server`` is new: AR's endpoint has zero callers today, so the
+   only way to turn a server off was to delete it. Its path is the same
+   short suffix every other ``_prepare_*`` here uses (see
+   ``_prepare_remove_user_mcp_server``'s ``"users.remove_user_mcp_server"``,
+   or ``test_routing_preference_methods.py``'s ``"routing_preferences.*"``)
+   — ``_build_endpoint_url`` already prepends ``assistant_runtime.api``, so
+   a path repeating that prefix would double it into an endpoint AR never
+   registers.
 """
 
 import unittest
@@ -203,6 +211,67 @@ class TestAsyncGetUserMCPServersUnreachableMarker(unittest.IsolatedAsyncioTestCa
         self.assertTrue(result["_ar_unreachable"])
         self.assertEqual(result["error"], "boom")
         self.assertEqual(result["mcp_servers"], [])
+
+
+class TestEnableMCPServer(unittest.TestCase):
+    def setUp(self):
+        self.client = BaseAssistantRuntimeClient(ar_url="https://ar.example.com", tenant_id="t", tenant_secret="s")
+
+    def test_targets_the_right_endpoint(self):
+        path, params = self.client._prepare_enable_mcp_server(
+            user_id="u@example.com", server_name="Acme", enabled=False
+        )
+        self.assertEqual(path, "users.enable_mcp_server")
+        self.assertEqual(params["server_name"], "Acme")
+        self.assertEqual(params["enabled"], "0")
+
+    def test_enabled_defaults_true(self):
+        _, params = self.client._prepare_enable_mcp_server(
+            user_id="u@example.com", server_name="Acme"
+        )
+        self.assertEqual(params["enabled"], "1")
+
+
+class TestPublicEnableMCPServer(unittest.TestCase):
+    """Exercises the PUBLIC enable_mcp_server wrapper, not the internal
+    _prepare_* helper directly — a real caller only ever reaches this via
+    client.enable_mcp_server(...). An internal-helper-only test would have
+    missed a wrapper that forgot to forward its arguments or called the
+    wrong transport method.
+    """
+
+    def setUp(self):
+        self.client = AssistantRuntimeClient(tenant_id="t", tenant_secret="s")
+
+    def test_disable_is_forwarded(self):
+        with patch.object(self.client, "_request_post_form", return_value={}) as mock_post:
+            self.client.enable_mcp_server(
+                user_id="u@example.com", server_name="Acme", enabled=False
+            )
+
+        endpoint, params = mock_post.call_args.args
+        self.assertEqual(endpoint, "users.enable_mcp_server")
+        self.assertEqual(params["server_name"], "Acme")
+        self.assertEqual(params["enabled"], "0")
+
+
+class TestAsyncPublicEnableMCPServer(unittest.IsolatedAsyncioTestCase):
+    def setUp(self):
+        self.client = AsyncAssistantRuntimeClient(tenant_id="t", tenant_secret="s")
+
+    async def test_disable_is_forwarded(self):
+        async def _ok(*args, **kwargs):
+            return {}
+
+        with patch.object(self.client, "_request_post_form", side_effect=_ok) as mock_post:
+            await self.client.enable_mcp_server(
+                user_id="u@example.com", server_name="Acme", enabled=False
+            )
+
+        endpoint, params = mock_post.call_args.args
+        self.assertEqual(endpoint, "users.enable_mcp_server")
+        self.assertEqual(params["server_name"], "Acme")
+        self.assertEqual(params["enabled"], "0")
 
 
 if __name__ == "__main__":

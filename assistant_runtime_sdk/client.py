@@ -2051,6 +2051,11 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         endpoint, params = self._prepare_remove_user_mcp_server(user_id, server_name)
         return self._request_delete(endpoint, params)
 
+    def enable_mcp_server(self, user_id: str, server_name: str, enabled: bool = True) -> Dict[str, Any]:
+        """Enable or disable an MCP server without deleting it."""
+        endpoint, params = self._prepare_enable_mcp_server(user_id, server_name, enabled)
+        return self._request_post_form(endpoint, params)
+
     def list_users(
         self,
         status: Optional[str] = None,
