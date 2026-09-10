@@ -2056,6 +2056,16 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         endpoint, params = self._prepare_enable_mcp_server(user_id, server_name, enabled)
         return self._request_post_form(endpoint, params)
 
+    def test_mcp_server(self, user_id: str, server_name: str) -> Dict[str, Any]:
+        """Open a real authenticated MCP session and report what it exposes.
+
+        Unlike a reachability probe, this speaks MCP with the user's stored
+        credentials and lists tools. Returns a result dict rather than
+        raising: {"success": bool, "tool_count": int, "tools": [str], "error": str | None}.
+        """
+        endpoint, params = self._prepare_test_mcp_server(user_id, server_name)
+        return self._request_post_form(endpoint, params)
+
     def list_users(
         self,
         status: Optional[str] = None,

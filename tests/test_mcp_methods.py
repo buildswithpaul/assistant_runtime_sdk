@@ -274,5 +274,67 @@ class TestAsyncPublicEnableMCPServer(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(params["enabled"], "0")
 
 
+class TestTestMCPServer(unittest.TestCase):
+    """``test_mcp_server`` opens a real MCP session at AR and reports what the
+    server exposes — same short-suffix path precedent as every other
+    ``_prepare_*`` here (see ``_prepare_remove_user_mcp_server``'s
+    ``"users.remove_user_mcp_server"``); ``_build_endpoint_url`` already
+    prepends ``assistant_runtime.api``.
+    """
+
+    def setUp(self):
+        self.client = BaseAssistantRuntimeClient(ar_url="https://ar.example.com", tenant_id="t", tenant_secret="s")
+
+    def test_targets_the_right_endpoint(self):
+        path, params = self.client._prepare_test_mcp_server(
+            user_id="u@example.com", server_name="Acme"
+        )
+        self.assertEqual(path, "users.test_mcp_server")
+        self.assertEqual(params["tenant_id"], "t")
+        self.assertEqual(params["user_id"], "u@example.com")
+        self.assertEqual(params["server_name"], "Acme")
+
+
+class TestPublicTestMCPServer(unittest.TestCase):
+    """Exercises the PUBLIC test_mcp_server wrapper, not the internal
+    _prepare_* helper directly — a real caller only ever reaches this via
+    client.test_mcp_server(...).
+    """
+
+    def setUp(self):
+        self.client = AssistantRuntimeClient(tenant_id="t", tenant_secret="s")
+
+    def test_forwards_to_post_form_and_returns_result(self):
+        with patch.object(
+            self.client, "_request_post_form",
+            return_value={"success": True, "tool_count": 2, "tools": ["send", "search"], "error": None},
+        ) as mock_post:
+            result = self.client.test_mcp_server(user_id="u@example.com", server_name="Acme")
+
+        endpoint, params = mock_post.call_args.args
+        self.assertEqual(endpoint, "users.test_mcp_server")
+        self.assertEqual(params["server_name"], "Acme")
+        self.assertEqual(result["tool_count"], 2)
+        self.assertEqual(result["tools"], ["send", "search"])
+
+
+class TestAsyncPublicTestMCPServer(unittest.IsolatedAsyncioTestCase):
+    def setUp(self):
+        self.client = AsyncAssistantRuntimeClient(tenant_id="t", tenant_secret="s")
+
+    async def test_forwards_to_post_form_and_returns_result(self):
+        async def _ok(*args, **kwargs):
+            return {"success": False, "tool_count": 0, "tools": [], "error": "connection refused"}
+
+        with patch.object(self.client, "_request_post_form", side_effect=_ok) as mock_post:
+            result = await self.client.test_mcp_server(user_id="u@example.com", server_name="Acme")
+
+        endpoint, params = mock_post.call_args.args
+        self.assertEqual(endpoint, "users.test_mcp_server")
+        self.assertEqual(params["server_name"], "Acme")
+        self.assertFalse(result["success"])
+        self.assertEqual(result["error"], "connection refused")
+
+
 if __name__ == "__main__":
     unittest.main()
