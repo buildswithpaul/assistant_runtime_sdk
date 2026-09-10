@@ -2025,7 +2025,7 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         try:
             return self._request_get(endpoint, params)
         except Exception as e:
-            return {"user_id": user_id, "mcp_servers": [], "error": str(e)}
+            return {"user_id": user_id, "mcp_servers": [], "error": str(e), "_ar_unreachable": True}
 
     def update_mcp_server_tokens(
         self,

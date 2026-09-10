@@ -1427,7 +1427,7 @@ class BaseAssistantRuntimeClient:
 
     def _prepare_add_user_mcp_server(
         self, user_id: str, server_name: str, endpoint_url: str,
-        transport_type: str = "SSE", auth_type: str = "OAuth",
+        transport_type: str = "HTTP", auth_type: str = "OAuth",
         oauth_client_id: Optional[str] = None,
         oauth_client_secret: Optional[str] = None,
         access_token: Optional[str] = None,
@@ -1461,9 +1461,9 @@ class BaseAssistantRuntimeClient:
         if api_key_header:
             params["api_key_header"] = api_key_header
         if allowed_tools:
-            params["allowed_tools"] = json.dumps(allowed_tools)
+            params["allowed_tools"] = list(allowed_tools)
         if blocked_tools:
-            params["blocked_tools"] = json.dumps(blocked_tools)
+            params["blocked_tools"] = list(blocked_tools)
         return "users.add_user_mcp_server", params
 
     def _prepare_get_user_mcp_servers(self, user_id: str) -> tuple:
