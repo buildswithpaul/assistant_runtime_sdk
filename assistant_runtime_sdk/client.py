@@ -1189,6 +1189,28 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
             user_id, preference_id, status)
         return self._request_post_json(endpoint, payload)
 
+    def set_routing_preference_mode(
+        self, user_id: str, preference_id: str, rule_mode: str,
+    ) -> Optional[Dict[str, Any]]:
+        """Finish a rule's trial, or send it back to one.
+
+        Every rule carries its own mode, so this changes nothing about any
+        other rule. Platform defaults are not reachable here — they are
+        managed in AR Admin.
+
+        Args:
+            user_id: User identifier
+            preference_id: the rule
+            rule_mode: "shadow" (matched and recorded, never applied) or
+                "on" (applied)
+
+        Returns:
+            {"preference_id": ..., "rule_mode": ...}
+        """
+        endpoint, payload = self._prepare_set_routing_preference_mode(
+            user_id, preference_id, rule_mode)
+        return self._request_post_json(endpoint, payload)
+
     def delete_routing_preference(
         self, user_id: str, preference_id: str,
     ) -> Optional[Dict[str, Any]]:

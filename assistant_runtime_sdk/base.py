@@ -883,6 +883,16 @@ class BaseAssistantRuntimeClient:
             "status": status,
         }
 
+    def _prepare_set_routing_preference_mode(
+        self, user_id: str, preference_id: str, rule_mode: str,
+    ) -> tuple:
+        return "routing_preferences.set_routing_preference_mode", {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+            "preference_id": preference_id,
+            "rule_mode": rule_mode,
+        }
+
     def _prepare_delete_routing_preference(
         self, user_id: str, preference_id: str,
     ) -> tuple:
