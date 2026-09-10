@@ -12,9 +12,16 @@ Regression tests for three latent bugs in the user MCP server methods:
    independently redeclare the same default in their own signatures and pass
    it down positionally, so both layers need the fix — the internal helper
    default alone is shadowed for every real caller of the public API.
-2. ``allowed_tools``/``blocked_tools`` were JSON-encoded to strings, but
-   AR's endpoint annotates them as ``list`` and Frappe's lax pydantic
-   validation does not parse a JSON string into a list.
+2. ``allowed_tools``/``blocked_tools`` must be sent JSON-encoded, matching
+   this SDK's own established convention for every other list-shaped param
+   on this signed-form transport (``shared_with``, ``add_users``,
+   ``remove_users`` in base.py). A real Python list survives neither
+   ``requests``' form encoding (becomes repeated keys) nor the SDK's own
+   HMAC signing (which stringifies a list with ``str(v)``) intact, so the
+   signature AR reconstructs from the wire never matches what was signed —
+   an ``AuthenticationError``, before AR's own type validation ever runs.
+   AR's receiving side was the actual bug: it annotated the param ``list``
+   and expected one to arrive, which this transport can never deliver.
 3. ``get_user_mcp_servers`` collapsed every exception into
    ``{"mcp_servers": [], "error": str(e)}``, indistinguishable from a user
    who genuinely has no servers. It now adds the same ``_ar_unreachable``
@@ -41,16 +48,19 @@ class TestAddUserMCPServerParams(unittest.TestCase):
         )
         self.assertEqual(params["transport_type"], "HTTP")
 
-    def test_tool_lists_are_not_json_encoded(self):
-        # AR annotates these params as `list`; Frappe's lax pydantic validation
-        # does not parse a JSON string into a list, so a str raises
-        # FrappeTypeError.
+    def test_tool_lists_are_json_encoded(self):
+        # A real list would arrive at AR with a signature AR can never
+        # reconstruct (requests form-encodes a list as repeated keys, which
+        # collapse to one value; the SDK signs str(list) instead). JSON
+        # strings survive form encoding and signing unchanged, matching this
+        # SDK's own convention for every other list-shaped param on this
+        # transport (shared_with, add_users, remove_users).
         _, params = self.client._prepare_add_user_mcp_server(
             user_id="u@example.com", server_name="S", endpoint_url="https://x/mcp",
             allowed_tools=["a"], blocked_tools=["b"],
         )
-        self.assertEqual(params["allowed_tools"], ["a"])
-        self.assertEqual(params["blocked_tools"], ["b"])
+        self.assertEqual(params["allowed_tools"], '["a"]')
+        self.assertEqual(params["blocked_tools"], '["b"]')
 
     def test_tool_lists_omitted_when_empty(self):
         _, params = self.client._prepare_add_user_mcp_server(

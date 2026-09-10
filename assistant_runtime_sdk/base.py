@@ -1461,9 +1461,9 @@ class BaseAssistantRuntimeClient:
         if api_key_header:
             params["api_key_header"] = api_key_header
         if allowed_tools:
-            params["allowed_tools"] = list(allowed_tools)
+            params["allowed_tools"] = json.dumps(allowed_tools)
         if blocked_tools:
-            params["blocked_tools"] = list(blocked_tools)
+            params["blocked_tools"] = json.dumps(blocked_tools)
         return "users.add_user_mcp_server", params
 
     def _prepare_get_user_mcp_servers(self, user_id: str) -> tuple:
