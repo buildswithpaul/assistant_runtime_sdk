@@ -1437,6 +1437,7 @@ class BaseAssistantRuntimeClient:
         api_key_header: str = "Authorization",
         allowed_tools: Optional[list] = None,
         blocked_tools: Optional[list] = None,
+        managed: bool = False,
     ) -> tuple:
         params: Dict[str, Any] = {
             "tenant_id": self.tenant_id,
@@ -1464,6 +1465,7 @@ class BaseAssistantRuntimeClient:
             params["allowed_tools"] = json.dumps(allowed_tools)
         if blocked_tools:
             params["blocked_tools"] = json.dumps(blocked_tools)
+        params["managed"] = "1" if managed else "0"
         return "users.add_user_mcp_server", params
 
     def _prepare_get_user_mcp_servers(self, user_id: str) -> tuple:

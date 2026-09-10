@@ -3,7 +3,8 @@
 # AGPL-3.0 License
 
 """
-Regression tests for three latent bugs in the user MCP server methods:
+Regression tests for three latent bugs in the user MCP server methods, plus
+one new capability (4):
 
 1. ``_prepare_add_user_mcp_server`` defaulted ``transport_type`` to "SSE",
    but AR's doctype Select field only permits "HTTP" — the default itself
@@ -26,6 +27,10 @@ Regression tests for three latent bugs in the user MCP server methods:
    ``{"mcp_servers": [], "error": str(e)}``, indistinguishable from a user
    who genuinely has no servers. It now adds the same ``_ar_unreachable``
    marker ``get_user_auth_status`` uses.
+4. ``add_user_mcp_server`` now carries a ``managed`` flag (bool -> "1"/"0"),
+   matching this SDK's stringify-all-scalars convention. AR's endpoint still
+   accepts the param but derives the authoritative value server-side, so
+   this is API completeness, not a trust decision made by the SDK.
 """
 
 import unittest
@@ -105,6 +110,62 @@ class TestAsyncPublicAddUserMCPServerDefaults(unittest.IsolatedAsyncioTestCase):
 
         _, params = mock_post.call_args.args
         self.assertEqual(params["transport_type"], "HTTP")
+
+
+class TestManagedFlag(unittest.TestCase):
+    def setUp(self):
+        self.client = BaseAssistantRuntimeClient(ar_url="https://ar.example.com", tenant_id="t", tenant_secret="s")
+
+    def test_managed_defaults_to_zero(self):
+        _, params = self.client._prepare_add_user_mcp_server(
+            user_id="u@example.com", server_name="S", endpoint_url="https://x/mcp"
+        )
+        self.assertEqual(params["managed"], "0")
+
+    def test_managed_true_is_sent_as_one(self):
+        _, params = self.client._prepare_add_user_mcp_server(
+            user_id="u@example.com", server_name="S", endpoint_url="https://x/mcp",
+            managed=True,
+        )
+        self.assertEqual(params["managed"], "1")
+
+
+class TestPublicAddUserMCPServerManagedFlag(unittest.TestCase):
+    """The public wrapper must forward managed through to AR — a real caller
+    only ever reaches this via client.add_user_mcp_server(...), never the
+    internal _prepare_* helper.
+    """
+
+    def setUp(self):
+        self.client = AssistantRuntimeClient(tenant_id="t", tenant_secret="s")
+
+    def test_managed_true_is_forwarded(self):
+        with patch.object(self.client, "_request_post_form", return_value={}) as mock_post:
+            self.client.add_user_mcp_server(
+                user_id="u@example.com", server_name="S", endpoint_url="https://x/mcp",
+                managed=True,
+            )
+
+        _, params = mock_post.call_args.args
+        self.assertEqual(params["managed"], "1")
+
+
+class TestAsyncPublicAddUserMCPServerManagedFlag(unittest.IsolatedAsyncioTestCase):
+    def setUp(self):
+        self.client = AsyncAssistantRuntimeClient(tenant_id="t", tenant_secret="s")
+
+    async def test_managed_true_is_forwarded(self):
+        async def _ok(*args, **kwargs):
+            return {}
+
+        with patch.object(self.client, "_request_post_form", side_effect=_ok) as mock_post:
+            await self.client.add_user_mcp_server(
+                user_id="u@example.com", server_name="S", endpoint_url="https://x/mcp",
+                managed=True,
+            )
+
+        _, params = mock_post.call_args.args
+        self.assertEqual(params["managed"], "1")
 
 
 class TestGetUserMCPServersUnreachableMarker(unittest.TestCase):

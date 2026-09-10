@@ -2010,12 +2010,19 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         api_key_header: str = "Authorization",
         allowed_tools: Optional[list] = None,
         blocked_tools: Optional[list] = None,
+        managed: bool = False,
     ) -> Dict[str, Any]:
-        """Add or update an MCP server for a user."""
+        """Add or update an MCP server for a user.
+
+        ``managed`` is sent as a hint only — AR derives the authoritative
+        value server-side from whether server_name/endpoint_url match FAC's
+        real registration shape, regardless of what is passed here.
+        """
         endpoint, params = self._prepare_add_user_mcp_server(
             user_id, server_name, endpoint_url, transport_type, auth_type,
             oauth_client_id, oauth_client_secret, access_token, refresh_token,
             token_expires_in, api_key, api_key_header, allowed_tools, blocked_tools,
+            managed,
         )
         return self._request_post_form(endpoint, params)
 
