@@ -1513,6 +1513,22 @@ class BaseAssistantRuntimeClient:
             "server_name": str(server_name),
         }
 
+    def _prepare_set_mcp_server_tools(
+        self, user_id: str, server_name: str,
+        allowed_tools: Optional[list] = None,
+        blocked_tools: Optional[list] = None,
+    ) -> tuple:
+        params: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+            "server_name": server_name,
+        }
+        if allowed_tools:
+            params["allowed_tools"] = json.dumps(allowed_tools)
+        if blocked_tools:
+            params["blocked_tools"] = json.dumps(blocked_tools)
+        return "users.set_mcp_server_tools", params
+
     def _prepare_list_users(
         self, status: Optional[str] = None, limit: int = 50,
         offset: int = 0, include_mcp_count: bool = True,

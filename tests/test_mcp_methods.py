@@ -336,5 +336,85 @@ class TestAsyncPublicTestMCPServer(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result["error"], "connection refused")
 
 
+class TestSetMCPServerTools(unittest.TestCase):
+    """``set_mcp_server_tools`` is a targeted tool-visibility write, distinct
+    from ``add_user_mcp_server``'s upsert — it must not touch enabled,
+    status, or credentials. Tool lists share the same JSON-encoding
+    requirement as every other list-shaped param on this signed-form
+    transport (see TestAddUserMCPServerParams above).
+    """
+
+    def setUp(self):
+        self.client = BaseAssistantRuntimeClient(ar_url="https://ar.example.com", tenant_id="t", tenant_secret="s")
+
+    def test_targets_the_right_endpoint(self):
+        path, params = self.client._prepare_set_mcp_server_tools(
+            user_id="u@example.com", server_name="Acme", blocked_tools=["delete_all"],
+        )
+        self.assertEqual(path, "users.set_mcp_server_tools")
+        self.assertEqual(params["tenant_id"], "t")
+        self.assertEqual(params["user_id"], "u@example.com")
+        self.assertEqual(params["server_name"], "Acme")
+
+    def test_tool_lists_are_json_encoded(self):
+        _, params = self.client._prepare_set_mcp_server_tools(
+            user_id="u@example.com", server_name="Acme",
+            allowed_tools=["a"], blocked_tools=["b"],
+        )
+        self.assertEqual(params["allowed_tools"], '["a"]')
+        self.assertEqual(params["blocked_tools"], '["b"]')
+
+    def test_tool_lists_omitted_when_empty(self):
+        _, params = self.client._prepare_set_mcp_server_tools(
+            user_id="u@example.com", server_name="Acme",
+        )
+        self.assertNotIn("allowed_tools", params)
+        self.assertNotIn("blocked_tools", params)
+
+
+class TestPublicSetMCPServerTools(unittest.TestCase):
+    """Exercises the PUBLIC set_mcp_server_tools wrapper, not the internal
+    _prepare_* helper directly — a real caller only ever reaches this via
+    client.set_mcp_server_tools(...).
+    """
+
+    def setUp(self):
+        self.client = AssistantRuntimeClient(tenant_id="t", tenant_secret="s")
+
+    def test_forwards_to_post_form_and_returns_result(self):
+        with patch.object(
+            self.client, "_request_post_form", return_value={"success": True},
+        ) as mock_post:
+            result = self.client.set_mcp_server_tools(
+                user_id="u@example.com", server_name="Acme", blocked_tools=["delete_all"],
+            )
+
+        endpoint, params = mock_post.call_args.args
+        self.assertEqual(endpoint, "users.set_mcp_server_tools")
+        self.assertEqual(params["server_name"], "Acme")
+        self.assertEqual(params["blocked_tools"], '["delete_all"]')
+        self.assertTrue(result["success"])
+
+
+class TestAsyncPublicSetMCPServerTools(unittest.IsolatedAsyncioTestCase):
+    def setUp(self):
+        self.client = AsyncAssistantRuntimeClient(tenant_id="t", tenant_secret="s")
+
+    async def test_forwards_to_post_form_and_returns_result(self):
+        async def _ok(*args, **kwargs):
+            return {"success": True}
+
+        with patch.object(self.client, "_request_post_form", side_effect=_ok) as mock_post:
+            result = await self.client.set_mcp_server_tools(
+                user_id="u@example.com", server_name="Acme", blocked_tools=["delete_all"],
+            )
+
+        endpoint, params = mock_post.call_args.args
+        self.assertEqual(endpoint, "users.set_mcp_server_tools")
+        self.assertEqual(params["server_name"], "Acme")
+        self.assertEqual(params["blocked_tools"], '["delete_all"]')
+        self.assertTrue(result["success"])
+
+
 if __name__ == "__main__":
     unittest.main()

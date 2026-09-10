@@ -2066,6 +2066,26 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         endpoint, params = self._prepare_test_mcp_server(user_id, server_name)
         return self._request_post_form(endpoint, params)
 
+    def set_mcp_server_tools(
+        self,
+        user_id: str,
+        server_name: str,
+        allowed_tools: Optional[list] = None,
+        blocked_tools: Optional[list] = None,
+    ) -> Dict[str, Any]:
+        """Replace the tool filters on one server, without touching enabled,
+        status, or credentials.
+
+        Unlike ``add_user_mcp_server``, this is a targeted write, not an
+        upsert — safe to call from a checkbox UI without risking a
+        disabled server being silently re-enabled or its stored API key
+        being dropped.
+        """
+        endpoint, params = self._prepare_set_mcp_server_tools(
+            user_id, server_name, allowed_tools, blocked_tools
+        )
+        return self._request_post_form(endpoint, params)
+
     def list_users(
         self,
         status: Optional[str] = None,

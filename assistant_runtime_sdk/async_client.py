@@ -1390,6 +1390,19 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         endpoint, params = self._prepare_test_mcp_server(user_id, server_name)
         return await self._request_post_form(endpoint, params)
 
+    async def set_mcp_server_tools(
+        self,
+        user_id: str,
+        server_name: str,
+        allowed_tools: Optional[list] = None,
+        blocked_tools: Optional[list] = None,
+    ) -> Dict[str, Any]:
+        """Async version of AssistantRuntimeClient.set_mcp_server_tools."""
+        endpoint, params = self._prepare_set_mcp_server_tools(
+            user_id, server_name, allowed_tools, blocked_tools
+        )
+        return await self._request_post_form(endpoint, params)
+
     async def list_users(
         self,
         status: Optional[str] = None,
