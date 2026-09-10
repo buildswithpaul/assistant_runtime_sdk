@@ -7,7 +7,11 @@ Regression tests for three latent bugs in the user MCP server methods:
 
 1. ``_prepare_add_user_mcp_server`` defaulted ``transport_type`` to "SSE",
    but AR's doctype Select field only permits "HTTP" — the default itself
-   would raise a Frappe ValidationError if a caller ever omitted it.
+   would raise a Frappe ValidationError if a caller ever omitted it. The
+   public ``add_user_mcp_server`` wrappers on ``client.py``/``async_client.py``
+   independently redeclare the same default in their own signatures and pass
+   it down positionally, so both layers need the fix — the internal helper
+   default alone is shadowed for every real caller of the public API.
 2. ``allowed_tools``/``blocked_tools`` were JSON-encoded to strings, but
    AR's endpoint annotates them as ``list`` and Frappe's lax pydantic
    validation does not parse a JSON string into a list.
@@ -54,6 +58,43 @@ class TestAddUserMCPServerParams(unittest.TestCase):
         )
         self.assertNotIn("allowed_tools", params)
         self.assertNotIn("blocked_tools", params)
+
+
+class TestPublicAddUserMCPServerDefaults(unittest.TestCase):
+    """Exercises the PUBLIC add_user_mcp_server wrappers, not the internal
+    _prepare_* helper — the wrappers redeclare transport_type's default in
+    their own signatures, so fixing base.py alone does not fix this for a
+    real caller who omits transport_type when calling client.add_user_mcp_server(...).
+    """
+
+    def setUp(self):
+        self.client = AssistantRuntimeClient(tenant_id="t", tenant_secret="s")
+
+    def test_omitted_transport_type_sends_http(self):
+        with patch.object(self.client, "_request_post_form", return_value={}) as mock_post:
+            self.client.add_user_mcp_server(
+                user_id="u@example.com", server_name="S", endpoint_url="https://x/mcp"
+            )
+
+        _, params = mock_post.call_args.args
+        self.assertEqual(params["transport_type"], "HTTP")
+
+
+class TestAsyncPublicAddUserMCPServerDefaults(unittest.IsolatedAsyncioTestCase):
+    def setUp(self):
+        self.client = AsyncAssistantRuntimeClient(tenant_id="t", tenant_secret="s")
+
+    async def test_omitted_transport_type_sends_http(self):
+        async def _ok(*args, **kwargs):
+            return {}
+
+        with patch.object(self.client, "_request_post_form", side_effect=_ok) as mock_post:
+            await self.client.add_user_mcp_server(
+                user_id="u@example.com", server_name="S", endpoint_url="https://x/mcp"
+            )
+
+        _, params = mock_post.call_args.args
+        self.assertEqual(params["transport_type"], "HTTP")
 
 
 class TestGetUserMCPServersUnreachableMarker(unittest.TestCase):

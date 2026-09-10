@@ -1999,7 +1999,7 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         user_id: str,
         server_name: str,
         endpoint_url: str,
-        transport_type: str = "SSE",
+        transport_type: str = "HTTP",
         auth_type: str = "OAuth",
         oauth_client_id: Optional[str] = None,
         oauth_client_secret: Optional[str] = None,
