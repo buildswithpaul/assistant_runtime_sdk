@@ -1523,9 +1523,9 @@ class BaseAssistantRuntimeClient:
             "user_id": user_id,
             "server_name": server_name,
         }
-        if allowed_tools:
+        if allowed_tools is not None:
             params["allowed_tools"] = json.dumps(allowed_tools)
-        if blocked_tools:
+        if blocked_tools is not None:
             params["blocked_tools"] = json.dumps(blocked_tools)
         return "users.set_mcp_server_tools", params
 

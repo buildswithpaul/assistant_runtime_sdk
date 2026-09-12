@@ -371,6 +371,19 @@ class TestSetMCPServerTools(unittest.TestCase):
         self.assertNotIn("allowed_tools", params)
         self.assertNotIn("blocked_tools", params)
 
+    def test_explicit_empty_list_clears_instead_of_being_dropped(self):
+        """blocked_tools=[] means 'unblock everything' and must reach AR as
+        an explicit empty list, not be dropped like the omitted-arg case
+        above (a truthiness check on the list would silently conflate the
+        two — an intentional clear from the caller must not disappear).
+        """
+        _, params = self.client._prepare_set_mcp_server_tools(
+            user_id="u@example.com", server_name="Acme",
+            allowed_tools=[], blocked_tools=[],
+        )
+        self.assertEqual(params["allowed_tools"], "[]")
+        self.assertEqual(params["blocked_tools"], "[]")
+
 
 class TestPublicSetMCPServerTools(unittest.TestCase):
     """Exercises the PUBLIC set_mcp_server_tools wrapper, not the internal
