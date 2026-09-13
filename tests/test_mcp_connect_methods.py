@@ -127,5 +127,219 @@ class TestBeginMCPReauthParams(unittest.TestCase):
         self.assertNotIn("endpoint_url", params)
 
 
+import inspect
+from unittest.mock import patch
+
+from assistant_runtime_sdk.async_client import AsyncAssistantRuntimeClient
+from assistant_runtime_sdk.client import AssistantRuntimeClient
+
+CONNECT_METHODS = (
+    "begin_mcp_connect",
+    "get_mcp_connect_session",
+    "commit_mcp_connect",
+    "abandon_mcp_connect",
+    "begin_mcp_reauth",
+)
+
+
+class TestPublicBeginMCPConnect(unittest.TestCase):
+    """Exercises the PUBLIC wrapper, not the internal _prepare_* helper — a real
+    caller only ever reaches this via client.begin_mcp_connect(...). A wrapper
+    that forgot to forward an argument, or called the wrong transport, would
+    survive a helper-only test.
+    """
+
+    def setUp(self):
+        self.client = AssistantRuntimeClient(tenant_id="t", tenant_secret="s")
+
+    def test_posts_the_form_and_returns_the_payload(self):
+        with patch.object(
+            self.client, "_request_post_form",
+            return_value={"handle": "h-1", "session": "S-1", "preflight": {}, "authorize_url": None},
+        ) as mock_post:
+            result = self.client.begin_mcp_connect(
+                endpoint_url="https://acme.example/mcp", user_id="u@example.com"
+            )
+
+        endpoint, params = mock_post.call_args.args
+        self.assertEqual(endpoint, "mcp_oauth.begin_mcp_connect")
+        self.assertEqual(params["endpoint_url"], "https://acme.example/mcp")
+        self.assertEqual(result["handle"], "h-1")
+
+    def test_manual_credentials_reach_the_wire(self):
+        with patch.object(self.client, "_request_post_form", return_value={}) as mock_post:
+            self.client.begin_mcp_connect(
+                endpoint_url="https://acme.example/mcp",
+                user_id="u@example.com",
+                client_id="cid-123",
+                client_secret="shh",
+            )
+
+        _, params = mock_post.call_args.args
+        self.assertEqual(params["client_id"], "cid-123")
+        self.assertEqual(params["client_secret"], "shh")
+
+
+class TestPublicGetMCPConnectSession(unittest.TestCase):
+    def setUp(self):
+        self.client = AssistantRuntimeClient(tenant_id="t", tenant_secret="s")
+
+    def test_reads_over_get_not_post(self):
+        # AR declares this endpoint GET-only. A POST would 404 at Frappe's
+        # method router; a write sent over the wrong verb is silently rolled back.
+        with patch.object(
+            self.client, "_request_get", return_value={"status": "Authorized"}
+        ) as mock_get:
+            result = self.client.get_mcp_connect_session(
+                handle="h-1", user_id="u@example.com"
+            )
+
+        endpoint, params = mock_get.call_args.args
+        self.assertEqual(endpoint, "mcp_oauth.get_mcp_connect_session")
+        self.assertEqual(params["handle"], "h-1")
+        self.assertEqual(result["status"], "Authorized")
+
+
+class TestPublicCommitAndAbandon(unittest.TestCase):
+    def setUp(self):
+        self.client = AssistantRuntimeClient(tenant_id="t", tenant_secret="s")
+
+    def test_commit_forwards_the_server_name(self):
+        with patch.object(
+            self.client, "_request_post_form", return_value={"success": True, "server_name": "Acme"}
+        ) as mock_post:
+            result = self.client.commit_mcp_connect(
+                handle="h-1", server_name="Acme", user_id="u@example.com"
+            )
+
+        endpoint, params = mock_post.call_args.args
+        self.assertEqual(endpoint, "mcp_oauth.commit_mcp_connect")
+        self.assertEqual(params["server_name"], "Acme")
+        self.assertTrue(result["success"])
+
+    def test_abandon_forwards_the_handle(self):
+        with patch.object(self.client, "_request_post_form", return_value={"success": True}) as mock_post:
+            self.client.abandon_mcp_connect(handle="h-1", user_id="u@example.com")
+
+        endpoint, params = mock_post.call_args.args
+        self.assertEqual(endpoint, "mcp_oauth.abandon_mcp_connect")
+        self.assertEqual(params["handle"], "h-1")
+
+
+class TestPublicBeginMCPReauth(unittest.TestCase):
+    def setUp(self):
+        self.client = AssistantRuntimeClient(tenant_id="t", tenant_secret="s")
+
+    def test_reauth_targets_its_own_endpoint(self):
+        # Not begin_mcp_connect with a name attached: AR needs reauth_target on
+        # the session so commit updates the existing row instead of inserting
+        # a second one and failing the duplicate-name guard.
+        with patch.object(
+            self.client,
+            "_request_post_form",
+            return_value={"handle": "h-9", "preflight": {}, "authorize_url": "https://as/az"},
+        ) as mock_post:
+            result = self.client.begin_mcp_reauth(
+                server_name="Acme", user_id="u@example.com"
+            )
+
+        endpoint, params = mock_post.call_args.args
+        self.assertEqual(endpoint, "mcp_oauth.begin_mcp_reauth")
+        self.assertEqual(params["server_name"], "Acme")
+        self.assertEqual(result["handle"], "h-9")
+
+
+class TestAsyncPublicConnectMethods(unittest.IsolatedAsyncioTestCase):
+    def setUp(self):
+        self.client = AsyncAssistantRuntimeClient(tenant_id="t", tenant_secret="s")
+
+    async def test_begin_is_forwarded(self):
+        async def _ok(*args, **kwargs):
+            return {"handle": "h-1"}
+
+        with patch.object(self.client, "_request_post_form", side_effect=_ok) as mock_post:
+            result = await self.client.begin_mcp_connect(
+                endpoint_url="https://acme.example/mcp", user_id="u@example.com"
+            )
+
+        endpoint, _ = mock_post.call_args.args
+        self.assertEqual(endpoint, "mcp_oauth.begin_mcp_connect")
+        self.assertEqual(result["handle"], "h-1")
+
+    async def test_get_session_is_forwarded_over_get(self):
+        async def _ok(*args, **kwargs):
+            # AR's Select values are Title Case WITH SPACES, matching
+            # AR User MCP Server.status. There is no "AwaitingAuth" spelling.
+            return {"status": "Awaiting Auth"}
+
+        with patch.object(self.client, "_request_get", side_effect=_ok) as mock_get:
+            result = await self.client.get_mcp_connect_session(
+                handle="h-1", user_id="u@example.com"
+            )
+
+        endpoint, _ = mock_get.call_args.args
+        self.assertEqual(endpoint, "mcp_oauth.get_mcp_connect_session")
+        self.assertEqual(result["status"], "Awaiting Auth")
+
+    async def test_commit_and_abandon_are_forwarded(self):
+        async def _ok(*args, **kwargs):
+            return {"success": True}
+
+        with patch.object(self.client, "_request_post_form", side_effect=_ok) as mock_post:
+            await self.client.commit_mcp_connect(
+                handle="h-1", server_name="Acme", user_id="u@example.com"
+            )
+            self.assertEqual(mock_post.call_args.args[0], "mcp_oauth.commit_mcp_connect")
+            await self.client.abandon_mcp_connect(handle="h-1", user_id="u@example.com")
+            self.assertEqual(mock_post.call_args.args[0], "mcp_oauth.abandon_mcp_connect")
+
+    async def test_reauth_is_forwarded(self):
+        async def _ok(*args, **kwargs):
+            return {"handle": "h-9"}
+
+        with patch.object(self.client, "_request_post_form", side_effect=_ok) as mock_post:
+            result = await self.client.begin_mcp_reauth(
+                server_name="Acme", user_id="u@example.com"
+            )
+
+        endpoint, params = mock_post.call_args.args
+        self.assertEqual(endpoint, "mcp_oauth.begin_mcp_reauth")
+        self.assertEqual(params["server_name"], "Acme")
+        self.assertEqual(result["handle"], "h-9")
+
+
+class TestConnectMethodParity(unittest.TestCase):
+    """test_parity.py's SYNC_ONLY is an empty frozenset — a sync method with no
+    async twin fails the whole suite. Asserting it here too keeps the failure
+    local and readable instead of surfacing as one opaque meta-test diff.
+    """
+
+    def test_every_connect_method_exists_on_both_clients(self):
+        for name in CONNECT_METHODS:
+            self.assertTrue(hasattr(AssistantRuntimeClient, name), f"sync missing {name}")
+            self.assertTrue(hasattr(AsyncAssistantRuntimeClient, name), f"async missing {name}")
+
+    def test_signatures_match_between_sync_and_async(self):
+        for name in CONNECT_METHODS:
+            sync_params = [
+                (p.name, p.default, p.kind)
+                for p in inspect.signature(getattr(AssistantRuntimeClient, name)).parameters.values()
+                if p.name != "self"
+            ]
+            async_params = [
+                (p.name, p.default, p.kind)
+                for p in inspect.signature(getattr(AsyncAssistantRuntimeClient, name)).parameters.values()
+                if p.name != "self"
+            ]
+            self.assertEqual(sync_params, async_params, f"{name} signature drift")
+
+    def test_the_async_versions_are_actually_async(self):
+        for name in CONNECT_METHODS:
+            self.assertTrue(
+                inspect.iscoroutinefunction(getattr(AsyncAssistantRuntimeClient, name)),
+                f"{name} is not a coroutine on the async client",
+            )
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -2086,6 +2086,78 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         )
         return self._request_post_form(endpoint, params)
 
+    def begin_mcp_connect(
+        self,
+        endpoint_url: str,
+        user_id: str,
+        client_id: Optional[str] = None,
+        client_secret: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Start a server-side MCP connect attempt and run the preflight.
+
+        Returns AR's connect-session payload:
+        ``{"handle", "session", "preflight", "authorize_url", "redirect_uri"}``.
+        ``preflight`` is ``run_preflight``'s dict — ``steps`` (each
+        ``pass|fail|skipped``), ``server_info``, ``auth``. ``redirect_uri`` is
+        the URI a user must register by hand when the authorization server has
+        no Dynamic Client Registration.
+
+        ``client_id``/``client_secret`` are the no-DCR escape hatch: supply them
+        to re-begin with credentials the user registered themselves.
+        """
+        endpoint, params = self._prepare_begin_mcp_connect(
+            user_id, endpoint_url, client_id, client_secret
+        )
+        return self._request_post_form(endpoint, params)
+
+    def get_mcp_connect_session(self, handle: str, user_id: str) -> Dict[str, Any]:
+        """Read an in-flight connect session by its short-lived handle.
+
+        Returns ``{"status", "endpoint_url", "preflight", "capabilities",
+        "authorize_url", "error_message", "server_name",
+        "reauth_server_name"}``. ``status`` is one of ``Preflight``,
+        ``Awaiting Auth``, ``Authorized``, ``Committed``, ``Failed`` — Title
+        Case with spaces, matching ``AR User MCP Server``'s own status Select.
+        ``authorize_url`` is a real URL whenever one has been built, so a user
+        who reloaded mid-flow can still click Connect. ``capabilities`` is
+        populated only once the session reaches ``Authorized``; ``server_name``
+        only once it reaches ``Committed``. ``reauth_server_name`` is the name
+        of the row this session re-authorizes, or ``None`` on the ordinary add
+        path — it is what lets a caller tell the two apart without carrying any
+        state of its own across the authorization round trip.
+        """
+        endpoint, params = self._prepare_get_mcp_connect_session(user_id, handle)
+        return self._request_get(endpoint, params)
+
+    def commit_mcp_connect(
+        self, handle: str, server_name: str, user_id: str
+    ) -> Dict[str, Any]:
+        """Turn an authorized connect session into a real AR User MCP Server."""
+        endpoint, params = self._prepare_commit_mcp_connect(user_id, handle, server_name)
+        return self._request_post_form(endpoint, params)
+
+    def abandon_mcp_connect(self, handle: str, user_id: str) -> Dict[str, Any]:
+        """Drop an in-flight connect session and the credentials escrowed in it."""
+        endpoint, params = self._prepare_abandon_mcp_connect(user_id, handle)
+        return self._request_post_form(endpoint, params)
+
+    def begin_mcp_reauth(self, server_name: str, user_id: str) -> Dict[str, Any]:
+        """Re-authorize a connection that already exists.
+
+        Returns the same payload shape as :meth:`begin_mcp_connect`. AR opens
+        the session with ``reauth_target`` pointing at the named
+        ``AR User MCP Server`` row, so ``commit_mcp_connect`` updates that row's
+        credentials in place and restores it to ``Active`` instead of inserting
+        a second row — which is what made the duplicate-name guard fire on every
+        reconnect before this endpoint existed.
+
+        This is the only correct entry point for reconnecting. Calling
+        ``begin_mcp_connect`` and then committing under the existing name takes
+        the add path and fails.
+        """
+        endpoint, params = self._prepare_begin_mcp_reauth(user_id, server_name)
+        return self._request_post_form(endpoint, params)
+
     def list_users(
         self,
         status: Optional[str] = None,

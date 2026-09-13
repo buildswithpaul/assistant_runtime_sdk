@@ -1403,6 +1403,41 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         )
         return await self._request_post_form(endpoint, params)
 
+    async def begin_mcp_connect(
+        self,
+        endpoint_url: str,
+        user_id: str,
+        client_id: Optional[str] = None,
+        client_secret: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Async version of AssistantRuntimeClient.begin_mcp_connect."""
+        endpoint, params = self._prepare_begin_mcp_connect(
+            user_id, endpoint_url, client_id, client_secret
+        )
+        return await self._request_post_form(endpoint, params)
+
+    async def get_mcp_connect_session(self, handle: str, user_id: str) -> Dict[str, Any]:
+        """Async version of AssistantRuntimeClient.get_mcp_connect_session."""
+        endpoint, params = self._prepare_get_mcp_connect_session(user_id, handle)
+        return await self._request_get(endpoint, params)
+
+    async def commit_mcp_connect(
+        self, handle: str, server_name: str, user_id: str
+    ) -> Dict[str, Any]:
+        """Async version of AssistantRuntimeClient.commit_mcp_connect."""
+        endpoint, params = self._prepare_commit_mcp_connect(user_id, handle, server_name)
+        return await self._request_post_form(endpoint, params)
+
+    async def abandon_mcp_connect(self, handle: str, user_id: str) -> Dict[str, Any]:
+        """Async version of AssistantRuntimeClient.abandon_mcp_connect."""
+        endpoint, params = self._prepare_abandon_mcp_connect(user_id, handle)
+        return await self._request_post_form(endpoint, params)
+
+    async def begin_mcp_reauth(self, server_name: str, user_id: str) -> Dict[str, Any]:
+        """Async version of AssistantRuntimeClient.begin_mcp_reauth."""
+        endpoint, params = self._prepare_begin_mcp_reauth(user_id, server_name)
+        return await self._request_post_form(endpoint, params)
+
     async def list_users(
         self,
         status: Optional[str] = None,
