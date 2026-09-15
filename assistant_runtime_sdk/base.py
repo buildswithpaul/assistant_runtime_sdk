@@ -1437,7 +1437,7 @@ class BaseAssistantRuntimeClient:
 
     def _prepare_add_user_mcp_server(
         self, user_id: str, server_name: str, endpoint_url: str,
-        transport_type: str = "SSE", auth_type: str = "OAuth",
+        transport_type: str = "HTTP", auth_type: str = "OAuth",
         oauth_client_id: Optional[str] = None,
         oauth_client_secret: Optional[str] = None,
         access_token: Optional[str] = None,
@@ -1447,6 +1447,7 @@ class BaseAssistantRuntimeClient:
         api_key_header: str = "Authorization",
         allowed_tools: Optional[list] = None,
         blocked_tools: Optional[list] = None,
+        managed: bool = False,
     ) -> tuple:
         params: Dict[str, Any] = {
             "tenant_id": self.tenant_id,
@@ -1474,6 +1475,7 @@ class BaseAssistantRuntimeClient:
             params["allowed_tools"] = json.dumps(allowed_tools)
         if blocked_tools:
             params["blocked_tools"] = json.dumps(blocked_tools)
+        params["managed"] = "1" if managed else "0"
         return "users.add_user_mcp_server", params
 
     def _prepare_get_user_mcp_servers(self, user_id: str) -> tuple:
@@ -1502,6 +1504,94 @@ class BaseAssistantRuntimeClient:
             "tenant_id": self.tenant_id,
             "user_id": user_id,
             "server_name": server_name,
+        }
+
+    def _prepare_enable_mcp_server(
+        self, user_id: str, server_name: str, enabled: bool = True
+    ) -> tuple:
+        return "users.enable_mcp_server", {
+            "tenant_id": self.tenant_id,
+            "user_id": str(user_id),
+            "server_name": str(server_name),
+            "enabled": "1" if enabled else "0",
+        }
+
+    def _prepare_test_mcp_server(self, user_id: str, server_name: str) -> tuple:
+        return "users.test_mcp_server", {
+            "tenant_id": self.tenant_id,
+            "user_id": str(user_id),
+            "server_name": str(server_name),
+        }
+
+    def _prepare_set_mcp_server_tools(
+        self, user_id: str, server_name: str,
+        allowed_tools: Optional[list] = None,
+        blocked_tools: Optional[list] = None,
+    ) -> tuple:
+        params: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+            "server_name": server_name,
+        }
+        if allowed_tools is not None:
+            params["allowed_tools"] = json.dumps(allowed_tools)
+        if blocked_tools is not None:
+            params["blocked_tools"] = json.dumps(blocked_tools)
+        return "users.set_mcp_server_tools", params
+
+    # -------------------------------------------------------------------------
+    # MCP Connect wizard (assistant_runtime.api.mcp_oauth)
+    # -------------------------------------------------------------------------
+
+    def _prepare_begin_mcp_connect(
+        self, user_id: str, endpoint_url: str,
+        client_id: Optional[str] = None,
+        client_secret: Optional[str] = None,
+    ) -> tuple:
+        params: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "user_id": str(user_id),
+            "endpoint_url": str(endpoint_url),
+        }
+        # Omitted, not blank: a blank client_id on the wire makes AR record an
+        # empty manual registration instead of taking the DCR path.
+        if client_id:
+            params["client_id"] = str(client_id)
+        if client_secret:
+            params["client_secret"] = str(client_secret)
+        return "mcp_oauth.begin_mcp_connect", params
+
+    def _prepare_get_mcp_connect_session(self, user_id: str, handle: str) -> tuple:
+        return "mcp_oauth.get_mcp_connect_session", {
+            "tenant_id": self.tenant_id,
+            "user_id": str(user_id),
+            "handle": str(handle),
+        }
+
+    def _prepare_commit_mcp_connect(
+        self, user_id: str, handle: str, server_name: str
+    ) -> tuple:
+        return "mcp_oauth.commit_mcp_connect", {
+            "tenant_id": self.tenant_id,
+            "user_id": str(user_id),
+            "handle": str(handle),
+            "server_name": str(server_name),
+        }
+
+    def _prepare_abandon_mcp_connect(self, user_id: str, handle: str) -> tuple:
+        return "mcp_oauth.abandon_mcp_connect", {
+            "tenant_id": self.tenant_id,
+            "user_id": str(user_id),
+            "handle": str(handle),
+        }
+
+    def _prepare_begin_mcp_reauth(self, user_id: str, server_name: str) -> tuple:
+        # No endpoint_url: AR reads it from the row named here, and commit
+        # updates that row in place via the session's reauth_target.
+        return "mcp_oauth.begin_mcp_reauth", {
+            "tenant_id": self.tenant_id,
+            "user_id": str(user_id),
+            "server_name": str(server_name),
         }
 
     def _prepare_list_users(
