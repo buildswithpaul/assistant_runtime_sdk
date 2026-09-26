@@ -3389,6 +3389,34 @@ def get_registration_state(
         return {"error": str(e)}
 
 
+def resend_owner_verification(ar_url: str, site_url: str) -> Dict[str, Any]:
+    """Ask AR to re-send the pending verification link. No terms, no secret."""
+    url = f"{ar_url.rstrip('/')}/api/method/assistant_runtime.api.resend_owner_verification"
+    try:
+        response = requests.post(
+            url, json={"site_url": site_url},
+            headers={"Content-Type": "application/json"}, timeout=30,
+        )
+        response.raise_for_status()
+        return response.json().get("message", response.json())
+    except requests.exceptions.RequestException as e:
+        return {"error": str(e)}
+
+
+def change_pending_owner_email(ar_url: str, site_url: str, owner_email: str) -> Dict[str, Any]:
+    """Correct the owner address while the tenant is still unverified."""
+    url = f"{ar_url.rstrip('/')}/api/method/assistant_runtime.api.change_pending_owner_email"
+    try:
+        response = requests.post(
+            url, json={"site_url": site_url, "owner_email": owner_email},
+            headers={"Content-Type": "application/json"}, timeout=30,
+        )
+        response.raise_for_status()
+        return response.json().get("message", response.json())
+    except requests.exceptions.RequestException as e:
+        return {"error": str(e)}
+
+
 def get_initial_secret(ar_url: str, verification_token: str) -> Dict[str, Any]:
     """One-shot retrieval of the freshly-minted tenant_secret after the
     owner has confirmed their email via the verification link.

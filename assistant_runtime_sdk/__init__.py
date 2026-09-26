@@ -53,7 +53,7 @@ Standalone Functions:
 
 """
 
-__version__ = "1.9.0"
+__version__ = "1.10.0"
 __author__ = "Paul Clinton"
 __license__ = "AGPL-3.0"
 
@@ -61,7 +61,14 @@ __license__ = "AGPL-3.0"
 # Core Client Classes
 # =============================================================================
 
-from .client import AssistantRuntimeClient, get_terms, register_tenant, get_registration_state
+from .client import (
+    AssistantRuntimeClient,
+    change_pending_owner_email,
+    get_registration_state,
+    get_terms,
+    register_tenant,
+    resend_owner_verification,
+)
 
 # Async client - import lazily to avoid requiring aiohttp
 # Skill providers - import lazily to avoid requiring strands-agents
@@ -173,6 +180,8 @@ __all__ = [
     "get_terms",
     "register_tenant",
     "get_registration_state",
+    "resend_owner_verification",
+    "change_pending_owner_email",
     # Exceptions - new names
     "ARError",
     "ARAuthenticationError",
