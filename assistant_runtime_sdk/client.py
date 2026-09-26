@@ -1394,6 +1394,27 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         endpoint, payload = self._prepare_create_hosted_checkout(purpose, params, return_url)
         return self._request_post_json(endpoint, payload, api_base=self.billing_api_base)
 
+    def get_checkout_session_status(self, session: str) -> Optional[Dict[str, Any]]:
+        """
+        Ask whether the purchase a hosted checkout was opened for has landed.
+
+        The checkout page returns the user with ``fac_checkout=<session>``
+        (and ``result=success|processing|cancelled|failed``) on the query
+        string. Poll this with that session until ``done`` is true. It only
+        reads, so polling it never touches the payment gateway.
+
+        Args:
+            session: The ``fac_checkout`` value from the return URL — the
+                ``session`` that :meth:`create_hosted_checkout` returned.
+
+        Returns:
+            Dict with status, purpose, target_plan, plan, pending_plan,
+            payment_status, done (bool) and outcome — one of "applied",
+            "processing", "failed" or "cancelled".
+        """
+        endpoint, payload = self._prepare_get_checkout_session_status(session)
+        return self._request_post_json(endpoint, payload, api_base=self.billing_api_base)
+
     def verify_checkout(self, session_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Verify payment completion after checkout."""
         endpoint, payload = self._prepare_verify_checkout(session_id)

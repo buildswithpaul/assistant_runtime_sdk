@@ -125,7 +125,8 @@ surface. A representative selection:
 
 **Billing** — `get_plan_comparison()`, `get_usage_dashboard()`, `get_usage_history()`,
 `get_credit_balance()`, `initiate_checkout()`, `create_hosted_checkout()`,
-`verify_checkout()`, `upgrade_plan()`, `cancel_subscription()`, `get_invoices()`,
+`get_checkout_session_status()`, `verify_checkout()`, `upgrade_plan()`,
+`cancel_subscription()`, `get_invoices()`,
 `get_payment_instrument()`, `update_payment_method()`
 
 **Users & seats** — `register_user()`, `get_user()`, `list_users()`, `invite_user()`,

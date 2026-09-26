@@ -987,6 +987,15 @@ class BaseAssistantRuntimeClient:
             payload["return_url"] = return_url
         return "create_hosted_checkout", payload
 
+    def _prepare_get_checkout_session_status(self, session: str) -> tuple:
+        self._require_billing()
+        if not session:
+            raise ValueError("session is required")
+        return "get_checkout_session_status", {
+            "tenant_id": self.tenant_id,
+            "session": session,
+        }
+
     def _prepare_verify_checkout(self, session_id: Optional[str] = None) -> tuple:
         self._require_billing()
         payload: Dict[str, Any] = {"tenant_id": self.tenant_id}
