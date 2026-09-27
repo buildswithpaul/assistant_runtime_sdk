@@ -17,7 +17,7 @@ from pathlib import Path
 
 import assistant_runtime_sdk
 
-EXPECTED = "1.9.0"
+EXPECTED = "1.10.0"
 ROOT = Path(__file__).resolve().parent.parent
 
 # tomllib is 3.11+ only and this package supports 3.10, so the version is
@@ -47,6 +47,17 @@ class TestVersionConsistency(unittest.TestCase):
             "begin_mcp_reauth",
         ):
             self.assertTrue(hasattr(AssistantRuntimeClient, name), name)
+
+    def test_the_registration_methods_this_version_adds_are_present(self):
+        # The reason 1.10.0 exists: resend and change-email, plus checkout status.
+        import assistant_runtime_sdk as sdk
+
+        for name in (
+            "resend_owner_verification",
+            "change_pending_owner_email",
+            "get_checkout_session_status",
+        ):
+            self.assertTrue(hasattr(sdk, name) or hasattr(sdk.AssistantRuntimeClient, name), name)
 
 
 if __name__ == "__main__":
