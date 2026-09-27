@@ -3329,7 +3329,11 @@ def register_tenant(
             registration cap exactly once.
 
     Returns:
-        Registration result with tenant_id (secret delivered via email link), or error
+        Registration result with tenant_id (secret delivered via email link), or
+        error. A newly created pending tenant also carries ``pending_token``,
+        returned only this once: store it securely, because
+        ``resend_owner_verification`` and ``change_pending_owner_email``
+        require it.
     """
     url = f"{ar_url.rstrip('/')}/api/method/assistant_runtime.api.register_tenant"
 
@@ -3389,32 +3393,68 @@ def get_registration_state(
         return {"error": str(e)}
 
 
-def resend_owner_verification(ar_url: str, site_url: str) -> Dict[str, Any]:
-    """Ask AR to re-send the pending verification link. No terms, no secret."""
-    url = f"{ar_url.rstrip('/')}/api/method/assistant_runtime.api.resend_owner_verification"
+def _post_guest(ar_url: str, method: str, payload: Dict[str, Any], timeout: int = 30) -> Dict[str, Any]:
+    """POST to a guest AR method, returning AR's own message when it fails.
+
+    Failures come back as ``{"error", "status_code", "exc_type"}``. ``error`` is
+    the message AR raised when the body carries one, so a caller can show it
+    instead of ``str(HTTPError)``; ``exc_type`` is set only in that case.
+    """
+    url = f"{ar_url.rstrip('/')}/api/method/assistant_runtime.api.{method}"
     try:
         response = requests.post(
-            url, json={"site_url": site_url},
-            headers={"Content-Type": "application/json"}, timeout=30,
+            url, json=payload, headers={"Content-Type": "application/json"}, timeout=timeout,
         )
         response.raise_for_status()
         return response.json().get("message", response.json())
+    except requests.exceptions.HTTPError as e:
+        status_code = e.response.status_code if e.response is not None else None
+        try:
+            data = e.response.json() if e.response is not None else None
+        except ValueError:
+            data = None
+        message = BaseAssistantRuntimeClient._extract_error_from_data(data) if isinstance(data, dict) else None
+        if not message:
+            return {"error": str(e), "status_code": status_code}
+        return {"error": message, "status_code": status_code, "exc_type": data.get("exc_type")}
     except requests.exceptions.RequestException as e:
-        return {"error": str(e)}
+        return {"error": str(e), "status_code": None}
 
 
-def change_pending_owner_email(ar_url: str, site_url: str, owner_email: str) -> Dict[str, Any]:
-    """Correct the owner address while the tenant is still unverified."""
-    url = f"{ar_url.rstrip('/')}/api/method/assistant_runtime.api.change_pending_owner_email"
-    try:
-        response = requests.post(
-            url, json={"site_url": site_url, "owner_email": owner_email},
-            headers={"Content-Type": "application/json"}, timeout=30,
-        )
-        response.raise_for_status()
-        return response.json().get("message", response.json())
-    except requests.exceptions.RequestException as e:
-        return {"error": str(e)}
+def resend_owner_verification(ar_url: str, site_url: str, pending_token: str) -> Dict[str, Any]:
+    """Ask AR to re-send the pending verification link. No terms, no secret.
+
+    Args:
+        pending_token: The token ``register_tenant`` returned when this site's
+            tenant was created. AR refuses the call without it.
+
+    Returns:
+        AR's result (``success``, ``retry_after``, ``already_verified``,
+        ``owner_email_masked``), or ``{"error", "status_code", "exc_type"}``.
+    """
+    return _post_guest(
+        ar_url, "resend_owner_verification", {"site_url": site_url, "pending_token": pending_token}
+    )
+
+
+def change_pending_owner_email(
+    ar_url: str, site_url: str, owner_email: str, pending_token: str
+) -> Dict[str, Any]:
+    """Correct the owner address while the tenant is still unverified.
+
+    Args:
+        pending_token: The token ``register_tenant`` returned when this site's
+            tenant was created. AR refuses the call without it.
+
+    Returns:
+        AR's result (``success``, ``retry_after``, ``owner_email_masked``), or
+        ``{"error", "status_code", "exc_type"}``.
+    """
+    return _post_guest(
+        ar_url,
+        "change_pending_owner_email",
+        {"site_url": site_url, "owner_email": owner_email, "pending_token": pending_token},
+    )
 
 
 def get_initial_secret(ar_url: str, verification_token: str) -> Dict[str, Any]:
