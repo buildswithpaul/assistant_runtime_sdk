@@ -329,6 +329,7 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         *,
         web_search: Optional[bool] = None,
         thinking_enabled: Optional[bool] = None,
+        reasoning_effort: Optional[str] = None,
     ) -> Generator[Dict[str, Any], None, None]:
         """
         Stream chat response from Assistant Runtime.
@@ -361,6 +362,9 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
                 truncated response from
             web_search: Optional explicit web-search toggle for this turn
             thinking_enabled: Optional explicit extended-thinking toggle for this turn
+            reasoning_effort: Optional thinking level for this turn — "off", "low", "medium",
+                "high", "xhigh" or "max". Servers that predate it ignore it, so callers
+                should also send thinking_enabled.
 
         Yields:
             Parsed SSE events with structure:
@@ -390,6 +394,7 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
             continue_from_message_id=continue_from_message_id,
             web_search=web_search,
             thinking_enabled=thinking_enabled,
+            reasoning_effort=reasoning_effort,
         )
         url = self._build_endpoint_url("streaming.stream_chat")
         payload = self._with_site_url(payload)

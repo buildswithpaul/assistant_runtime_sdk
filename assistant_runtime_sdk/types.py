@@ -16,7 +16,15 @@ from typing import TypedDict, List, Optional, Any
 # =============================================================================
 
 
-class ModelInfo(TypedDict):
+class _ModelInfoOptional(TypedDict, total=False):
+    """Keys newer runtimes add to each model; absent on older ones."""
+
+    thinking_effective: bool
+    reasoning_levels: List[str]
+    reasoning_off_floor: bool
+
+
+class ModelInfo(_ModelInfoOptional):
     """Information about an available AI model."""
 
     model_id: str
@@ -104,7 +112,7 @@ class RoutingReceiptData(TypedDict):
     shortlist_size: int
     pick_reason: str
     notices: List[str]
-    thinking: dict                     # requested, applied, effort, not_applied_reason
+    thinking: dict                     # requested, applied, effort {requested, applied}, effective_budget, not_applied_reason
     credits: dict                      # actual
     cycles: int
     also_ran: List[str]

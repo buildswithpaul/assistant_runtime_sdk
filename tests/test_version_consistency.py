@@ -17,7 +17,7 @@ from pathlib import Path
 
 import assistant_runtime_sdk
 
-EXPECTED = "1.10.0"
+EXPECTED = "1.11.0"
 ROOT = Path(__file__).resolve().parent.parent
 
 # tomllib is 3.11+ only and this package supports 3.10, so the version is
@@ -58,6 +58,14 @@ class TestVersionConsistency(unittest.TestCase):
             "get_checkout_session_status",
         ):
             self.assertTrue(hasattr(sdk, name) or hasattr(sdk.AssistantRuntimeClient, name), name)
+
+    def test_the_reasoning_effort_param_this_version_adds_is_present(self):
+        # The reason 1.11.0 exists: reasoning_effort parameter on stream_chat.
+        import inspect
+        from assistant_runtime_sdk import AssistantRuntimeClient
+
+        sig = inspect.signature(AssistantRuntimeClient.stream_chat)
+        self.assertIn("reasoning_effort", sig.parameters)
 
 
 if __name__ == "__main__":
