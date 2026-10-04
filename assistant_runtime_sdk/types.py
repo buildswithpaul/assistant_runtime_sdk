@@ -16,7 +16,15 @@ from typing import TypedDict, List, Optional, Any
 # =============================================================================
 
 
-class ModelInfo(TypedDict):
+class _ModelInfoOptional(TypedDict, total=False):
+    """Keys newer runtimes add to each model; absent on older ones."""
+
+    thinking_effective: bool
+    reasoning_levels: List[str]
+    reasoning_off_floor: bool
+
+
+class ModelInfo(_ModelInfoOptional):
     """Information about an available AI model."""
 
     model_id: str
