@@ -42,7 +42,7 @@ class TestComposerModesParity:
         sync = inspect.signature(AssistantRuntimeClient.stream_chat).parameters
         asyn = inspect.signature(AsyncAssistantRuntimeClient.stream_chat).parameters
 
-        for name in ("web_search", "thinking_enabled"):
+        for name in ("web_search", "thinking_enabled", "reasoning_effort"):
             assert sync[name].default is None
             assert sync[name].kind is inspect.Parameter.KEYWORD_ONLY
             assert sync[name].kind is asyn[name].kind
@@ -55,3 +55,25 @@ class TestComposerModesParity:
             client.stream_chat(
                 "s", "m", "u", None, None, None, None, None, None, None, None, None, True
             )
+
+
+class TestReasoningEffort:
+    def test_effort_rides_the_wire_when_given(self):
+        payload = _make_client()._prepare_stream_payload(
+            session_id="s", message="m", user_id="u", reasoning_effort="xhigh"
+        )
+        assert payload["reasoning_effort"] == "xhigh"
+
+    def test_effort_is_absent_when_omitted(self):
+        payload = _make_client()._prepare_stream_payload(session_id="s", message="m", user_id="u")
+        assert "reasoning_effort" not in payload
+
+    def test_both_clients_declare_it_keyword_only(self):
+        sync = inspect.signature(AssistantRuntimeClient.stream_chat).parameters["reasoning_effort"]
+        asyn = inspect.signature(AsyncAssistantRuntimeClient.stream_chat).parameters["reasoning_effort"]
+        assert sync.default is None and sync.kind is inspect.Parameter.KEYWORD_ONLY
+        assert asyn.default is None and asyn.kind is inspect.Parameter.KEYWORD_ONLY
+
+    def test_version_is_bumped_with_the_new_param(self):
+        import assistant_runtime_sdk
+        assert assistant_runtime_sdk.__version__ == "1.11.0"

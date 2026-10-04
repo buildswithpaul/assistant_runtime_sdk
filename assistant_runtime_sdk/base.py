@@ -316,6 +316,7 @@ class BaseAssistantRuntimeClient:
         continue_from_message_id: Optional[str] = None,
         web_search: Optional[bool] = None,
         thinking_enabled: Optional[bool] = None,
+        reasoning_effort: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Prepare JSON payload for stream_chat POST request.
@@ -347,6 +348,8 @@ class BaseAssistantRuntimeClient:
                 previous truncated response from
             web_search: Optional explicit web-search toggle for this turn
             thinking_enabled: Optional explicit extended-thinking toggle for this turn
+            reasoning_effort: Optional thinking level for this turn — "off", "low", "medium",
+                "high", "xhigh" or "max"
 
         Returns:
             Payload dict ready for JSON body
@@ -399,6 +402,9 @@ class BaseAssistantRuntimeClient:
 
         if thinking_enabled is not None:
             payload["thinking_enabled"] = bool(thinking_enabled)
+
+        if reasoning_effort is not None:
+            payload["reasoning_effort"] = str(reasoning_effort).strip().lower()
 
         return payload
 

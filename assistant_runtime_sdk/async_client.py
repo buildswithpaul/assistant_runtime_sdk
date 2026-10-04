@@ -384,6 +384,7 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         *,
         web_search: Optional[bool] = None,
         thinking_enabled: Optional[bool] = None,
+        reasoning_effort: Optional[str] = None,
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """Async version of AssistantRuntimeClient.stream_chat.
 
@@ -400,6 +401,7 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
             continue_from_message_id=continue_from_message_id,
             web_search=web_search,
             thinking_enabled=thinking_enabled,
+            reasoning_effort=reasoning_effort,
         )
         url = self._build_endpoint_url("streaming.stream_chat")
         payload = self._with_site_url(payload)
