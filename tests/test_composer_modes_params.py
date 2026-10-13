@@ -76,4 +76,4 @@ class TestReasoningEffort:
 
     def test_version_is_bumped_with_the_new_param(self):
         import assistant_runtime_sdk
-        assert assistant_runtime_sdk.__version__ == "1.11.0"
+        assert assistant_runtime_sdk.__version__ == "1.12.0"

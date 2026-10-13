@@ -17,7 +17,7 @@ from pathlib import Path
 
 import assistant_runtime_sdk
 
-EXPECTED = "1.11.0"
+EXPECTED = "1.12.0"
 ROOT = Path(__file__).resolve().parent.parent
 
 # tomllib is 3.11+ only and this package supports 3.10, so the version is

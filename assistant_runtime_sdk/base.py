@@ -609,6 +609,7 @@ class BaseAssistantRuntimeClient:
         user_id: Optional[str] = None,
         visibility: Optional[str] = None,
         shared_with: Optional[List[str]] = None,
+        project_id: Optional[str] = None,
     ) -> tuple:
         """Returns (endpoint, params, file_field, file_name, file_data, content_type)."""
         import mimetypes as _mt
@@ -625,7 +626,7 @@ class BaseAssistantRuntimeClient:
             raise ARConfigurationError(
                 f"Invalid visibility: {visibility}. Must be public, private, or shared."
             )
-        if visibility == "shared" and not shared_with:
+        if not project_id and visibility == "shared" and not shared_with:
             raise ARConfigurationError(
                 "shared_with is required when visibility is 'shared'"
             )
@@ -645,10 +646,15 @@ class BaseAssistantRuntimeClient:
         params: Dict[str, Any] = {"tenant_id": self.tenant_id}
         if user_id:
             params["user_id"] = user_id
-        if visibility:
-            params["visibility"] = visibility
-        if shared_with:
-            params["shared_with"] = json.dumps(shared_with)
+        if project_id:
+            # The server forces project documents to private, so no visibility
+            # or sharing is sent alongside a project_id.
+            params["project_id"] = project_id
+        else:
+            if visibility:
+                params["visibility"] = visibility
+            if shared_with:
+                params["shared_with"] = json.dumps(shared_with)
 
         return (
             "documents.upload_document",
@@ -660,7 +666,12 @@ class BaseAssistantRuntimeClient:
         )
 
     def _prepare_list_documents(
-        self, limit: int = 50, offset: int = 0, user_id: Optional[str] = None
+        self,
+        limit: int = 50,
+        offset: int = 0,
+        user_id: Optional[str] = None,
+        project_id: Optional[str] = None,
+        include_project_docs: bool = False,
     ) -> tuple:
         params: Dict[str, Any] = {
             "tenant_id": self.tenant_id,
@@ -669,7 +680,19 @@ class BaseAssistantRuntimeClient:
         }
         if user_id:
             params["user_id"] = user_id
+        if project_id:
+            params["project_id"] = project_id
+        if include_project_docs:
+            params["include_project_docs"] = "1"
         return "documents.list_documents", params
+
+    def _prepare_unlink_project_documents(self, user_id: str, project_id: str) -> tuple:
+        """Returns (endpoint, payload) for unlinking a project's documents."""
+        return "documents.unlink_project_documents", {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+            "project_id": project_id,
+        }
 
     def _prepare_get_document(self, document_id: str) -> tuple:
         return "documents.get_document", {
