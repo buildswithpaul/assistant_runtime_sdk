@@ -4,11 +4,14 @@
 
 """Project-document parameters on the document methods, in both clients."""
 
+import asyncio
 import inspect
+from unittest.mock import patch
 
 import pytest
 
 from assistant_runtime_sdk import AssistantRuntimeClient
+from assistant_runtime_sdk.exceptions import ARConfigurationError
 from assistant_runtime_sdk.async_client import AsyncAssistantRuntimeClient
 
 
@@ -66,7 +69,43 @@ def test_sync_and_async_signatures_match(name):
     assert inspect.iscoroutinefunction(getattr(AsyncAssistantRuntimeClient, name))
 
 
-def test_unlink_is_a_post():
-    assert "_request_post_json" in inspect.getsource(
-        AssistantRuntimeClient.unlink_project_documents
+def test_upload_with_project_requires_user():
+    with pytest.raises(ARConfigurationError, match="user_id is required with project_id"):
+        _client()._prepare_upload_document(
+            file_data=b"x", file_name="a.txt", project_id="p1"
+        )
+
+
+def test_list_with_project_requires_user():
+    with pytest.raises(ARConfigurationError, match="user_id is required with project_id"):
+        _client()._prepare_list_documents(project_id="p1")
+
+
+def test_sync_unlink_posts_to_the_memory_api():
+    client = _client()
+    with patch.object(
+        AssistantRuntimeClient, "_request_post_json", autospec=True
+    ) as post:
+        client.unlink_project_documents("u1", "p1")
+    post.assert_called_once_with(
+        client,
+        "documents.unlink_project_documents",
+        {"tenant_id": "t1", "user_id": "u1", "project_id": "p1"},
+        api_base=client.memory_api_base,
+    )
+
+
+def test_async_unlink_posts_to_the_memory_api():
+    client = AsyncAssistantRuntimeClient(
+        tenant_id="t1", tenant_secret="s", ar_url="http://ar.test"
+    )
+    with patch.object(
+        AsyncAssistantRuntimeClient, "_request_post_json", autospec=True
+    ) as post:
+        asyncio.run(client.unlink_project_documents("u1", "p1"))
+    post.assert_called_once_with(
+        client,
+        "documents.unlink_project_documents",
+        {"tenant_id": "t1", "user_id": "u1", "project_id": "p1"},
+        api_base=client.memory_api_base,
     )

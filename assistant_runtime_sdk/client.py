@@ -764,7 +764,8 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
             project_id: The project whose documents should be unlinked.
 
         Returns:
-            Server response for the unlink operation.
+            ``{"status": "unlinked", "count": int}``, where count is the number of
+            documents released from the project.
         """
         endpoint, payload = self._prepare_unlink_project_documents(user_id, project_id)
         return self._request_post_json(endpoint, payload, api_base=self.memory_api_base)

@@ -615,6 +615,8 @@ class BaseAssistantRuntimeClient:
         import mimetypes as _mt
         import os as _os
 
+        if project_id and not user_id:
+            raise ARConfigurationError("user_id is required with project_id")
         if file_path and file_data:
             raise ARConfigurationError("Provide either file_path or file_data, not both")
         if not file_path and not file_data:
@@ -673,6 +675,8 @@ class BaseAssistantRuntimeClient:
         project_id: Optional[str] = None,
         include_project_docs: bool = False,
     ) -> tuple:
+        if project_id and not user_id:
+            raise ARConfigurationError("user_id is required with project_id")
         params: Dict[str, Any] = {
             "tenant_id": self.tenant_id,
             "limit": str(limit),

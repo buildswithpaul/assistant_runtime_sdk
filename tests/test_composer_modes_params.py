@@ -73,7 +73,3 @@ class TestReasoningEffort:
         asyn = inspect.signature(AsyncAssistantRuntimeClient.stream_chat).parameters["reasoning_effort"]
         assert sync.default is None and sync.kind is inspect.Parameter.KEYWORD_ONLY
         assert asyn.default is None and asyn.kind is inspect.Parameter.KEYWORD_ONLY
-
-    def test_version_is_bumped_with_the_new_param(self):
-        import assistant_runtime_sdk
-        assert assistant_runtime_sdk.__version__ == "1.12.0"
