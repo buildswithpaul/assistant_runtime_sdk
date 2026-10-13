@@ -682,6 +682,7 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         user_id: Optional[str] = None,
         visibility: Optional[str] = None,
         shared_with: Optional[List[str]] = None,
+        project_id: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """
         Upload a document for RAG processing.
@@ -699,6 +700,9 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
                 tenant configuration if omitted.
             shared_with: List of user IDs to share with. Required when
                 visibility is "shared".
+            project_id: Attach the document to a project. Project documents are
+                always private to the uploader, so visibility and shared_with
+                are not sent.
 
         Returns:
             {"status": "queued", "document_id": str, "file_name": str,
@@ -707,6 +711,7 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         endpoint, params, f_field, f_name, f_data, c_type = self._prepare_upload_document(
             file_path, file_data, file_name, content_type,
             user_id=user_id, visibility=visibility, shared_with=shared_with,
+            project_id=project_id,
         )
         return self._request_post_multipart(
             endpoint, params=params, file_field=f_field,
@@ -715,7 +720,12 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         )
 
     def list_documents(
-        self, limit: int = 50, offset: int = 0, user_id: Optional[str] = None
+        self,
+        limit: int = 50,
+        offset: int = 0,
+        user_id: Optional[str] = None,
+        project_id: Optional[str] = None,
+        include_project_docs: bool = False,
     ) -> Optional[Dict[str, Any]]:
         """
         List RAG documents for this tenant.
@@ -728,12 +738,37 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
             limit: Maximum number of documents to return (default 50).
             offset: Pagination offset (default 0).
             user_id: User performing the query. Enables visibility filtering.
+            project_id: Only list documents attached to this project.
+            include_project_docs: Also include documents attached to projects.
 
         Returns:
             {"documents": [...], "pagination": {...}, "storage": {...}}
         """
-        endpoint, params = self._prepare_list_documents(limit, offset, user_id=user_id)
+        endpoint, params = self._prepare_list_documents(
+            limit, offset, user_id=user_id,
+            project_id=project_id, include_project_docs=include_project_docs,
+        )
         return self._request_get(endpoint, params, api_base=self.memory_api_base)
+
+    def unlink_project_documents(
+        self, user_id: str, project_id: str
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Unlink a project's documents from the project.
+
+        Documents attached to a project are removed from that project only;
+        the documents themselves are kept.
+
+        Args:
+            user_id: User performing the unlink.
+            project_id: The project whose documents should be unlinked.
+
+        Returns:
+            ``{"status": "unlinked", "count": int}``, where count is the number of
+            documents released from the project.
+        """
+        endpoint, payload = self._prepare_unlink_project_documents(user_id, project_id)
+        return self._request_post_json(endpoint, payload, api_base=self.memory_api_base)
 
     def get_document(self, document_id: str) -> Optional[Dict[str, Any]]:
         """

@@ -608,11 +608,13 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         user_id: Optional[str] = None,
         visibility: Optional[str] = None,
         shared_with: Optional[List[str]] = None,
+        project_id: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """Async version of AssistantRuntimeClient.upload_document."""
         endpoint, params, f_field, f_name, f_data, c_type = self._prepare_upload_document(
             file_path, file_data, file_name, content_type,
             user_id=user_id, visibility=visibility, shared_with=shared_with,
+            project_id=project_id,
         )
         return await self._request_post_multipart(
             endpoint, params=params, file_field=f_field,
@@ -621,11 +623,26 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         )
 
     async def list_documents(
-        self, limit: int = 50, offset: int = 0, user_id: Optional[str] = None
+        self,
+        limit: int = 50,
+        offset: int = 0,
+        user_id: Optional[str] = None,
+        project_id: Optional[str] = None,
+        include_project_docs: bool = False,
     ) -> Optional[Dict[str, Any]]:
         """Async version of AssistantRuntimeClient.list_documents."""
-        endpoint, params = self._prepare_list_documents(limit, offset, user_id=user_id)
+        endpoint, params = self._prepare_list_documents(
+            limit, offset, user_id=user_id,
+            project_id=project_id, include_project_docs=include_project_docs,
+        )
         return await self._request_get(endpoint, params, api_base=self.memory_api_base)
+
+    async def unlink_project_documents(
+        self, user_id: str, project_id: str
+    ) -> Optional[Dict[str, Any]]:
+        """Async version of AssistantRuntimeClient.unlink_project_documents."""
+        endpoint, payload = self._prepare_unlink_project_documents(user_id, project_id)
+        return await self._request_post_json(endpoint, payload, api_base=self.memory_api_base)
 
     async def get_document(self, document_id: str) -> Optional[Dict[str, Any]]:
         """Async version of AssistantRuntimeClient.get_document."""
