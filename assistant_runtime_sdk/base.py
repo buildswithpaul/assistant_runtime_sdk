@@ -780,8 +780,11 @@ class BaseAssistantRuntimeClient:
     def _prepare_list_memories(
         self, user_id: Optional[str] = None,
         memory_type: Optional[str] = None,
-        limit: int = 50, offset: int = 0
+        limit: int = 50, offset: int = 0,
+        project_id: Optional[str] = None,
     ) -> tuple:
+        if project_id and not user_id:
+            raise ARConfigurationError("user_id is required with project_id")
         params: Dict[str, Any] = {
             "tenant_id": self.tenant_id,
             "limit": str(limit),
@@ -791,6 +794,8 @@ class BaseAssistantRuntimeClient:
             params["user_id"] = user_id
         if memory_type:
             params["memory_type"] = memory_type
+        if project_id:
+            params["project_id"] = project_id
         return "memories.list_memories", params
 
     def _prepare_delete_memory(self, user_id: str, memory_id: str) -> tuple:
@@ -799,6 +804,20 @@ class BaseAssistantRuntimeClient:
             "user_id": user_id,
             "memory_id": memory_id,
         }
+
+    def _prepare_delete_project_memories(
+        self, user_id: str, project_id: str, project_deleted: bool = False
+    ) -> tuple:
+        if not user_id or not project_id:
+            raise ARConfigurationError("user_id and project_id are required")
+        payload = {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+            "project_id": project_id,
+        }
+        if project_deleted:
+            payload["project_deleted"] = "1"
+        return "memories.delete_project_memories", payload
 
     def _prepare_delete_all_memories(self, user_id: str) -> tuple:
         return "memories.delete_all_memories", {

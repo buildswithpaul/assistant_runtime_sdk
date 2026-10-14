@@ -904,6 +904,7 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         memory_type: Optional[str] = None,
         limit: int = 50,
         offset: int = 0,
+        project_id: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """
         List stored memories for this tenant.
@@ -913,12 +914,39 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
             memory_type: Optional type filter (preference, summary, fact).
             limit: Page size (default 50).
             offset: Pagination offset (default 0).
+            project_id: Optional project whose memories to list. Requires ``user_id``.
 
         Returns:
             {"memories": [...], "pagination": {...}}
         """
-        endpoint, params = self._prepare_list_memories(user_id, memory_type, limit, offset)
+        endpoint, params = self._prepare_list_memories(
+            user_id, memory_type, limit, offset, project_id
+        )
         return self._request_get(endpoint, params, api_base=self.memory_api_base)
+
+    def delete_project_memories(
+        self, user_id: str, project_id: str, project_deleted: bool = False
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Delete every memory a user holds for one project.
+
+        Args:
+            user_id: User who owns the project memories.
+            project_id: The project whose memories should be deleted.
+            project_deleted: True when the project itself is being deleted. AR then
+                stops pending extraction from writing to it again; leave False
+                when only clearing a live project's memory.
+
+        Returns:
+            ``{"status": "deleted", "count": int}``
+
+        Raises:
+            ARConfigurationError: If ``user_id`` or ``project_id`` is empty.
+        """
+        endpoint, payload = self._prepare_delete_project_memories(
+            user_id, project_id, project_deleted
+        )
+        return self._request_post_json(endpoint, payload, api_base=self.memory_api_base)
 
     def delete_memory(self, user_id: str, memory_id: str) -> Optional[Dict[str, Any]]:
         """
