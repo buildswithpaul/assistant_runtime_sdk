@@ -805,14 +805,19 @@ class BaseAssistantRuntimeClient:
             "memory_id": memory_id,
         }
 
-    def _prepare_delete_project_memories(self, user_id: str, project_id: str) -> tuple:
+    def _prepare_delete_project_memories(
+        self, user_id: str, project_id: str, project_deleted: bool = False
+    ) -> tuple:
         if not user_id or not project_id:
             raise ARConfigurationError("user_id and project_id are required")
-        return "memories.delete_project_memories", {
+        payload = {
             "tenant_id": self.tenant_id,
             "user_id": user_id,
             "project_id": project_id,
         }
+        if project_deleted:
+            payload["project_deleted"] = "1"
+        return "memories.delete_project_memories", payload
 
     def _prepare_delete_all_memories(self, user_id: str) -> tuple:
         return "memories.delete_all_memories", {

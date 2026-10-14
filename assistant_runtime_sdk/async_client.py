@@ -716,10 +716,12 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         return await self._request_get(endpoint, params, api_base=self.memory_api_base)
 
     async def delete_project_memories(
-        self, user_id: str, project_id: str
+        self, user_id: str, project_id: str, project_deleted: bool = False
     ) -> Optional[Dict[str, Any]]:
         """Async version of AssistantRuntimeClient.delete_project_memories."""
-        endpoint, payload = self._prepare_delete_project_memories(user_id, project_id)
+        endpoint, payload = self._prepare_delete_project_memories(
+            user_id, project_id, project_deleted
+        )
         return await self._request_post_json(endpoint, payload, api_base=self.memory_api_base)
 
     async def delete_memory(self, user_id: str, memory_id: str) -> Optional[Dict[str, Any]]:

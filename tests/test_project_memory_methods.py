@@ -51,6 +51,37 @@ def test_delete_project_memories_payload():
     assert payload == _DELETE_PAYLOAD
 
 
+def test_delete_project_memories_sends_project_deleted_only_when_true():
+    _, cleared = _client()._prepare_delete_project_memories("u1", "p1", project_deleted=False)
+    _, deleted = _client()._prepare_delete_project_memories("u1", "p1", project_deleted=True)
+    assert cleared == _DELETE_PAYLOAD
+    assert deleted == {**_DELETE_PAYLOAD, "project_deleted": "1"}
+
+
+def test_sync_delete_project_memories_forwards_project_deleted():
+    client = _client()
+    with patch.object(AssistantRuntimeClient, "_request_post_json", autospec=True) as post:
+        client.delete_project_memories("u1", "p1", project_deleted=True)
+    post.assert_called_once_with(
+        client,
+        "memories.delete_project_memories",
+        {**_DELETE_PAYLOAD, "project_deleted": "1"},
+        api_base=client.memory_api_base,
+    )
+
+
+def test_async_delete_project_memories_forwards_project_deleted():
+    client = _async_client()
+    with patch.object(AsyncAssistantRuntimeClient, "_request_post_json", autospec=True) as post:
+        asyncio.run(client.delete_project_memories("u1", "p1", project_deleted=True))
+    post.assert_called_once_with(
+        client,
+        "memories.delete_project_memories",
+        {**_DELETE_PAYLOAD, "project_deleted": "1"},
+        api_base=client.memory_api_base,
+    )
+
+
 @pytest.mark.parametrize("user_id,project_id", [("", "p1"), ("u1", ""), ("", ""), (None, "p1")])
 def test_delete_project_memories_requires_both_ids_before_any_request(user_id, project_id):
     client = _client()
