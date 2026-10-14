@@ -707,10 +707,20 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         memory_type: Optional[str] = None,
         limit: int = 50,
         offset: int = 0,
+        project_id: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """Async version of AssistantRuntimeClient.list_memories."""
-        endpoint, params = self._prepare_list_memories(user_id, memory_type, limit, offset)
+        endpoint, params = self._prepare_list_memories(
+            user_id, memory_type, limit, offset, project_id
+        )
         return await self._request_get(endpoint, params, api_base=self.memory_api_base)
+
+    async def delete_project_memories(
+        self, user_id: str, project_id: str
+    ) -> Optional[Dict[str, Any]]:
+        """Async version of AssistantRuntimeClient.delete_project_memories."""
+        endpoint, payload = self._prepare_delete_project_memories(user_id, project_id)
+        return await self._request_post_json(endpoint, payload, api_base=self.memory_api_base)
 
     async def delete_memory(self, user_id: str, memory_id: str) -> Optional[Dict[str, Any]]:
         """Async version of AssistantRuntimeClient.delete_memory."""
