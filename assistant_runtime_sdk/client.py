@@ -331,6 +331,7 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
         thinking_enabled: Optional[bool] = None,
         reasoning_effort: Optional[str] = None,
         confirm_low_balance: Optional[bool] = None,
+        low_balance_preview: bool = True,
     ) -> Generator[Dict[str, Any], None, None]:
         """
         Stream chat response from Assistant Runtime.
@@ -368,6 +369,9 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
                 should also send thinking_enabled.
             confirm_low_balance: Set True to proceed after the user acknowledged a
                 low-balance warning (sent as ``1``; omitted otherwise)
+            low_balance_preview: Declares that this client can show the low-balance
+                "Send anyway" preview (sent as ``1`` by default). Pass False only for
+                a client that cannot, so the server does not refuse the turn.
 
         Yields:
             Parsed SSE events with structure:
@@ -399,6 +403,7 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
             thinking_enabled=thinking_enabled,
             reasoning_effort=reasoning_effort,
             confirm_low_balance=confirm_low_balance,
+            low_balance_preview=low_balance_preview,
         )
         url = self._build_endpoint_url("streaming.stream_chat")
         payload = self._with_site_url(payload)
