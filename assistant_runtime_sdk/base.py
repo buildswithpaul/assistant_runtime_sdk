@@ -10,6 +10,7 @@ Both AssistantRuntimeClient (sync) and AsyncAssistantRuntimeClient (async) inher
 
 import json
 import logging
+import math
 from typing import Dict, Any, List, Mapping, Optional, Protocol, runtime_checkable
 
 from .auth import generate_signature
@@ -28,11 +29,14 @@ DEFAULT_BUSY_RETRY_AFTER = 5.0
 
 
 def _retry_after_from(headers: Mapping[str, str]) -> float:
-    """Return the ``Retry-After`` header as seconds, or the default when absent/invalid."""
+    """Return the ``Retry-After`` header as seconds, or the default when absent, non-finite or negative."""
     try:
-        return float(headers.get("Retry-After"))
+        value = float(headers.get("Retry-After"))
     except (TypeError, ValueError):
         return DEFAULT_BUSY_RETRY_AFTER
+    if not math.isfinite(value) or value < 0:
+        return DEFAULT_BUSY_RETRY_AFTER
+    return value
 
 
 def _busy_stream_error(retry_after: float) -> Dict[str, Any]:

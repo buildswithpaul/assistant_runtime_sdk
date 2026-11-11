@@ -97,6 +97,10 @@ def test_rate_limit_error_default_code_unchanged():
     [
         ({"Retry-After": "7"}, 7.0),
         ({"Retry-After": "abc"}, 5.0),
+        ({"Retry-After": "nan"}, 5.0),
+        ({"Retry-After": "inf"}, 5.0),
+        ({"Retry-After": "-3"}, 5.0),
+        ({"Retry-After": "0"}, 0.0),
         ({}, 5.0),
     ],
 )
