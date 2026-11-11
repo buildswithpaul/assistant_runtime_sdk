@@ -16,13 +16,14 @@ try:
 except ImportError:
     aiohttp = None  # type: ignore
 
-from .base import BaseAssistantRuntimeClient
+from .base import BaseAssistantRuntimeClient, _busy_stream_error, _http_error, _retry_after_from
 from .exceptions import (
     ARAPIError,
     ARAuthenticationError,
     ARTimeoutError,
     ARConnectionError,
     ARConfigurationError,
+    ARRateLimitError,
 )
 
 
@@ -134,13 +135,12 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         except Exception:
             pass
 
-        if response.status == 401:
-            raise ARAuthenticationError(msg or "Authentication failed")
-
-        raise ARAPIError(
+        raise _http_error(
+            response.status,
+            response.headers,
             msg or f"{method} {endpoint} failed with status {response.status}",
-            status_code=response.status,
-            response_data=data,
+            data,
+            ARAPIError(f"{method} {endpoint} failed with status {response.status}"),
         )
 
     async def _request_get(
@@ -162,7 +162,7 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
                 await self._handle_error_response(response, endpoint, "GET")
                 data = await response.json()
                 return data.get("message", data)
-        except (ARAuthenticationError, ARAPIError):
+        except (ARAuthenticationError, ARRateLimitError, ARAPIError):
             raise
         except aiohttp.ServerTimeoutError as e:
             self._log_error(f"GET {endpoint} timeout: {e}")
@@ -206,7 +206,7 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
                         filename = parts[1].strip().strip('"')
 
                 return content, content_type, filename
-        except (ARAuthenticationError, ARAPIError):
+        except (ARAuthenticationError, ARRateLimitError, ARAPIError):
             raise
         except aiohttp.ServerTimeoutError as e:
             self._log_error(f"GET raw {endpoint} timeout: {e}")
@@ -240,7 +240,7 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
                 await self._handle_error_response(response, endpoint, "POST")
                 data = await response.json()
                 return data.get("message", data)
-        except (ARAuthenticationError, ARAPIError):
+        except (ARAuthenticationError, ARRateLimitError, ARAPIError):
             raise
         except aiohttp.ServerTimeoutError as e:
             self._log_error(f"POST {endpoint} timeout: {e}")
@@ -274,7 +274,7 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
                 await self._handle_error_response(response, endpoint, "POST form")
                 data = await response.json()
                 return data.get("message", data)
-        except (ARAuthenticationError, ARAPIError):
+        except (ARAuthenticationError, ARRateLimitError, ARAPIError):
             raise
         except aiohttp.ServerTimeoutError as e:
             self._log_error(f"POST form {endpoint} timeout: {e}")
@@ -320,7 +320,7 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
                 await self._handle_error_response(response, endpoint, "POST multipart")
                 data = await response.json()
                 return data.get("message", data)
-        except (ARAuthenticationError, ARAPIError):
+        except (ARAuthenticationError, ARRateLimitError, ARAPIError):
             raise
         except aiohttp.ServerTimeoutError as e:
             self._log_error(f"POST multipart {endpoint} timeout: {e}")
@@ -351,7 +351,7 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
                 await self._handle_error_response(response, endpoint, "DELETE")
                 data = await response.json()
                 return data.get("message", data)
-        except (ARAuthenticationError, ARAPIError):
+        except (ARAuthenticationError, ARRateLimitError, ARAPIError):
             raise
         except aiohttp.ServerTimeoutError as e:
             self._log_error(f"DELETE {endpoint} timeout: {e}")
@@ -422,6 +422,9 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
                 total=self.STREAM_READ_TIMEOUT,
             )
             async with session.post(url, json=payload, headers=headers, timeout=timeout) as response:
+                if response.status == 503:
+                    yield _busy_stream_error(_retry_after_from(response.headers))
+                    return
                 response.raise_for_status()
 
                 current_event = None
