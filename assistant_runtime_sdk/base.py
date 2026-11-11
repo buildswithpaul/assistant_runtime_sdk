@@ -10,11 +10,65 @@ Both AssistantRuntimeClient (sync) and AsyncAssistantRuntimeClient (async) inher
 
 import json
 import logging
-from typing import Dict, Any, List, Optional, Protocol, runtime_checkable
+import math
+from typing import Dict, Any, List, Mapping, Optional, Protocol, runtime_checkable
 
 from .auth import generate_signature
 from .streaming import parse_sse_line
-from .exceptions import ARConfigurationError, ARBillingUnavailableError, ARAuthenticationError
+from .exceptions import (
+    ARAPIError,
+    ARAuthenticationError,
+    ARBillingUnavailableError,
+    ARConfigurationError,
+    ARError,
+    ARRateLimitError,
+)
+
+BUSY_ERROR_CODE = "AR_BUSY"
+DEFAULT_BUSY_RETRY_AFTER = 5.0
+
+
+def _retry_after_from(headers: Mapping[str, str]) -> float:
+    """Return the ``Retry-After`` header as seconds, or the default when absent, non-finite or negative."""
+    try:
+        value = float(headers.get("Retry-After"))
+    except (TypeError, ValueError):
+        return DEFAULT_BUSY_RETRY_AFTER
+    if not math.isfinite(value) or value < 0:
+        return DEFAULT_BUSY_RETRY_AFTER
+    return value
+
+
+def _busy_stream_error(retry_after: float) -> Dict[str, Any]:
+    """The ``stream_error`` event emitted when AR refuses a stream with HTTP 503."""
+    return {
+        "event": "stream_error",
+        "data": {
+            "error": "The assistant is busy right now. Retrying shortly.",
+            "error_code": BUSY_ERROR_CODE,
+            "retryable": True,
+            "retry_after": retry_after,
+        },
+    }
+
+
+def _http_error(
+    status_code: Optional[int],
+    headers: Mapping[str, str],
+    msg: Optional[str],
+    body: Optional[Dict[str, Any]],
+    cause: Exception,
+) -> ARError:
+    """Map a failed HTTP response to the SDK exception callers should see."""
+    if status_code == 401:
+        return ARAuthenticationError(msg or "Authentication failed")
+    if status_code == 503:
+        return ARRateLimitError(
+            msg or "Service busy",
+            retry_after=_retry_after_from(headers),
+            error_code=BUSY_ERROR_CODE,
+        )
+    return ARAPIError(msg or str(cause), status_code=status_code, response_data=body)
 
 
 @runtime_checkable
@@ -451,6 +505,13 @@ class BaseAssistantRuntimeClient:
     def _log_error(self, message: str, category: str = "AR") -> None:
         """Log an error message."""
         self.logger.error(message, extra={"category": category})
+
+    def _log_http_error(self, message: str, response: Any = None, category: str = "AR") -> None:
+        """Log an HTTP error; a 404 is an expected answer for several calls, so it is a warning."""
+        if response is not None and getattr(response, "status_code", None) == 404:
+            self._log_warning(message, category)
+        else:
+            self._log_error(message, category)
 
     def _log_warning(self, message: str, category: str = "AR") -> None:
         """Log a warning message."""

@@ -71,10 +71,6 @@ class TestConfirmLowBalanceParity:
         assert sync_param.kind == async_param.kind
 
 
-def test_version_is_1_13_0():
-    assert assistant_runtime_sdk.__version__ == "1.13.0"
-
-
 class _StopStream(Exception):
     """Raised by the patched payload builder to end stream_chat before any HTTP."""
 

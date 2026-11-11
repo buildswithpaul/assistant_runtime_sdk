@@ -52,8 +52,9 @@ class ARRateLimitError(ARError):
         message: str = "Rate limit exceeded",
         retry_after: Optional[float] = None,
         models_checked: Optional[List[str]] = None,
+        error_code: str = "RATE_LIMITED",
     ):
-        super().__init__(message, error_code="RATE_LIMITED")
+        super().__init__(message, error_code=error_code)
         self.retry_after = retry_after
         self.models_checked = models_checked or []
 
