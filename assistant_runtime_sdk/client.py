@@ -84,7 +84,7 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
             self._log_error(f"GET {endpoint} connection error: {e}")
             raise ARConnectionError(f"Failed to connect to {endpoint}") from e
         except requests.exceptions.HTTPError as e:
-            self._log_error(f"GET {endpoint} HTTP error: {e}")
+            self._log_http_error(f"GET {endpoint} HTTP error: {e}", e.response)
             status_code = e.response.status_code if e.response is not None else None
             msg, body = (
                 self._extract_error_payload(e.response) if e.response is not None else (None, None)
@@ -133,7 +133,7 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
             self._log_error(f"GET raw {endpoint} connection error: {e}")
             raise ARConnectionError(f"Failed to connect to {endpoint}") from e
         except requests.exceptions.HTTPError as e:
-            self._log_error(f"GET raw {endpoint} HTTP error: {e}")
+            self._log_http_error(f"GET raw {endpoint} HTTP error: {e}", e.response)
             status_code = e.response.status_code if e.response is not None else None
             msg, body = (
                 self._extract_error_payload(e.response) if e.response is not None else (None, None)
@@ -171,7 +171,7 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
             self._log_error(f"POST {endpoint} connection error: {e}")
             raise ARConnectionError(f"Failed to connect to {endpoint}") from e
         except requests.exceptions.HTTPError as e:
-            self._log_error(f"POST {endpoint} HTTP error: {e}")
+            self._log_http_error(f"POST {endpoint} HTTP error: {e}", e.response)
             status_code = e.response.status_code if e.response is not None else None
             msg, body = (
                 self._extract_error_payload(e.response) if e.response is not None else (None, None)
@@ -209,7 +209,7 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
             self._log_error(f"POST form {endpoint} connection error: {e}")
             raise ARConnectionError(f"Failed to connect to {endpoint}") from e
         except requests.exceptions.HTTPError as e:
-            self._log_error(f"POST form {endpoint} HTTP error: {e}")
+            self._log_http_error(f"POST form {endpoint} HTTP error: {e}", e.response)
             status_code = e.response.status_code if e.response is not None else None
             msg, body = (
                 self._extract_error_payload(e.response) if e.response is not None else (None, None)
@@ -256,7 +256,7 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
             self._log_error(f"POST multipart {endpoint} connection error: {e}")
             raise ARConnectionError(f"Failed to connect to {endpoint}") from e
         except requests.exceptions.HTTPError as e:
-            self._log_error(f"POST multipart {endpoint} HTTP error: {e}")
+            self._log_http_error(f"POST multipart {endpoint} HTTP error: {e}", e.response)
             status_code = e.response.status_code if e.response is not None else None
             msg, body = (
                 self._extract_error_payload(e.response) if e.response is not None else (None, None)
@@ -291,7 +291,7 @@ class AssistantRuntimeClient(BaseAssistantRuntimeClient):
             self._log_error(f"DELETE {endpoint} connection error: {e}")
             raise ARConnectionError(f"Failed to connect to {endpoint}") from e
         except requests.exceptions.HTTPError as e:
-            self._log_error(f"DELETE {endpoint} HTTP error: {e}")
+            self._log_http_error(f"DELETE {endpoint} HTTP error: {e}", e.response)
             status_code = e.response.status_code if e.response is not None else None
             msg, body = (
                 self._extract_error_payload(e.response) if e.response is not None else (None, None)

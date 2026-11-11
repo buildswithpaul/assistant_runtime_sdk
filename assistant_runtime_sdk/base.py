@@ -506,6 +506,13 @@ class BaseAssistantRuntimeClient:
         """Log an error message."""
         self.logger.error(message, extra={"category": category})
 
+    def _log_http_error(self, message: str, response: Any = None, category: str = "AR") -> None:
+        """Log an HTTP error; a 404 is an expected answer for several calls, so it is a warning."""
+        if response is not None and getattr(response, "status_code", None) == 404:
+            self._log_warning(message, category)
+        else:
+            self._log_error(message, category)
+
     def _log_warning(self, message: str, category: str = "AR") -> None:
         """Log a warning message."""
         self.logger.warning(message, extra={"category": category})
