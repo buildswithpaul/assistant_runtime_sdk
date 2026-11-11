@@ -385,11 +385,18 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         web_search: Optional[bool] = None,
         thinking_enabled: Optional[bool] = None,
         reasoning_effort: Optional[str] = None,
+        confirm_low_balance: Optional[bool] = None,
+        low_balance_preview: bool = True,
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """Async version of AssistantRuntimeClient.stream_chat.
 
         On ``stream_complete``, ``event['session_state']`` is the updated signed
         blob — store it and pass it as ``session_state`` on the next turn.
+
+        ``confirm_low_balance`` proceeds after the user acknowledged a low-balance
+        warning (sent as ``1``; omitted otherwise). ``low_balance_preview`` declares
+        that this client can show the low-balance "Send anyway" preview (sent as
+        ``1`` by default); pass False only for a client that cannot.
         """
         session = self._ensure_session()
         payload = self._prepare_stream_payload(
@@ -402,6 +409,8 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
             web_search=web_search,
             thinking_enabled=thinking_enabled,
             reasoning_effort=reasoning_effort,
+            confirm_low_balance=confirm_low_balance,
+            low_balance_preview=low_balance_preview,
         )
         url = self._build_endpoint_url("streaming.stream_chat")
         payload = self._with_site_url(payload)

@@ -317,6 +317,8 @@ class BaseAssistantRuntimeClient:
         web_search: Optional[bool] = None,
         thinking_enabled: Optional[bool] = None,
         reasoning_effort: Optional[str] = None,
+        confirm_low_balance: Optional[bool] = None,
+        low_balance_preview: bool = True,
     ) -> Dict[str, Any]:
         """
         Prepare JSON payload for stream_chat POST request.
@@ -350,6 +352,11 @@ class BaseAssistantRuntimeClient:
             thinking_enabled: Optional explicit extended-thinking toggle for this turn
             reasoning_effort: Optional thinking level for this turn — "off", "low", "medium",
                 "high", "xhigh" or "max"
+            confirm_low_balance: Set True to proceed with this turn after the user
+                acknowledged a low-balance warning (sent as ``1``; omitted otherwise)
+            low_balance_preview: Declares that this client can show the low-balance
+                "Send anyway" preview (sent as ``1`` by default). Pass False only for
+                a client that cannot, so the server does not refuse the turn.
 
         Returns:
             Payload dict ready for JSON body
@@ -405,6 +412,12 @@ class BaseAssistantRuntimeClient:
 
         if reasoning_effort is not None:
             payload["reasoning_effort"] = str(reasoning_effort).strip().lower()
+
+        if confirm_low_balance:
+            payload["confirm_low_balance"] = 1
+
+        if low_balance_preview:
+            payload["low_balance_preview"] = 1
 
         return payload
 
