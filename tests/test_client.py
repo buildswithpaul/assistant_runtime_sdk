@@ -470,6 +470,41 @@ class TestNotifications:
         assert endpoint == "heartbeat.heartbeat"
         assert payload["copilot_version"] == "1.2.3"
 
+    def test_prepare_heartbeat_sends_the_site_profile(self):
+        client = self._client()
+        profile = {"apps": {"frappe": "16.52.0"}, "customisations": {"server_scripts": 3}}
+        _, payload = client._prepare_heartbeat(site_profile=profile)
+        assert payload["site_profile"] == profile
+
+    def test_prepare_heartbeat_leaves_out_a_missing_site_profile(self):
+        client = self._client()
+        _, payload = client._prepare_heartbeat(fac_version="3.3.1")
+        assert "site_profile" not in payload
+
+    def test_heartbeat_passes_the_site_profile_through(self):
+        from unittest.mock import patch
+
+        client = self._client()
+        profile = {"apps": {"frappe": "16.52.0"}}
+        with patch.object(client, "_request_post_json", autospec=True, return_value={"status": "ok"}) as post:
+            client.heartbeat(fac_version="3.3.1", site_profile=profile, timeout=10)
+        endpoint, payload = post.call_args.args
+        assert endpoint == "heartbeat.heartbeat"
+        assert payload["site_profile"] == profile
+        assert payload["fac_version"] == "3.3.1"
+
+    def test_async_heartbeat_passes_the_site_profile_through(self):
+        import asyncio
+        from unittest.mock import AsyncMock, patch
+
+        from assistant_runtime_sdk import AsyncAssistantRuntimeClient
+
+        client = AsyncAssistantRuntimeClient("t", "s", "https://ar.example.com")
+        profile = {"apps": {"frappe": "16.52.0"}}
+        with patch.object(client, "_request_post_json", new=AsyncMock(return_value={"status": "ok"})) as post:
+            asyncio.run(client.heartbeat(site_profile=profile))
+        assert post.call_args.args[1]["site_profile"] == profile
+
     def test_prepare_heartbeat_still_accepts_faco_version(self):
         client = self._client()
         _, payload = client._prepare_heartbeat(faco_version="0.9.0")

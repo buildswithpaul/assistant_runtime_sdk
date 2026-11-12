@@ -2250,6 +2250,7 @@ class BaseAssistantRuntimeClient:
         erpnext_version: Optional[str] = None,
         python_version: Optional[str] = None,
         copilot_version: Optional[str] = None,
+        site_profile: Optional[Dict[str, Any]] = None,
     ) -> tuple:
         payload: Dict[str, Any] = {"tenant_id": self.tenant_id}
         if faco_version:
@@ -2264,6 +2265,9 @@ class BaseAssistantRuntimeClient:
             payload["python_version"] = python_version
         if copilot_version:
             payload["copilot_version"] = copilot_version
+        # The site's apps, customisation counts and server setup; AR stores the latest one.
+        if site_profile is not None:
+            payload["site_profile"] = site_profile
         return "heartbeat.heartbeat", payload
 
     def _prepare_get_notifications(self, user_id: str) -> tuple:

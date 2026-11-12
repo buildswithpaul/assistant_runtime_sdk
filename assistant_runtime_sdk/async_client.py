@@ -1924,11 +1924,12 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         python_version: Optional[str] = None,
         copilot_version: Optional[str] = None,
         timeout: Optional[float] = None,
+        site_profile: Optional[Dict[str, Any]] = None,
     ) -> Optional[Dict[str, Any]]:
         """Async send version/health info and receive pending notifications."""
         endpoint, payload = self._prepare_heartbeat(
             faco_version, fac_version, frappe_version, erpnext_version,
-            python_version, copilot_version,
+            python_version, copilot_version, site_profile,
         )
         return await self._request_post_json(endpoint, payload, timeout=timeout)
 
