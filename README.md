@@ -142,7 +142,7 @@ surface. A representative selection:
 `list_workflow_runs()`, `set_workflow_schedule()`
 
 **Support & feedback** — `create_ticket()`, `list_tickets()`, `get_ticket_thread()`,
-`reply_to_ticket()`, `upload_ticket_attachment()`, `submit_feedback()`,
+`reply_to_ticket()`, `upload_ticket_attachment()`, `submit_feedback()`, `rate_answer()`, `withdraw_answer_feedback()`, `get_answer_ratings()`,
 `list_feedback(user_id)`
 
 **Prompts** — `list_prompts(user_id)`, `get_prompt(prompt_name, arguments=None)`

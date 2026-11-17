@@ -2119,8 +2119,10 @@ class BaseAssistantRuntimeClient:
                                  comment: Optional[str] = None,
                                  category: Optional[str] = None,
                                  conversation_id: Optional[str] = None,
-                                 environment: Optional[dict] = None) -> tuple:
-        """Returns (endpoint, payload)."""
+                                 environment: Optional[dict] = None,
+                                 source: Optional[str] = None,
+                                 contact_ok: Optional[bool] = None) -> tuple:
+        """Returns (endpoint, payload). source is "Form" or "Pulse"."""
         payload: Dict[str, Any] = {
             "tenant_id": self.tenant_id,
             "user_id": user_id,
@@ -2135,7 +2137,43 @@ class BaseAssistantRuntimeClient:
             payload["conversation_id"] = conversation_id
         if environment is not None:
             payload["environment"] = environment
+        if source is not None:
+            payload["source"] = source
+        if contact_ok is not None:
+            payload["contact_ok"] = contact_ok
         return "support.submit_feedback", payload
+
+    def _prepare_rate_answer(self, user_id: str, message_id: str, reaction: str,
+                             reasons: Optional[List[str]] = None,
+                             comment: Optional[str] = None) -> tuple:
+        """Returns (endpoint, payload)."""
+        payload: Dict[str, Any] = {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+            "message_id": message_id,
+            "reaction": reaction,
+        }
+        if reasons is not None:
+            payload["reasons"] = list(reasons)
+        if comment is not None:
+            payload["comment"] = comment
+        return "support.rate_answer", payload
+
+    def _prepare_withdraw_answer_feedback(self, user_id: str, message_id: str) -> tuple:
+        """Returns (endpoint, payload)."""
+        return "support.withdraw_answer_feedback", {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+            "message_id": message_id,
+        }
+
+    def _prepare_get_answer_ratings(self, user_id: str, message_ids: List[str]) -> tuple:
+        """Returns (endpoint, payload)."""
+        return "support.get_answer_ratings", {
+            "tenant_id": self.tenant_id,
+            "user_id": user_id,
+            "message_ids": list(message_ids),
+        }
 
     def _prepare_list_feedback(self, user_id: str) -> tuple:
         """Returns (endpoint, payload)."""
