@@ -4,6 +4,11 @@
 
 """Unit tests for the support _prepare_* helpers (create_ticket / submit_feedback)."""
 
+import asyncio
+from unittest.mock import AsyncMock, patch
+
+import pytest
+
 from assistant_runtime_sdk import AssistantRuntimeClient
 from assistant_runtime_sdk.async_client import AsyncAssistantRuntimeClient
 
@@ -95,19 +100,19 @@ def test_prepare_submit_feedback_omits_source_and_contact_ok_when_none():
 
 def test_prepare_rate_answer():
     endpoint, payload = _client()._prepare_rate_answer(
-        user_id="u", message_id="m1", reaction="down",
-        reasons=["Wrong", "Slow"], comment="nope",
+        user_id="u", message_id="m1", reaction="Down",
+        reasons=["wrong", "slow"], comment="nope",
     )
     assert endpoint == "support.rate_answer"
     assert payload == {
         "tenant_id": "tid-1", "user_id": "u", "message_id": "m1",
-        "reaction": "down", "reasons": ["Wrong", "Slow"], "comment": "nope",
+        "reaction": "Down", "reasons": ["wrong", "slow"], "comment": "nope",
     }
 
 
 def test_prepare_rate_answer_omits_optional_when_none():
     _, payload = _client()._prepare_rate_answer(
-        user_id="u", message_id="m1", reaction="up",
+        user_id="u", message_id="m1", reaction="Up",
     )
     assert "reasons" not in payload
     assert "comment" not in payload
@@ -127,10 +132,38 @@ def test_prepare_get_answer_ratings():
     }
 
 
-def test_answer_feedback_methods_exist_sync_and_async():
+_WIRING_CASES = [
+    ("rate_answer", {"message_id": "m1", "reaction": "Down", "reasons": ["wrong", "slow"]},
+     "support.rate_answer",
+     {"tenant_id": "tid-1", "user_id": "u", "message_id": "m1", "reaction": "Down",
+      "reasons": ["wrong", "slow"]}),
+    ("withdraw_answer_feedback", {"message_id": "m1"},
+     "support.withdraw_answer_feedback",
+     {"tenant_id": "tid-1", "user_id": "u", "message_id": "m1"}),
+    ("get_answer_ratings", {"message_ids": ["m1", "m2"]},
+     "support.get_answer_ratings",
+     {"tenant_id": "tid-1", "user_id": "u", "message_ids": ["m1", "m2"]}),
+    ("submit_feedback", {"source": "Pulse", "contact_ok": True},
+     "support.submit_feedback",
+     {"tenant_id": "tid-1", "user_id": "u", "source": "Pulse", "contact_ok": True}),
+]
+
+
+@pytest.mark.parametrize("name,kwargs,endpoint,payload", _WIRING_CASES)
+def test_sync_method_posts_to_endpoint(name, kwargs, endpoint, payload):
+    c = _client()
+    with patch.object(c, "_request_post_json", return_value={"ok": 1}) as post:
+        result = getattr(c, name)("u", **kwargs)
+    post.assert_called_once_with(endpoint, payload)
+    assert result == {"ok": 1}
+
+
+@pytest.mark.parametrize("name,kwargs,endpoint,payload", _WIRING_CASES)
+def test_async_method_posts_to_endpoint(name, kwargs, endpoint, payload):
     a = AsyncAssistantRuntimeClient(
         tenant_id="tid-1", tenant_secret="secret", ar_url="https://ar.example.com",
     )
-    for name in ("rate_answer", "withdraw_answer_feedback", "get_answer_ratings"):
-        assert hasattr(_client(), name)
-        assert hasattr(a, name)
+    with patch.object(a, "_request_post_json", new=AsyncMock(return_value={"ok": 1})) as post:
+        result = asyncio.run(getattr(a, name)("u", **kwargs))
+    post.assert_awaited_once_with(endpoint, payload)
+    assert result == {"ok": 1}
