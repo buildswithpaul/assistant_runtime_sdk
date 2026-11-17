@@ -1844,13 +1844,39 @@ class AsyncAssistantRuntimeClient(BaseAssistantRuntimeClient):
         return await self._request_post_json(endpoint, payload)
 
     async def submit_feedback(self, user_id: str, rating: Optional[int] = None,
-                             comment: Optional[str] = None,
-                             category: Optional[str] = None,
-                             conversation_id: Optional[str] = None,
-                             environment: Optional[dict] = None) -> Optional[Dict[str, Any]]:
-        """Submit product/service feedback. Returns {feedback_id}."""
+                            comment: Optional[str] = None,
+                            category: Optional[str] = None,
+                            conversation_id: Optional[str] = None,
+                            environment: Optional[dict] = None,
+                            source: Optional[str] = None,
+                            contact_ok: Optional[bool] = None) -> Optional[Dict[str, Any]]:
+        """Submit product/service feedback. Returns {feedback_id}.
+
+        source is "Form" or "Pulse".
+        """
         endpoint, payload = self._prepare_submit_feedback(
-            user_id, rating, comment, category, conversation_id, environment)
+            user_id, rating, comment, category, conversation_id, environment,
+            source, contact_ok)
+        return await self._request_post_json(endpoint, payload)
+
+    async def rate_answer(self, user_id: str, message_id: str, reaction: str,
+                         reasons: Optional[List[str]] = None,
+                         comment: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        """React to one assistant answer. Returns {feedback_id} (+ locked: True)."""
+        endpoint, payload = self._prepare_rate_answer(
+            user_id, message_id, reaction, reasons, comment)
+        return await self._request_post_json(endpoint, payload)
+
+    async def withdraw_answer_feedback(self, user_id: str,
+                                       message_id: str) -> Optional[Dict[str, Any]]:
+        """Withdraw the user's reaction to an answer. Returns {withdrawn: bool}."""
+        endpoint, payload = self._prepare_withdraw_answer_feedback(user_id, message_id)
+        return await self._request_post_json(endpoint, payload)
+
+    async def get_answer_ratings(self, user_id: str,
+                               message_ids: List[str]) -> Optional[Dict[str, Any]]:
+        """Fetch the user's reactions. Returns {message_id: {reaction, reasons}}."""
+        endpoint, payload = self._prepare_get_answer_ratings(user_id, message_ids)
         return await self._request_post_json(endpoint, payload)
 
     async def download_ticket_attachment(self, user_id: str, ticket_id: str,
